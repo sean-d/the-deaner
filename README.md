@@ -17,7 +17,7 @@ A tmux-backed command center for running coding agents side by side. Linux first
 └───────────────────────────┴──────────────────────────────────────────┘
 ```
 
-- **Always-visible sidebar** of repos, worktrees and agents. Resize it by dragging, hide it with `Alt-b`.
+- **Always-visible sidebar** of repos, worktrees and agents. Resize it by dragging, hide it with `Alt-e`.
 - **Repo first, worktree on demand.** `w` creates a worktree and session for a parallel branch.
 - **Any agent.** Tabs are tmux windows: claude, codex, aider, nvim, dev servers.
 - **Agent status.** Working, waiting on you, or idle, via Claude Code hooks, with toasts.

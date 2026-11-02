@@ -45,7 +45,7 @@ Close the terminal window whenever you like. Everything keeps running. Run `dean
 
 ## Alt keys (macOS and Linux)
 
-deaner's frame keys use Alt (`Alt-s`, `Alt-b`), and so do many tmux configs.
+deaner's frame keys use Alt (`Alt-s`, `Alt-e`, `Alt-/`), and so do many tmux configs.
 
 **macOS:** your terminal must send Option as Alt. Otherwise Option types special characters
 (`Option-s` gives `ß`).
@@ -62,8 +62,8 @@ These settings are macOS-only. Linux terminals ignore them, so one shared termin
 works on both.
 
 **Ghostty on macOS and Alt-arrows:** by default Ghostty sends `Alt-Left` and `Alt-Right` as `ESC b` and
-`ESC f` (jump a word in the shell). Terminals read those as `Alt-b` and `Alt-f`, so `Alt-Left` hides
-deaner's sidebar, and tmux bindings on Alt-arrows never fire. To send real Alt-arrows instead:
+`ESC f` (jump a word in the shell). Terminals read those as `Alt-b` and `Alt-f`, so tmux bindings on
+Alt-arrows never fire. To send real Alt-arrows instead:
 
 ```text
 keybind = alt+arrow_left=unbind
@@ -72,7 +72,7 @@ keybind = alt+arrow_right=unbind
 
 **Linux:** Alt works out of the box in Ghostty, Alacritty, kitty and foot. The only thing that
 can get in the way is your window manager: if Hyprland (or another compositor) binds `Alt+S`
-or `Alt+B`, it takes the key before the terminal sees it. Either unbind it there or pick other
+or `Alt+E`, it takes the key before the terminal sees it. Either unbind it there or pick other
 frame keys:
 
 ```toml

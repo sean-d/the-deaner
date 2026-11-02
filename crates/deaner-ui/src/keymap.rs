@@ -284,7 +284,7 @@ pub fn frame_bindings(keys: &FrameKeys) -> Vec<FrameBinding> {
         FrameBinding {
             key: tmux_key_label(&keys.toggle_sidebar),
             help: "Hide / show the sidebar",
-            terms: "panel left side projects list collapse fullscreen",
+            terms: "panel left side projects list explorer collapse fullscreen",
         },
     ]
 }

@@ -55,9 +55,10 @@ fn answers(question: &str, keys: &str) {
 
 #[test]
 fn answers_the_questions_people_actually_ask() {
-    answers("how do i hide the lefthand side panel", "Alt-b");
-    answers("hide", "Alt-b");
-    answers("projects", "Alt-b");
+    answers("how do i hide the lefthand side panel", "Alt-e");
+    answers("hide", "Alt-e");
+    answers("projects", "Alt-e");
+    answers("explorer", "Alt-e");
     answers("how do i navigate between left and right", "Alt-s");
     answers("open a new tab on the right side", "t");
     answers("new tab", "Ctrl-Space c");

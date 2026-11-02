@@ -127,7 +127,7 @@ is read from your tmux config, so it shows your real keys, including anything yo
 
 | Common question | Key (`prefix` is your tmux prefix) |
 |---|---|
-| Hide the sidebar | `Alt-b` |
+| Hide the sidebar | `Alt-e` |
 | Move between the sidebar and the terminal | `Alt-s` |
 | New tab in this project | `t` in the sidebar, or `prefix c` in the terminal |
 | Next / previous tab | `prefix n` / `prefix p` |
@@ -213,5 +213,5 @@ deaner restore --from ~/.local/state/deaner/snapshots/snapshot-1793000000.toml
 
 ## Hide the sidebar
 
-`Alt-b` hides the sidebar (the terminal takes the full window) and shows it again. Drag the
+`Alt-e` (think "explorer") hides the sidebar (the terminal takes the full window) and shows it again. Drag the
 border to resize it. The width is remembered across restarts.

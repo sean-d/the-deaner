@@ -10,7 +10,7 @@ These work from anywhere in the deaner window (sidebar or terminal). They are bo
 |---|---|
 | `Alt-/` | Open this searchable shortcut cheat sheet |
 | `Alt-s` | Move focus between the sidebar and the terminal |
-| `Alt-b` | Hide / show the sidebar |
+| `Alt-e` | Hide / show the sidebar |
 
 You can also click a sidebar row to open it, scroll the list with the wheel, and drag the border between the sidebar and the terminal to resize. The width is remembered.
 

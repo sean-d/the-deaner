@@ -52,7 +52,7 @@ impl Default for FrameKeys {
     fn default() -> Self {
         Self {
             focus: "M-s".into(),
-            toggle_sidebar: "M-b".into(),
+            toggle_sidebar: "M-e".into(),
             cheatsheet: "M-/".into(),
         }
     }

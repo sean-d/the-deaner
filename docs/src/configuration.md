@@ -46,7 +46,7 @@ editors = ["nvim", "vim", "hx", "helix", "emacs"]
 # Frame keys (tmux key names: M- = Alt, C- = Ctrl). They work in the sidebar and the terminal.
 [keys]
 focus = "M-s"           # move focus between the sidebar and the terminal
-toggle_sidebar = "M-b"  # hide / show the sidebar
+toggle_sidebar = "M-e"  # hide / show the sidebar (think "explorer")
 cheatsheet = "M-/"      # open the searchable shortcut cheat sheet
 
 # Tabs a new workspace starts with (a repo's .deaner.toml overrides these).

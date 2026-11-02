@@ -109,6 +109,7 @@ fn renders_pinned_groups_and_status() {
 #[test]
 fn help_overlay() {
     let mut app = App::new();
+    app.standalone = true; // inside the frame, ? opens the popup instead
     app.set_groups(fixture(AgentState::Idle));
     app.handle_key(ch('?'));
     assert!(matches!(app.mode(), Mode::Help(0)));
@@ -263,4 +264,173 @@ fn park_only_live_workspaces() {
     app.handle_key(key(KeyCode::Home));
     app.handle_key(ch('P'));
     assert!(matches!(app.handle_key(ch('y')), Some(Command::Park(w)) if w.name == "deaner"));
+}
+
+#[test]
+fn selection_skips_section_headings() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    // Rows: PINNED, deaner, main, shop-api, main, sec-bump, INACTIVE, dotfiles, main.
+    assert_eq!(
+        app.selected_group().unwrap().name,
+        "deaner",
+        "starts below the heading"
+    );
+
+    app.handle_key(ch('k'));
+    assert_eq!(
+        app.selected_group().unwrap().name,
+        "deaner",
+        "can't move onto the top heading"
+    );
+
+    for _ in 0..5 {
+        app.handle_key(ch('j'));
+    }
+    assert_eq!(
+        app.selected_group().unwrap().name,
+        "dotfiles",
+        "j steps over INACTIVE"
+    );
+    app.handle_key(ch('k'));
+    assert_eq!(
+        app.selected_ws().unwrap().branch.as_deref(),
+        Some("sec-bump"),
+        "k steps back over it"
+    );
+
+    app.handle_key(key(KeyCode::End));
+    assert_eq!(app.selected_group().unwrap().name, "dotfiles");
+    app.handle_key(key(KeyCode::Home));
+    assert_eq!(app.selected_group().unwrap().name, "deaner");
+}
+
+#[test]
+fn clicking_a_heading_does_nothing() {
+    use ratatui::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    render(&mut app, 34, 12); // records where the list is
+    let click = |row| MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 3,
+        row,
+        modifiers: KeyModifiers::NONE,
+    };
+    // The list starts at the top of the screen: PINNED is row 0, deaner row 1.
+    assert_eq!(app.handle_mouse(click(0)), None);
+    assert_eq!(app.selected_group().unwrap().name, "deaner");
+    // Row 2 is deaner's main checkout: a click opens it.
+    assert!(
+        matches!(app.handle_mouse(click(2)), Some(Command::Open(w)) if w.path == std::path::Path::new("/dev/deaner"))
+    );
+}
+
+#[test]
+fn selection_follows_a_repo_into_another_section() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    app.handle_key(key(KeyCode::End));
+    assert_eq!(app.selected_group().unwrap().name, "dotfiles");
+
+    // dotfiles starts running: it moves from INACTIVE to ACTIVE, and the cursor goes with it.
+    let mut groups = fixture(AgentState::Idle);
+    let dot = groups.iter_mut().find(|g| g.name == "dotfiles").unwrap();
+    dot.workspaces[0].status = WsStatus::Live;
+    dot.section = deaner_core::sidebar::Section::Active;
+    app.set_groups(groups);
+    assert_eq!(app.selected_group().unwrap().name, "dotfiles");
+    let screen = render(&mut app, 34, 12);
+    assert!(screen.contains("ACTIVE"), "{screen}");
+}
+
+#[test]
+fn nerd_icons_show_git_state() {
+    let mut app = App::new();
+    app.icons = &deaner_ui::icons::NERD;
+    app.set_groups(fixture(AgentState::Idle));
+    let screen = render(&mut app, 34, 12);
+    let nerd = &deaner_ui::icons::NERD;
+    for glyph in [nerd.branch, nerd.pull_request, nerd.pinned, nerd.changed] {
+        assert!(screen.contains(glyph), "missing {glyph:?} in {screen}");
+    }
+    assert!(screen.contains("+1 -0"), "{screen}");
+    assert!(screen.contains("#42"), "{screen}");
+}
+
+#[test]
+fn detached_checkouts_show_a_short_commit_id() {
+    let mut groups = fixture(AgentState::Idle);
+    let w = &mut groups[0].workspaces[0];
+    w.branch = None;
+    w.git = Some(GitStatus {
+        oid: Some("5b32e4f0123456789".into()),
+        ..GitStatus::default()
+    });
+    let mut app = App::new();
+    app.set_groups(groups);
+    let screen = render(&mut app, 34, 12);
+    assert!(
+        screen.contains("5b32e4f") && !screen.contains("5b32e4f0"),
+        "{screen}"
+    );
+}
+
+#[test]
+fn question_mark_opens_the_popup_inside_the_frame() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    assert_eq!(app.handle_key(ch('?')), Some(Command::Cheatsheet));
+    assert!(matches!(app.mode(), Mode::Normal));
+}
+
+#[test]
+fn sidebar_only_uses_the_terminals_colors() {
+    use ratatui::style::Color;
+    let check = |app: &mut App, what: &str| {
+        let mut term = Terminal::new(TestBackend::new(34, 16)).unwrap();
+        term.draw(|f| draw(f, app)).unwrap();
+        for cell in &term.backend().buffer().content {
+            for color in [cell.fg, cell.bg] {
+                assert!(
+                    !matches!(color, Color::Rgb(..) | Color::Indexed(_)),
+                    "{what} paints fixed color {color:?} at {:?}",
+                    cell.symbol()
+                );
+            }
+        }
+    };
+    let mut app = App::new();
+    app.standalone = true;
+    app.tab_choices = Box::new(|_| vec![TabSpec::new("shell", None)]);
+    app.set_groups(fixture(AgentState::Busy));
+    check(&mut app, "the list");
+
+    app.set_groups(fixture(AgentState::Awaiting)); // raises a toast
+    app.error("something failed");
+    app.progress("job", "working");
+    check(&mut app, "toasts");
+
+    for (keys, what) in [
+        ("/", "the filter"),
+        ("w", "a prompt"),
+        ("t", "the tab picker"),
+        ("x", "a confirmation"),
+        ("?", "the help overlay"),
+    ] {
+        app.handle_key(ch(keys.chars().next().unwrap()));
+        check(&mut app, what);
+        app.handle_key(key(KeyCode::Esc));
+    }
+}
+
+#[test]
+fn a_browses_inside_the_frame_and_prompts_outside_it() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    assert_eq!(app.handle_key(ch('a')), Some(Command::BrowseRepos));
+
+    app.standalone = true;
+    assert_eq!(app.handle_key(ch('a')), None);
+    assert!(matches!(app.mode(), Mode::Prompt { .. }));
 }

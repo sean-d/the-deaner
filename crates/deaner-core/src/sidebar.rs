@@ -1,5 +1,8 @@
-//! Sidebar model: repos grouped with their workspaces, ordered with pinned repos
-//! first (in the user's order, never moved by activity), then everything else.
+//! Sidebar model: repos grouped with their workspaces, in three sections.
+//!
+//! - **Pinned**: the user's order, never moved by activity.
+//! - **Active**: unpinned repos with a running session.
+//! - **Inactive**: unpinned repos that are added but not running.
 
 use crate::agent::AgentState;
 use crate::git::GitStatus;
@@ -47,11 +50,33 @@ pub struct WorkspaceView {
     pub current: bool,
 }
 
+/// Which part of the sidebar a repo sits in. Declared in display order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Section {
+    Pinned,
+    Active,
+    Inactive,
+}
+
+impl Section {
+    /// Heading shown above the section.
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Pinned => "PINNED",
+            Self::Active => "ACTIVE",
+            Self::Inactive => "INACTIVE",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RepoGroup {
     pub path: PathBuf,
     pub name: String,
     pub pinned: bool,
+    pub section: Section,
     pub collapsed: bool,
     pub workspaces: Vec<WorkspaceView>,
 }
@@ -66,8 +91,17 @@ impl RepoGroup {
 /// A visible sidebar line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Row {
-    Repo { group: usize },
-    Workspace { group: usize, ws: usize },
+    /// Section heading; can't be selected.
+    Header {
+        section: Section,
+    },
+    Repo {
+        group: usize,
+    },
+    Workspace {
+        group: usize,
+        ws: usize,
+    },
 }
 
 /// Inputs for [`build`].
@@ -87,10 +121,10 @@ fn display_name(path: &Path) -> String {
 
 /// Group workspaces under their repos and order the groups.
 ///
-/// Order: pinned repos exactly as in `pins`; then unpinned repos by name
-/// (case-insensitive), with repos that have an agent awaiting input floated to
-/// the top of the unpinned section when `float_attention` is set. Within a
-/// repo the main checkout comes first, worktrees keep their input order.
+/// Order: pinned repos exactly as in `pins` (running or not); then active repos,
+/// then inactive ones, each by name (case-insensitive). Active repos with an agent
+/// awaiting input float to the top of their section when `float_attention` is set.
+/// Within a repo the main checkout comes first, worktrees keep their input order.
 #[must_use]
 pub fn build(layout: &Layout<'_>, workspaces: Vec<WorkspaceView>) -> Vec<RepoGroup> {
     let mut groups: Vec<RepoGroup> = layout
@@ -100,6 +134,7 @@ pub fn build(layout: &Layout<'_>, workspaces: Vec<WorkspaceView>) -> Vec<RepoGro
             path: r.path.clone(),
             name: r.name.clone(),
             pinned: false,
+            section: Section::Inactive,
             collapsed: false,
             workspaces: Vec::new(),
         })
@@ -112,6 +147,7 @@ pub fn build(layout: &Layout<'_>, workspaces: Vec<WorkspaceView>) -> Vec<RepoGro
                     path: ws.repo.clone(),
                     name: display_name(&ws.repo),
                     pinned: false,
+                    section: Section::Inactive,
                     collapsed: false,
                     workspaces: Vec::new(),
                 });
@@ -125,20 +161,27 @@ pub fn build(layout: &Layout<'_>, workspaces: Vec<WorkspaceView>) -> Vec<RepoGro
         g.collapsed = layout.collapsed.contains(&g.path);
         // Stable: main checkout first, worktrees keep their order.
         g.workspaces.sort_by_key(|w| w.worktree || w.path != g.path);
+        g.section = if g.pinned {
+            Section::Pinned
+        } else if g.workspaces.iter().any(|w| w.status == WsStatus::Live) {
+            Section::Active
+        } else {
+            Section::Inactive
+        };
     }
 
     let pin_rank = |g: &RepoGroup| layout.pins.iter().position(|p| *p == g.path);
-    groups.sort_by(|a, b| match (pin_rank(a), pin_rank(b)) {
-        (Some(x), Some(y)) => x.cmp(&y),
-        (Some(_), None) => std::cmp::Ordering::Less,
-        (None, Some(_)) => std::cmp::Ordering::Greater,
-        (None, None) => {
+    groups.sort_by(|a, b| {
+        a.section.cmp(&b.section).then_with(|| {
+            if a.section == Section::Pinned {
+                return pin_rank(a).cmp(&pin_rank(b));
+            }
             let attention =
                 |g: &RepoGroup| layout.float_attention && g.agent() == AgentState::Awaiting;
             attention(b)
                 .cmp(&attention(a))
                 .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
-        }
+        })
     });
     groups
 }
@@ -153,8 +196,16 @@ fn matches(haystack: &str, needle: &str) -> bool {
 pub fn rows(groups: &[RepoGroup], filter: &str) -> Vec<Row> {
     let filter = filter.trim().to_lowercase();
     let mut out = Vec::new();
+    let mut current = None;
+    let mut heading = |out: &mut Vec<Row>, section: Section| {
+        if current != Some(section) {
+            current = Some(section);
+            out.push(Row::Header { section });
+        }
+    };
     for (gi, g) in groups.iter().enumerate() {
         if filter.is_empty() {
+            heading(&mut out, g.section);
             out.push(Row::Repo { group: gi });
             if !g.collapsed {
                 out.extend((0..g.workspaces.len()).map(|wi| Row::Workspace { group: gi, ws: wi }));
@@ -174,6 +225,7 @@ pub fn rows(groups: &[RepoGroup], filter: &str) -> Vec<Row> {
             .map(|(i, _)| i)
             .collect();
         if repo_hit || !hits.is_empty() {
+            heading(&mut out, g.section);
             out.push(Row::Repo { group: gi });
             out.extend(
                 hits.into_iter()
@@ -226,7 +278,8 @@ mod tests {
         let workspaces = vec![
             ws("/r/alpha", "/r/alpha", "main", AgentState::Idle),
             ws("/r/gamma", "/r/gamma", "main", AgentState::Idle),
-            // delta is unpinned and awaiting: floats to the top of the unpinned section only
+            ws("/r/Beta", "/r/Beta", "main", AgentState::Idle),
+            // delta is unpinned and awaiting: floats to the top of the active section only
             ws("/r/delta", "/r/delta", "main", AgentState::Awaiting),
         ];
         let layout = Layout {
@@ -314,6 +367,9 @@ mod tests {
         assert_eq!(
             rows(&groups, ""),
             [
+                Row::Header {
+                    section: Section::Active
+                },
                 Row::Repo { group: 0 },
                 Row::Workspace { group: 0, ws: 0 },
                 Row::Workspace { group: 0, ws: 1 },
@@ -322,12 +378,90 @@ mod tests {
         );
         assert_eq!(
             rows(&groups, "SECUR"),
-            [Row::Repo { group: 0 }, Row::Workspace { group: 0, ws: 1 }]
+            [
+                Row::Header {
+                    section: Section::Active
+                },
+                Row::Repo { group: 0 },
+                Row::Workspace { group: 0, ws: 1 }
+            ]
         );
         // repo-name match shows all its workspaces, even when collapsed
         assert_eq!(
             rows(&groups, "web"),
-            [Row::Repo { group: 1 }, Row::Workspace { group: 1, ws: 0 }]
+            [
+                Row::Header {
+                    section: Section::Active
+                },
+                Row::Repo { group: 1 },
+                Row::Workspace { group: 1, ws: 0 }
+            ]
         );
+    }
+
+    #[test]
+    fn sections_split_active_from_inactive_and_pins_stay_put() {
+        let repos = repos(&["zed", "api", "web", "notes"]);
+        let pins = vec![PathBuf::from("/r/zed")];
+        let stopped = |repo: &str| WorkspaceView {
+            status: WsStatus::Stopped,
+            ..ws(repo, repo, "main", AgentState::None)
+        };
+        let layout = Layout {
+            repos: &repos,
+            pins: &pins,
+            collapsed: &[],
+            float_attention: true,
+        };
+        // zed is pinned and stopped; web is running; api and notes are stopped.
+        let groups = build(
+            &layout,
+            vec![
+                stopped("/r/zed"),
+                stopped("/r/api"),
+                ws("/r/web", "/r/web", "main", AgentState::Idle),
+                stopped("/r/notes"),
+            ],
+        );
+        assert_eq!(names(&groups), ["zed", "web", "api", "notes"]);
+        let sections: Vec<_> = groups.iter().map(|g| g.section).collect();
+        assert_eq!(
+            sections,
+            [
+                Section::Pinned,
+                Section::Active,
+                Section::Inactive,
+                Section::Inactive
+            ]
+        );
+
+        // Each section gets one heading, in order, and only if it has repos.
+        let headings: Vec<_> = rows(&groups, "")
+            .into_iter()
+            .filter_map(|r| match r {
+                Row::Header { section } => Some(section),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            headings,
+            [Section::Pinned, Section::Active, Section::Inactive]
+        );
+
+        // A worktree running makes its repo active, and starting a pinned repo doesn't move it.
+        let groups = build(
+            &layout,
+            vec![
+                ws("/r/zed", "/r/zed", "main", AgentState::Busy),
+                stopped("/r/api"),
+                ws("/r/api", "/r/api.wt/x", "x", AgentState::None),
+            ],
+        );
+        assert_eq!(names(&groups), ["zed", "api", "notes", "web"]);
+        assert_eq!(groups[0].section, Section::Pinned);
+        assert_eq!(groups[1].section, Section::Active);
+        assert!(rows(&groups, "").contains(&Row::Header {
+            section: Section::Pinned
+        }));
     }
 }

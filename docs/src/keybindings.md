@@ -8,6 +8,7 @@ These work from anywhere in the deaner window (sidebar or terminal). They are bo
 
 | Key | Action |
 |---|---|
+| `Alt-/` | Open this searchable shortcut cheat sheet |
 | `Alt-s` | Move focus between the sidebar and the terminal |
 | `Alt-b` | Hide / show the sidebar |
 
@@ -35,7 +36,7 @@ These work while the sidebar has focus.
 |---|---|
 | `w` | New worktree + session for a branch |
 | `t` | New tab (agent, editor, shell) |
-| `a` | Add a repo or folder |
+| `a` | Open a project: browse folders, add and start it |
 | `x` | Archive worktree / forget repo (asks first) |
 | `P` | Park: save and stop the session |
 | `S` | Save a snapshot now |

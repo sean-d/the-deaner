@@ -8,6 +8,8 @@ use std::path::PathBuf;
 pub struct GitStatus {
     /// Branch name; `None` when HEAD is detached.
     pub branch: Option<String>,
+    /// Current commit id; `None` before the first commit.
+    pub oid: Option<String>,
     pub upstream: Option<String>,
     pub ahead: u32,
     pub behind: u32,
@@ -28,6 +30,7 @@ impl GitStatus {
             if let Some(header) = line.strip_prefix("# ") {
                 let (key, value) = header.split_once(' ').unwrap_or((header, ""));
                 match key {
+                    "branch.oid" if value != "(initial)" => s.oid = Some(value.to_string()),
                     "branch.head" if value != "(detached)" => s.branch = Some(value.to_string()),
                     "branch.upstream" => s.upstream = Some(value.to_string()),
                     "branch.ab" => {
@@ -163,6 +166,7 @@ u UU N... 100644 100644 100644 100644 abc abc abc conflict.rs
     fn detached_and_clean() {
         let s = GitStatus::parse_porcelain_v2("# branch.oid abc\n# branch.head (detached)\n");
         assert_eq!(s.branch, None);
+        assert_eq!(s.oid.as_deref(), Some("abc"));
         assert!(s.is_clean());
         assert_eq!((s.ahead, s.behind), (0, 0));
     }

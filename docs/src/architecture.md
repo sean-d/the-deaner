@@ -70,15 +70,15 @@ flowchart TB
     bg["background lane<br/>one thread per action, one action per workspace<br/>open · new worktree · archive · park · restore"]
   end
   refresh["refresher<br/>tmux every 1 s or when kicked<br/>builds the sidebar from caches"] -- groups --> main
-  pollers["pollers, one job per repo, in parallel<br/>git status · worktree list · gh PR"] -- cache + kick --> refresh
+  pollers["pollers, one job per repo, in parallel<br/>git status · worktree list · git fetch · gh PR"] -- cache + kick --> refresh
   exec -- progress / result toasts --> main
 ```
 
-- **Every subprocess has a deadline**: tmux 5 s, git queries 10 s, `git worktree add/remove`
-  120 s, gh 20 s. A process that hangs is killed, and the error shows up as a toast or a stale
+- **Every subprocess has a deadline**: tmux 5 s, git queries 10 s, `git worktree add/remove` and
+  background `git fetch` 120 s, gh 20 s. A process that hangs is killed, and the error shows up as a toast or a stale
   badge, never a frozen sidebar.
-- **Pollers** run each repo's git status, worktree list and PR check as separate jobs: one job per
-  repo at a time, up to 8 git and 4 gh jobs in parallel. The refresher only reads their caches, so a
+- **Pollers** run each repo's git status, worktree list, fetch and PR check as separate jobs: one job
+  per repo at a time, up to 8 git status, 4 fetch and 4 gh jobs in parallel. The refresher only reads their caches, so a
   huge or hung repo delays its own badge and nothing else. A failed or timed-out check keeps the
   last good value.
 - **Executor**: quick state changes apply in order on one lane. Slow actions each get their own

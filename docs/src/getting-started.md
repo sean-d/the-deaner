@@ -27,7 +27,7 @@ Or grab a binary from the GitHub releases page and put it on your `PATH`.
 ## First run
 
 ```sh
-deaner add ~/dev/shop-api ~/dev/deaner   # register some repos (or press `a` in the sidebar)
+deaner add ~/dev/shop-api ~/dev/deaner   # optional: or browse for them with `a` in the sidebar
 deaner install-hooks                     # optional: agent status for claude
 deaner                                   # open the frame
 ```
@@ -35,11 +35,11 @@ deaner                                   # open the frame
 `deaner` opens a full-window frame: the sidebar on the left, a terminal on the right.
 
 1. Move to a repo with `j`/`k` and press `Enter`. deaner starts a tmux session for it with your
-   default tabs (`claude`, `nvim`, `shell`) and shows it on the right.
+   default tabs (`claude` and a `shell`) and shows it on the right.
 2. Press `Alt-s` to jump between the sidebar and the terminal.
 3. In the terminal you are in plain tmux (your `~/.tmux.conf`, your prefix). Switch tabs the way
    you always do.
-4. Press `?` in the sidebar to see every key.
+4. Press `Alt-/` anywhere to search every shortcut: try typing "hide" or "new tab".
 
 Close the terminal window whenever you like. Everything keeps running. Run `deaner` again to come back.
 
@@ -60,6 +60,15 @@ deaner's frame keys use Alt (`Alt-s`, `Alt-b`), and so do many tmux configs.
 
 These settings are macOS-only. Linux terminals ignore them, so one shared terminal config
 works on both.
+
+**Ghostty on macOS and Alt-arrows:** by default Ghostty sends `Alt-Left` and `Alt-Right` as `ESC b` and
+`ESC f` (jump a word in the shell). Terminals read those as `Alt-b` and `Alt-f`, so `Alt-Left` hides
+deaner's sidebar, and tmux bindings on Alt-arrows never fire. To send real Alt-arrows instead:
+
+```text
+keybind = alt+arrow_left=unbind
+keybind = alt+arrow_right=unbind
+```
 
 **Linux:** Alt works out of the box in Ghostty, Alacritty, kitty and foot. The only thing that
 can get in the way is your window manager: if Hyprland (or another compositor) binds `Alt+S`

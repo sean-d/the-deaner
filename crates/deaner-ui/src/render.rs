@@ -1,10 +1,11 @@
 //! Drawing the sidebar.
 
 use crate::app::{App, Mode, PromptKind};
+use crate::icons::Icons;
 use crate::keymap::{BINDINGS, keys_label, sections};
 use deaner_core::AgentState;
 use deaner_core::pr::{Checks, PrState};
-use deaner_core::sidebar::{RepoGroup, Row, WorkspaceView, WsStatus};
+use deaner_core::sidebar::{RepoGroup, Row, Section, WorkspaceView, WsStatus};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
@@ -22,8 +23,12 @@ struct Palette {
     bad: Style,
     good: Style,
     busy: Style,
+    branch: Style,
     border: Style,
 }
+
+/// Selected row: a background, so each span keeps its own color.
+const SELECTED: Style = Style::new().bg(Color::DarkGray);
 
 fn palette(app: &App) -> Palette {
     let t = &app.theme;
@@ -34,6 +39,7 @@ fn palette(app: &App) -> Palette {
         bad: Style::new().fg(t.destructive),
         good: Style::new().fg(Color::Green),
         busy: Style::new().fg(Color::Cyan),
+        branch: Style::new().fg(Color::Blue),
         border: Style::new().fg(t.border),
     }
 }
@@ -42,14 +48,8 @@ fn palette(app: &App) -> Palette {
 pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
     let area = frame.area();
     let p = palette(app);
-    let [header, list_area, footer] = Layout::vertical([
-        Constraint::Length(1),
-        Constraint::Min(1),
-        Constraint::Length(1),
-    ])
-    .areas(area);
-
-    frame.render_widget(header_line(app, &p, header.width), header);
+    let [list_area, footer] =
+        Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).areas(area);
 
     app.list_area = list_area;
     let items: Vec<ListItem<'_>> = app
@@ -67,7 +67,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
         .wrap(Wrap { trim: false });
         frame.render_widget(hint, list_area);
     } else {
-        let list = List::new(items).highlight_style(Style::new().add_modifier(Modifier::REVERSED));
+        let list = List::new(items).highlight_style(SELECTED);
         frame.render_stateful_widget(list, list_area, &mut app.list);
     }
 
@@ -75,7 +75,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
 
     match &app.mode {
         Mode::Normal | Mode::Filter(_) => {}
-        Mode::Help(scroll) => draw_help(frame, &p, area, *scroll),
+        Mode::Help(scroll) => draw_help(frame, &p, app.icons, area, *scroll),
         Mode::Prompt { kind, input } => {
             let (title, placeholder) = match kind {
                 PromptKind::NewWorktree { repo_name, .. } => {
@@ -125,7 +125,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
                         Span::styled(cmd.to_string(), p.muted),
                     ]);
                     if i == *index {
-                        line = line.style(Style::new().add_modifier(Modifier::REVERSED));
+                        line = line.style(SELECTED);
                     }
                     line
                 })
@@ -180,30 +180,6 @@ fn dialog_block<'a>(p: &Palette, title: &str) -> Block<'a> {
         .title(Span::styled(title.to_string(), p.accent))
 }
 
-fn header_line<'a>(app: &App, p: &Palette, width: u16) -> Line<'a> {
-    let all = || app.groups.iter().flat_map(|g| g.workspaces.iter());
-    let awaiting = all().filter(|w| w.agent == AgentState::Awaiting).count();
-    let busy = all().filter(|w| w.agent == AgentState::Busy).count();
-    let mut right: Vec<Span<'a>> = Vec::new();
-    if awaiting > 0 {
-        right.push(Span::styled(
-            format!("!{awaiting} "),
-            p.warn.add_modifier(Modifier::BOLD),
-        ));
-    }
-    if busy > 0 {
-        right.push(Span::styled(
-            format!("{}{busy} ", SPINNER[(app.tick as usize) % SPINNER.len()]),
-            p.busy,
-        ));
-    }
-    let left = vec![Span::styled(
-        " deaner",
-        Style::new().add_modifier(Modifier::BOLD),
-    )];
-    justify(left, right, width)
-}
-
 fn draw_footer(frame: &mut Frame<'_>, app: &App, p: &Palette, area: Rect) {
     match &app.mode {
         Mode::Filter(input) => {
@@ -225,31 +201,61 @@ fn draw_footer(frame: &mut Frame<'_>, app: &App, p: &Palette, area: Rect) {
                 area,
             );
         }
-        _ => frame.render_widget(Line::styled(" ? help", p.muted), area),
+        _ => frame.render_widget(status_line(app, p, area.width), area),
     }
+}
+
+/// Footer: the help hint, and how many agents are waiting on you or working.
+fn status_line<'a>(app: &App, p: &Palette, width: u16) -> Line<'a> {
+    let all = || app.groups.iter().flat_map(|g| g.workspaces.iter());
+    let awaiting = all().filter(|w| w.agent == AgentState::Awaiting).count();
+    let busy = all().filter(|w| w.agent == AgentState::Busy).count();
+    let mut right: Vec<Span<'a>> = Vec::new();
+    if awaiting > 0 {
+        right.push(Span::styled(
+            format!("{} {awaiting} ", app.icons.awaiting),
+            p.warn.add_modifier(Modifier::BOLD),
+        ));
+    }
+    if busy > 0 {
+        right.push(Span::styled(
+            format!("{} {busy} ", SPINNER[(app.tick as usize) % SPINNER.len()]),
+            p.busy,
+        ));
+    }
+    justify(vec![Span::styled(" ? help", p.muted)], right, width)
 }
 
 fn row_line<'a>(app: &App, p: &Palette, row: Row, width: u16) -> Line<'a> {
     match row {
+        Row::Header { section } => heading_line(app, p, section),
         Row::Repo { group } => repo_line(app, p, &app.groups[group], width),
         Row::Workspace { group, ws } => ws_line(app, p, &app.groups[group].workspaces[ws], width),
     }
 }
 
+fn heading_line<'a>(app: &App, p: &Palette, section: Section) -> Line<'a> {
+    let (icon, style) = match section {
+        Section::Pinned => (app.icons.pinned, p.warn),
+        Section::Active => (app.icons.active, p.good),
+        Section::Inactive => (app.icons.inactive, p.muted),
+    };
+    Line::styled(
+        format!("{icon} {}", section.label()),
+        style.add_modifier(Modifier::BOLD),
+    )
+}
+
 fn repo_line<'a>(app: &App, p: &Palette, g: &RepoGroup, width: u16) -> Line<'a> {
     let caret = if g.collapsed && app.filter.is_empty() {
-        "▸"
+        app.icons.collapsed
     } else {
-        "▾"
+        app.icons.expanded
     };
-    let mut left = vec![Span::styled(format!("{caret} "), p.muted)];
-    if g.pinned {
-        left.push(Span::styled("★ ", p.warn));
-    }
-    left.push(Span::styled(
-        g.name.clone(),
-        Style::new().add_modifier(Modifier::BOLD),
-    ));
+    let left = vec![
+        Span::styled(format!("{caret} "), p.muted),
+        Span::styled(g.name.clone(), Style::new().add_modifier(Modifier::BOLD)),
+    ];
     let mut right = Vec::new();
     if g.collapsed
         && let Some(glyph) = agent_glyph(app, p, g.agent(), WsStatus::Live)
@@ -260,6 +266,7 @@ fn repo_line<'a>(app: &App, p: &Palette, g: &RepoGroup, width: u16) -> Line<'a> 
     justify(left, right, width)
 }
 
+/// The agent badge at the end of a row. Nothing when there's no agent to report on.
 fn agent_glyph<'a>(
     app: &App,
     p: &Palette,
@@ -267,20 +274,51 @@ fn agent_glyph<'a>(
     status: WsStatus,
 ) -> Option<Span<'a>> {
     Some(match (status, state) {
-        (WsStatus::Parked, _) => Span::styled("◌", p.muted),
-        (WsStatus::Stopped, _) => Span::styled("·", p.muted),
-        (_, AgentState::Awaiting) => Span::styled("!", p.warn.add_modifier(Modifier::BOLD)),
+        (WsStatus::Parked, _) => Span::styled(app.icons.parked, p.muted),
+        (WsStatus::Stopped, _) | (_, AgentState::None) => return None,
+        (_, AgentState::Awaiting) => {
+            Span::styled(app.icons.awaiting, p.warn.add_modifier(Modifier::BOLD))
+        }
         (_, AgentState::Busy) => Span::styled(SPINNER[(app.tick as usize) % SPINNER.len()], p.busy),
-        (_, AgentState::Compacting) => Span::styled("◐", p.busy),
-        (_, AgentState::Idle) => Span::styled("○", p.good),
-        (_, AgentState::None) => return None,
+        (_, AgentState::Compacting) => Span::styled(app.icons.compacting, p.busy),
+        (_, AgentState::Idle) => Span::styled(app.icons.idle, p.good),
     })
 }
 
+/// Leading icon: the PR's state if there is one, otherwise what kind of checkout this is.
+fn git_icon<'a>(app: &App, p: &Palette, w: &WorkspaceView) -> Span<'a> {
+    let idle = if w.status == WsStatus::Live {
+        p.branch
+    } else {
+        p.muted
+    };
+    if let Some(pr) = &w.pr {
+        return match pr.state {
+            PrState::Open => Span::styled(app.icons.pull_request, p.good),
+            PrState::Draft => Span::styled(app.icons.pull_request, p.muted),
+            PrState::Merged => Span::styled(app.icons.merged, p.accent),
+            PrState::Closed => Span::styled(app.icons.pull_request, p.bad),
+        };
+    }
+    match (&w.branch, &w.git) {
+        (Some(_), _) => Span::styled(app.icons.branch, idle),
+        (None, Some(_)) => Span::styled(app.icons.detached, idle),
+        (None, None) => Span::styled(app.icons.folder, idle),
+    }
+}
+
+/// Branch name; a short commit id when detached; the workspace name for plain folders.
+fn ws_label(w: &WorkspaceView) -> String {
+    w.branch
+        .clone()
+        .or_else(|| {
+            let oid = w.git.as_ref()?.oid.as_deref()?;
+            Some(oid.chars().take(7).collect())
+        })
+        .unwrap_or_else(|| w.name.clone())
+}
+
 fn ws_line<'a>(app: &App, p: &Palette, w: &WorkspaceView, width: u16) -> Line<'a> {
-    let glyph =
-        agent_glyph(app, p, w.agent, w.status).unwrap_or_else(|| Span::styled("•", p.muted));
-    let label = w.branch.clone().unwrap_or_else(|| w.name.clone());
     let mut label_style = match w.status {
         WsStatus::Live => Style::new(),
         WsStatus::Parked | WsStatus::Stopped => p.muted,
@@ -288,26 +326,30 @@ fn ws_line<'a>(app: &App, p: &Palette, w: &WorkspaceView, width: u16) -> Line<'a
     if w.current {
         label_style = label_style.patch(p.accent).add_modifier(Modifier::BOLD);
     }
-    let mut left = vec![
+    let left = vec![
         Span::raw("  "),
-        glyph,
+        git_icon(app, p, w),
         Span::raw(" "),
-        Span::styled(label, label_style),
+        Span::styled(ws_label(w), label_style),
     ];
-    if w.status == WsStatus::Parked {
-        left.push(Span::styled(" parked", p.muted));
-    }
 
-    let mut right: Vec<Span<'a>> = Vec::new();
+    let mut right: Vec<Vec<Span<'a>>> = Vec::new();
     if let Some(git) = &w.git {
         if !git.is_clean() {
-            right.push(Span::styled(format!("✎{}", git.changed()), p.warn));
+            right.push(vec![Span::styled(
+                format!("{} {}", app.icons.changed, git.changed()),
+                p.warn,
+            )]);
         }
-        if git.ahead > 0 {
-            right.push(Span::styled(format!("↑{}", git.ahead), p.muted));
-        }
-        if git.behind > 0 {
-            right.push(Span::styled(format!("↓{}", git.behind), p.muted));
+        if git.ahead > 0 || git.behind > 0 {
+            let count = |sign: char, n: u32, style: Style| {
+                Span::styled(format!("{sign}{n}"), if n > 0 { style } else { p.muted })
+            };
+            right.push(vec![
+                count('+', git.ahead, p.good),
+                Span::raw(" "),
+                count('-', git.behind, p.bad),
+            ]);
         }
     }
     if let Some(pr) = &w.pr {
@@ -318,14 +360,17 @@ fn ws_line<'a>(app: &App, p: &Palette, w: &WorkspaceView, width: u16) -> Line<'a
             (_, Checks::Failing) => p.bad,
             (_, Checks::Pending) => p.warn,
         };
-        right.push(Span::styled(format!("#{}", pr.number), style));
+        right.push(vec![Span::styled(format!("#{}", pr.number), style)]);
+    }
+    if let Some(glyph) = agent_glyph(app, p, w.agent, w.status) {
+        right.push(vec![glyph]);
     }
     let mut spaced = Vec::new();
-    for (i, s) in right.into_iter().enumerate() {
+    for (i, part) in right.into_iter().enumerate() {
         if i > 0 {
             spaced.push(Span::raw(" "));
         }
-        spaced.push(s);
+        spaced.extend(part);
     }
     if !spaced.is_empty() {
         spaced.push(Span::raw(" "));
@@ -367,7 +412,7 @@ fn justify<'a>(left: Vec<Span<'a>>, right: Vec<Span<'a>>, width: u16) -> Line<'a
     Line::from(spans)
 }
 
-fn draw_help(frame: &mut Frame<'_>, p: &Palette, area: Rect, scroll: u16) {
+fn draw_help(frame: &mut Frame<'_>, p: &Palette, icons: &Icons, area: Rect, scroll: u16) {
     let mut lines: Vec<Line<'_>> = Vec::new();
     for section in sections() {
         if !lines.is_empty() {
@@ -383,6 +428,28 @@ fn draw_help(frame: &mut Frame<'_>, p: &Palette, area: Rect, scroll: u16) {
                 Span::raw(b.help),
             ]));
         }
+    }
+    lines.push(Line::raw(""));
+    lines.push(Line::styled("Icons", p.accent.add_modifier(Modifier::BOLD)));
+    for (icon, style, meaning) in [
+        (icons.branch, p.branch, "Branch (dim when stopped)"),
+        (icons.detached, p.branch, "Detached HEAD"),
+        (icons.folder, p.branch, "Plain folder"),
+        (icons.pull_request, p.good, "Open pull request"),
+        (icons.merged, p.accent, "Merged pull request"),
+        (icons.changed, p.warn, "Changed files"),
+        ("+ -", p.good, "Commits ahead / behind"),
+        ("#", p.good, "PR number; color is CI status"),
+        (SPINNER[0], p.busy, "Agent working"),
+        (icons.awaiting, p.warn, "Agent waiting on you"),
+        (icons.idle, p.good, "Agent idle"),
+        (icons.compacting, p.busy, "Agent compacting"),
+        (icons.parked, p.muted, "Parked"),
+    ] {
+        lines.push(Line::from(vec![
+            Span::styled(format!("{icon:<9}"), style),
+            Span::raw(meaning),
+        ]));
     }
     lines.push(Line::raw(""));
     lines.push(Line::styled("j/k scroll · any other key closes", p.muted));

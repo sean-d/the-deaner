@@ -5,7 +5,7 @@
 //! keeps everything here deterministic and snapshot-testable.
 
 use crate::keymap::{Action, action_for};
-use deaner_core::sidebar::{RepoGroup, Row, WorkspaceView, WsStatus, rows};
+use deaner_core::sidebar::{RepoGroup, Row, Section, WorkspaceView, WsStatus, rows};
 use deaner_core::{AgentState, TabSpec};
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyEventKind, MouseButton, MouseEvent, MouseEventKind,
@@ -41,6 +41,10 @@ pub enum Command {
     Save,
     /// Rebuild workspaces from the latest snapshot.
     Restore,
+    /// Open the shortcut cheat sheet popup.
+    Cheatsheet,
+    /// Open the project browser popup.
+    BrowseRepos,
     Refresh,
     Quit,
 }
@@ -73,6 +77,7 @@ pub enum Mode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum SelKey {
+    Header(Section),
     Repo(PathBuf),
     Ws(PathBuf),
 }
@@ -92,6 +97,7 @@ pub struct App {
     pub(crate) loaded: bool,
     prev_agents: HashMap<PathBuf, AgentState>,
     pub theme: Theme,
+    pub icons: &'static crate::icons::Icons,
     /// Running outside the frame: `q` quits.
     pub standalone: bool,
     /// Choices for "new tab", given a repo path.
@@ -119,7 +125,8 @@ impl App {
             list_area: Rect::default(),
             loaded: false,
             prev_agents: HashMap::new(),
-            theme: Theme::terminal(),
+            theme: crate::theme::terminal(),
+            icons: &crate::icons::UNICODE,
             standalone: false,
             tab_choices: Box::new(|_| vec![TabSpec::new("shell", None)]),
         }
@@ -162,7 +169,36 @@ impl App {
             .or_else(|| self.list.selected())
             .unwrap_or(0)
             .min(self.rows.len().saturating_sub(1));
-        self.list.select((!self.rows.is_empty()).then_some(idx));
+        self.select_near(idx, 1);
+    }
+
+    /// Select the row at `target`, or the nearest selectable one: headings are
+    /// skipped in direction `dir` first, then the other way. Reaching the first
+    /// selectable row scrolls its heading back into view.
+    fn select_near(&mut self, target: usize, dir: isize) {
+        let selectable = |i: isize| {
+            usize::try_from(i)
+                .ok()
+                .and_then(|i| self.rows.get(i).map(|r| (i, r)))
+                .filter(|(_, r)| !matches!(r, Row::Header { .. }))
+                .map(|(i, _)| i)
+        };
+        let search = |dir: isize| {
+            let mut i = target as isize;
+            while i >= 0 && (i as usize) < self.rows.len() {
+                if let Some(found) = selectable(i) {
+                    return Some(found);
+                }
+                i += dir;
+            }
+            None
+        };
+        let found = search(dir).or_else(|| search(-dir));
+        let first = (0..self.rows.len() as isize).find_map(selectable);
+        self.list.select(found);
+        if found.is_some() && found == first {
+            *self.list.offset_mut() = 0;
+        }
     }
 
     /// Advance the animation/toast clock.
@@ -216,6 +252,7 @@ impl App {
 
     fn key_of(&self, row: Row) -> SelKey {
         match row {
+            Row::Header { section } => SelKey::Header(section),
             Row::Repo { group } => SelKey::Repo(self.groups[group].path.clone()),
             Row::Workspace { group, ws } => {
                 SelKey::Ws(self.groups[group].workspaces[ws].path.clone())
@@ -234,8 +271,9 @@ impl App {
 
     #[must_use]
     pub fn selected_group(&self) -> Option<&RepoGroup> {
-        self.selected_row().map(|r| match r {
-            Row::Repo { group } | Row::Workspace { group, .. } => &self.groups[group],
+        self.selected_row().and_then(|r| match r {
+            Row::Header { .. } => None,
+            Row::Repo { group } | Row::Workspace { group, .. } => Some(&self.groups[group]),
         })
     }
 
@@ -243,6 +281,7 @@ impl App {
     #[must_use]
     pub fn selected_ws(&self) -> Option<&WorkspaceView> {
         match self.selected_row()? {
+            Row::Header { .. } => None,
             Row::Workspace { group, ws } => Some(&self.groups[group].workspaces[ws]),
             Row::Repo { group } => {
                 let g = &self.groups[group];
@@ -260,8 +299,8 @@ impl App {
         }
         let cur = self.list.selected().unwrap_or(0) as isize;
         let last = self.rows.len() as isize - 1;
-        self.list
-            .select(Some((cur + delta).clamp(0, last) as usize));
+        let target = cur.saturating_add(delta).clamp(0, last) as usize;
+        self.select_near(target, delta.signum());
     }
 
     // ---- input ---------------------------------------------------------
@@ -339,6 +378,8 @@ impl App {
                     };
                 }
             }
+            // In the frame `a` browses folders in a popup; otherwise, type a path.
+            Action::AddRepo if !self.standalone => return Some(Command::BrowseRepos),
             Action::AddRepo => {
                 self.mode = Mode::Prompt {
                     kind: PromptKind::AddRepo,
@@ -376,6 +417,8 @@ impl App {
             }
             Action::Save => return Some(Command::Save),
             Action::Refresh => return Some(Command::Refresh),
+            // In the frame `?` opens the same popup as Alt-/; there's no popup to use otherwise.
+            Action::Help if !self.standalone => return Some(Command::Cheatsheet),
             Action::Help => self.mode = Mode::Help(0),
             Action::Quit => return self.standalone.then_some(Command::Quit),
         }
@@ -398,6 +441,7 @@ impl App {
                     Command::Archive(w),
                 )
             }
+            Row::Header { .. } => return,
             Row::Repo { group } | Row::Workspace { group, .. } => {
                 let g = &self.groups[group];
                 (
@@ -516,9 +560,12 @@ impl App {
                 }
                 let idx = self.list.offset() + usize::from(ev.row - a.y);
                 let row = *self.rows.get(idx)?;
+                if matches!(row, Row::Header { .. }) {
+                    return None;
+                }
                 self.list.select(Some(idx));
                 return match row {
-                    Row::Repo { .. } => None,
+                    Row::Header { .. } | Row::Repo { .. } => None,
                     Row::Workspace { .. } => self.selected_ws().cloned().map(Command::Open),
                 };
             }
@@ -539,7 +586,7 @@ impl App {
 }
 
 /// Apply one key to a text field using ratcn's editor bindings.
-fn edit(input: InputState, key: KeyEvent) -> InputState {
+pub(crate) fn edit(input: InputState, key: KeyEvent) -> InputState {
     let Ok(k) = ratcn::runtime::KeyEvent::try_from(key) else {
         return input;
     };

@@ -136,7 +136,7 @@ pub const BINDINGS: &[Binding] = &[
         keys: &[Char('a')],
         action: Action::AddRepo,
         section: "Workspaces",
-        help: "Add a repo or folder",
+        help: "Open a project: browse folders, add and start it",
     },
     Binding {
         keys: &[Char('x')],
@@ -234,23 +234,58 @@ pub fn sections() -> Vec<&'static str> {
 /// Turn a tmux key name (`M-s`, `C-a`) into something readable (`Alt-s`, `Ctrl-a`).
 #[must_use]
 pub fn tmux_key_label(key: &str) -> String {
-    key.replace("M-", "Alt-")
-        .replace("C-", "Ctrl-")
-        .replace("S-", "Shift-")
+    deaner_core::tmux_keys::key_label(key)
+}
+
+/// Extra words people might search for when looking up a sidebar action.
+#[must_use]
+pub const fn search_terms(action: Action) -> &'static str {
+    match action {
+        Action::Open => "start switch go project repo",
+        Action::ToggleCollapse => "fold tree group",
+        Action::Filter => "search find",
+        Action::NewWorktree => "branch parallel create",
+        Action::NewTab => {
+            "window add open claude nvim neovim vim editor shell agent terminal right"
+        }
+        Action::AddRepo => "add repo folder directory new select file browser browse system",
+        Action::Archive => "delete remove worktree forget",
+        Action::Park => "pause suspend stop",
+        Action::Save => "snapshot backup",
+        Action::TogglePin => "favorite top order",
+        Action::PinUp | Action::PinDown => "reorder order favorite",
+        Action::Help => "keys shortcuts cheat sheet",
+        Action::Down | Action::Up | Action::Top | Action::Bottom => "navigate list",
+        Action::Refresh | Action::Quit => "",
+    }
+}
+
+/// One frame binding: key label, description, extra search words.
+pub struct FrameBinding {
+    pub key: String,
+    pub help: &'static str,
+    pub terms: &'static str,
 }
 
 /// The frame bindings (tmux root table) with their descriptions.
 #[must_use]
-pub fn frame_bindings(keys: &FrameKeys) -> Vec<(String, &'static str)> {
+pub fn frame_bindings(keys: &FrameKeys) -> Vec<FrameBinding> {
     vec![
-        (
-            tmux_key_label(&keys.focus),
-            "Move focus between the sidebar and the terminal",
-        ),
-        (
-            tmux_key_label(&keys.toggle_sidebar),
-            "Hide / show the sidebar",
-        ),
+        FrameBinding {
+            key: tmux_key_label(&keys.cheatsheet),
+            help: "Open this searchable shortcut cheat sheet",
+            terms: "help keys shortcuts which-key",
+        },
+        FrameBinding {
+            key: tmux_key_label(&keys.focus),
+            help: "Move focus between the sidebar and the terminal",
+            terms: "navigate switch jump left right panel side",
+        },
+        FrameBinding {
+            key: tmux_key_label(&keys.toggle_sidebar),
+            help: "Hide / show the sidebar",
+            terms: "panel left side projects list collapse fullscreen",
+        },
     ]
 }
 
@@ -265,8 +300,8 @@ pub fn markdown() -> String {
          They are bound in deaner's outer tmux frame and can be changed under `[keys]` in `config.toml`.\n\n\
          | Key | Action |\n|---|---|\n",
     );
-    for (key, help) in frame_bindings(&FrameKeys::default()) {
-        s.push_str(&format!("| `{key}` | {help} |\n"));
+    for b in frame_bindings(&FrameKeys::default()) {
+        s.push_str(&format!("| `{}` | {} |\n", b.key, b.help));
     }
     s.push_str(
         "\nYou can also click a sidebar row to open it, scroll the list with the wheel, \

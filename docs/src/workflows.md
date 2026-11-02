@@ -1,5 +1,40 @@
 # Workflows
 
+## Opening a project
+
+Press `a` in the sidebar (or run `deaner browse`). A popup lists the folders where your most recent
+project lives:
+
+| Key | Action |
+|---|---|
+| `↑` `↓` | Move |
+| type | Narrow the list |
+| `Enter` | On a git repo: add it, start it and show it. On a plain folder: go into it. |
+| `→` | Go into the highlighted folder |
+| `←` | Up one folder |
+| `Esc` | Close |
+
+Git repos have a branch icon, plain folders a folder icon. To use a plain folder as a project, go into
+it and pick **Use this folder** at the top. Folders starting with a dot are hidden until you type a `.`.
+
+To go anywhere on the system, press `←` until you reach the folder you want, or type a path the way
+you would in a shell: `/tmp/`, `~/`, `../`, `go/`. Anything ending in `/` that exists is entered.
+
+From the command line: `deaner open <path or name>` adds a folder if needed and opens it, and
+`deaner add <path>` adds without opening.
+
+## A throwaway clone
+
+To have claude read a repo you don't plan to keep, clone it anywhere and open it:
+
+```sh
+git clone https://github.com/someone/thing /tmp/thing
+deaner open /tmp/thing
+```
+
+When you're done, close its tabs and delete the folder. It disappears from the sidebar by itself. (A
+session still running in a deleted folder stays listed until you close it.)
+
 ## Start of the day
 
 ```sh
@@ -23,7 +58,7 @@ Both work in the same checkout, so you don't need a worktree:
 1. Select the repo and press `t`, then pick `claude`. That's a second claude tab in the same session.
 2. Tell one to work on code and the other on docs. They edit different files.
 
-The sidebar shows the busier of the two: `!` if either is waiting on you, `⠋` if either is working.
+The sidebar shows the more urgent of the two: waiting on you if either is, otherwise working if either is.
 
 ## A security bump in the middle of a feature (two branches at once)
 
@@ -68,18 +103,81 @@ deaner ls --json     # machine-readable: workspaces, tabs, agent states, address
 `send` types the text into the target tab and presses Enter. See [Agents and hooks](agents.md)
 for a CLAUDE.md snippet that teaches claude these commands.
 
-## Pinning
+## Sidebar sections and pinning
 
-Press `p` on a repo to pin it. Pinned repos sit at the top, marked `★`, in **your** order:
-`K` moves one up, `J` moves it down. Activity never reorders them.
+The sidebar has up to three sections. A section's heading only appears when it has repos.
 
-Unpinned repos come next, sorted by name. With `float_attention = true` (the default), an
-unpinned repo with an agent waiting on you floats to the top of the unpinned section.
+| Section | What's in it | Order |
+|---|---|---|
+| `PINNED` | Repos you pinned, running or not | **Your** order; activity never moves them |
+| `ACTIVE` | Unpinned repos with a running session (the main checkout or any worktree) | By name |
+| `INACTIVE` | Repos you've added that aren't running, including parked ones | By name |
+
+Press `p` on a repo to pin it, `K` to move it up, `J` to move it down.
+
+Starting an unpinned repo moves it from `INACTIVE` to `ACTIVE`, and the cursor stays on it. Parking
+or stopping its last session moves it back. With `float_attention = true` (the default), an active
+repo with an agent waiting on you floats to the top of `ACTIVE`.
+
+## Forgot a key?
+
+Press `Alt-/` anywhere, or `?` in the sidebar. A popup lists every shortcut, and you can type what
+you're trying to do: "hide the sidebar", "new tab", "how do I navigate the tabs". The terminal section
+is read from your tmux config, so it shows your real keys, including anything you've rebound.
+
+| Common question | Key (`prefix` is your tmux prefix) |
+|---|---|
+| Hide the sidebar | `Alt-b` |
+| Move between the sidebar and the terminal | `Alt-s` |
+| New tab in this project | `t` in the sidebar, or `prefix c` in the terminal |
+| Next / previous tab | `prefix n` / `prefix p` |
+| Go to a tab by number | `prefix 1`-`9` |
+
+## Reading a sidebar row
+
+```text
+  <git icon> branch      <changed> +ahead -behind #PR <agent>
+```
+
+| Part | Meaning |
+|---|---|
+| Git icon | Branch, or a pull request icon once there's a PR: green open, dim draft, purple merged, red closed. Dim when not running. A detached checkout shows a commit icon and short commit id; a plain folder shows a folder icon. |
+| Pencil and number | Changed files |
+| `+1 -0` | Commits ahead of and behind the upstream. Hidden when both are 0. deaner fetches running repos in the background every minute (`fetch_seconds`), so this tracks GitHub to within about a minute. Repos without a running session aren't fetched. |
+| `#259` | PR number, colored by CI: green passing, yellow running, red failing |
+| Agent | Spinner: working. Bell: waiting on you. `✻`: idle. `◐`: compacting. Pause: parked. |
+
+Press `?` in the sidebar for the same legend. Icons use a Nerd Font; set `icons = "unicode"` in
+`config.toml` for plain symbols. The tab bar and terminal colors come from your tmux config and terminal.
+
+## Choosing which tabs open
+
+A new workspace starts the tabs in `[[tabs]]`: by default `claude` and a `shell`, in the project
+root (or the worktree root for a worktree). When you want more, press `t` in the sidebar and pick
+one: another claude, nvim, a shell. It opens in the same directory.
+
+To always start with something else, set your own list:
+
+```toml
+# ~/.config/deaner/config.toml
+[[tabs]]
+name = "claude"
+command = "claude"
+
+[[tabs]]
+name = "nvim"
+command = "nvim"
+
+[[tabs]]
+name = "shell"
+```
+
+A repo's own `.deaner.toml` overrides this. See [Configuration](configuration.md).
 
 ## Park a workspace (pause it)
 
 Select a running workspace and press `P` (or `deaner park <name>`). deaner saves it and stops its
-session, which frees the memory. It stays in the sidebar, dimmed and marked `parked`. Press `Enter`
+session, which frees the memory. It stays in the sidebar, dimmed, with a pause icon. Press `Enter`
 on it to bring it back exactly as it was.
 
 ## End of the day

@@ -16,6 +16,9 @@ use std::time::Duration;
 pub const GIT_TIMEOUT: Duration = Duration::from_secs(10);
 /// Deadline for git commands that write a checkout (worktree add/remove).
 pub const GIT_SLOW_TIMEOUT: Duration = Duration::from_secs(120);
+/// Deadline for a background `git fetch`. Generous: one that has real data to download
+/// must get to finish, or it would be killed and restarted from scratch every time.
+pub const GIT_FETCH_TIMEOUT: Duration = Duration::from_secs(120);
 /// Deadline for `gh` (network).
 pub const GH_TIMEOUT: Duration = Duration::from_secs(20);
 
@@ -193,6 +196,40 @@ pub fn add_worktree(repo: &Path, path: &Path, branch: &str) -> Result<()> {
     git_slow(repo, &args).map(drop)
 }
 
+/// Update remote-tracking branches, unattended. Repos without a remote are left alone.
+///
+/// Never prompts: ssh would otherwise open the terminal directly to ask for a
+/// passphrase, which here would write into the sidebar. It also leaves `FETCH_HEAD`
+/// alone and doesn't start git maintenance, since the user didn't ask for a fetch.
+///
+/// # Errors
+/// When the fetch fails or times out (offline, no access).
+pub fn fetch(repo: &Path) -> Result<()> {
+    if git(repo, &["remote"])?.trim().is_empty() {
+        return Ok(());
+    }
+    let ssh = git(repo, &["config", "--get", "core.sshCommand"]).unwrap_or_default();
+    let ssh = match ssh.trim() {
+        "" => "ssh",
+        custom => custom,
+    };
+    let ssh = format!("core.sshCommand={ssh} -o BatchMode=yes");
+    run(
+        "git",
+        repo,
+        &[
+            "-c",
+            &ssh,
+            "fetch",
+            "--quiet",
+            "--no-auto-maintenance",
+            "--no-write-fetch-head",
+        ],
+        GIT_FETCH_TIMEOUT,
+    )
+    .map(drop)
+}
+
 /// Remove a linked worktree. Without `force`, git refuses when it has changes.
 ///
 /// # Errors
@@ -270,6 +307,41 @@ mod tests {
         assert_eq!(s.branch.as_deref(), Some("main"));
         assert_eq!((s.modified, s.untracked), (1, 1));
         assert!(is_repo(root));
+    }
+
+    #[test]
+    fn fetch_updates_behind_count_without_touching_the_checkout() {
+        let origin = tempfile::tempdir().unwrap();
+        sh(origin.path(), &["init", "-q", "--bare", "-b", "main"]);
+        let url = origin.path().display().to_string();
+        let mine = repo();
+        sh(mine.path(), &["remote", "add", "origin", &url]);
+        sh(mine.path(), &["push", "-q", "-u", "origin", "main"]);
+
+        // Someone else pushes.
+        let theirs = tempfile::tempdir().unwrap();
+        sh(theirs.path(), &["clone", "-q", &url, "."]);
+        std::fs::write(theirs.path().join("b.txt"), "b").unwrap();
+        sh(theirs.path(), &["add", "."]);
+        sh(theirs.path(), &["commit", "-qm", "theirs"]);
+        sh(theirs.path(), &["push", "-q"]);
+
+        assert_eq!(status(mine.path()).unwrap().behind, 0, "not fetched yet");
+        fetch(mine.path()).unwrap();
+        assert_eq!(status(mine.path()).unwrap().behind, 1);
+        assert!(!mine.path().join("b.txt").exists(), "fetch doesn't merge");
+        assert!(!mine.path().join(".git/FETCH_HEAD").exists());
+    }
+
+    #[test]
+    fn fetch_without_a_remote_is_fine_and_a_bad_remote_is_an_error() {
+        let dir = repo();
+        fetch(dir.path()).unwrap();
+        sh(
+            dir.path(),
+            &["remote", "add", "origin", "/nonexistent/deaner-repo"],
+        );
+        assert!(fetch(dir.path()).is_err());
     }
 
     #[test]

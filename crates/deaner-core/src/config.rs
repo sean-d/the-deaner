@@ -44,6 +44,8 @@ pub struct FrameKeys {
     pub focus: String,
     /// Hide or show the sidebar.
     pub toggle_sidebar: String,
+    /// Open the searchable shortcut cheat sheet.
+    pub cheatsheet: String,
 }
 
 impl Default for FrameKeys {
@@ -51,8 +53,20 @@ impl Default for FrameKeys {
         Self {
             focus: "M-s".into(),
             toggle_sidebar: "M-b".into(),
+            cheatsheet: "M-/".into(),
         }
     }
+}
+
+/// Which icons the sidebar draws.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum IconStyle {
+    /// Nerd Font glyphs (needs a patched font, or a terminal with them built in).
+    #[default]
+    Nerd,
+    /// Plain Unicode symbols that work in any font.
+    Unicode,
 }
 
 /// What kind of thing runs in a tab, which decides how it is restored.
@@ -70,15 +84,20 @@ pub enum TabKind {
 pub struct Config {
     /// Sidebar width in columns when no width has been saved yet.
     pub sidebar_width: u16,
+    /// Sidebar icon set.
+    pub icons: IconStyle,
     /// Snapshot everything this often (minutes). 0 disables autosave.
     pub autosave_minutes: u64,
     /// How many timestamped snapshots to keep.
     pub snapshots_keep: usize,
-    /// Float unpinned repos with an agent awaiting input to the top of the unpinned section.
+    /// Float active repos with an agent awaiting input to the top of the active section.
     pub float_attention: bool,
     pub git_poll_seconds: u64,
     /// How often to ask `gh` about pull requests. 0 disables PR status.
     pub pr_poll_seconds: u64,
+    /// How often to `git fetch` repos with a running session, so ahead/behind stays
+    /// current. 0 disables background fetching.
+    pub fetch_seconds: u64,
     /// Where new worktrees go. `{repo_parent}`, `{repo}` and `{branch}` are substituted.
     pub worktree_dir: String,
     /// Process names that count as "just a shell" (nothing to restore).
@@ -96,11 +115,13 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             sidebar_width: 32,
+            icons: IconStyle::Nerd,
             autosave_minutes: 5,
             snapshots_keep: 20,
             float_attention: true,
             git_poll_seconds: 3,
             pr_poll_seconds: 120,
+            fetch_seconds: 60,
             worktree_dir: "{repo_parent}/{repo}.worktrees/{branch}".into(),
             shells: ["zsh", "bash", "fish", "sh", "dash", "nu", "elvish", "xonsh"]
                 .map(String::from)
@@ -111,7 +132,6 @@ impl Default for Config {
             keys: FrameKeys::default(),
             tabs: vec![
                 TabSpec::new("claude", Some("claude")),
-                TabSpec::new("nvim", Some("nvim")),
                 TabSpec::new("shell", None),
             ],
             agents: builtin_agents(),
@@ -211,7 +231,8 @@ impl Config {
             .unwrap_or_else(|| self.tabs.clone())
     }
 
-    /// Choices offered by "new tab": the default tabs, every agent, and a shell.
+    /// Choices offered by "new tab": the default tabs, every agent, the first
+    /// configured editor, and a shell. All of them open in the workspace's directory.
     #[must_use]
     pub fn new_tab_choices(&self, repo: Option<&RepoConfig>) -> Vec<TabSpec> {
         let mut out: Vec<TabSpec> = Vec::new();
@@ -225,6 +246,9 @@ impl Config {
         }
         for (name, def) in &self.agents {
             push(TabSpec::new(name, Some(&def.command)));
+        }
+        if let Some(editor) = self.editors.first() {
+            push(TabSpec::new(editor, Some(editor)));
         }
         push(TabSpec::new("shell", None));
         out
@@ -326,6 +350,14 @@ command = "npm run dev"
             .into_iter()
             .map(|t| t.name)
             .collect();
-        assert_eq!(choices, ["claude", "dev", "codex", "shell"]);
+        assert_eq!(choices, ["claude", "dev", "codex", "nvim", "shell"]);
+
+        // The default start is light, but nvim stays one key away.
+        let names = |tabs: Vec<TabSpec>| tabs.into_iter().map(|t| t.name).collect::<Vec<_>>();
+        assert_eq!(names(cfg.tabs_for(None)), ["claude", "shell"]);
+        assert_eq!(
+            names(cfg.new_tab_choices(None)),
+            ["claude", "shell", "codex", "nvim"]
+        );
     }
 }

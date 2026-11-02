@@ -337,6 +337,24 @@ impl Tmux {
             .map(drop)
     }
 
+    /// Start a tmux command without waiting for it (for commands that block until
+    /// the user finishes, like `display-popup -E`).
+    ///
+    /// # Errors
+    /// When tmux can't be started.
+    pub fn spawn_detached(&self, args: &[&str]) -> Result<()> {
+        let mut child = self
+            .command()
+            .args(args)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .map_err(Error::Spawn)?;
+        std::thread::spawn(move || child.wait());
+        Ok(())
+    }
+
     /// Stop the server. Succeeds if it was not running.
     pub fn kill_server(&self) {
         let _ = self.output(&["kill-server"]);

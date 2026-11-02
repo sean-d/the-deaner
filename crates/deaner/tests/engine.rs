@@ -293,3 +293,120 @@ fn concurrent_state_updates_are_not_lost() {
     }
     assert_eq!(f.engine.state().pins.len(), 32, "every pin survived");
 }
+
+#[test]
+fn cheatsheet_reads_real_tmux_keys() {
+    let f = fixture();
+    // With no server running, tmux starts one just to answer, then it goes away again.
+    assert!(!f.srv.tmux.is_running());
+    let before = deaner::cheatsheet::terminal_shortcuts(&f.engine);
+    assert!(before.iter().any(|s| s.keys == "Ctrl-b c"), "{before:?}");
+    f.engine.add_repo(&f.repo.display().to_string()).unwrap();
+    f.engine.ensure_session(&f.engine.workspaces()[0]).unwrap();
+
+    let all = deaner::cheatsheet::terminal_shortcuts(&f.engine);
+    let keys = |what: &str| all.iter().find(|s| s.what == what).map(|s| s.keys.as_str());
+    assert_eq!(keys("New tab"), Some("Ctrl-b c"));
+    assert_eq!(keys("Next tab"), Some("Ctrl-b n"));
+    assert_eq!(keys("Split side by side"), Some("Ctrl-b %"));
+    assert_eq!(keys("Split stacked"), Some("Ctrl-b \""));
+    assert_eq!(
+        keys("Move between panes"),
+        Some("Ctrl-b Left/Down/Up/Right")
+    );
+
+    // A rebinding shows up immediately.
+    f.srv.tmux.run(&["bind-key", "T", "new-window"]).unwrap();
+    f.srv.tmux.run(&["unbind-key", "c"]).unwrap();
+    let all = deaner::cheatsheet::terminal_shortcuts(&f.engine);
+    assert_eq!(
+        all.iter()
+            .find(|s| s.what == "New tab")
+            .map(|s| s.keys.as_str()),
+        Some("Ctrl-b T")
+    );
+}
+
+#[test]
+fn browsing_lists_folders_and_opens_a_pick() {
+    let f = fixture();
+    let e = &f.engine;
+    let parent = f.repo.parent().unwrap();
+    let plain = parent.join("notes");
+    std::fs::create_dir_all(&plain).unwrap();
+    std::fs::write(parent.join("a-file.txt"), "not a folder").unwrap();
+
+    let items = deaner::browse::list_dirs(parent, std::slice::from_ref(&plain));
+    let api = items.iter().find(|i| i.name == "api").unwrap();
+    assert!(api.is_repo && !api.added);
+    let notes = items.iter().find(|i| i.name == "notes").unwrap();
+    assert!(!notes.is_repo && notes.added);
+    assert!(
+        !items.iter().any(|i| i.name == "a-file.txt"),
+        "folders only"
+    );
+    assert!(deaner::browse::list_dirs(Path::new("/nonexistent"), &[]).is_empty());
+
+    // Picking an unknown repo adds it and starts it; picking again reuses the session.
+    assert_eq!(deaner::browse::open_project(e, &f.repo).unwrap(), "api");
+    assert_eq!(e.state().repos.len(), 1);
+    assert_eq!(deaner::browse::open_project(e, &f.repo).unwrap(), "api");
+    assert_eq!(f.srv.tmux.sessions(), ["api"]);
+
+    // The next browse starts where that project lives.
+    assert_eq!(deaner::browse::start_dir(e), parent);
+
+    // Plain folders work, and a worktree opens as itself under its main repo.
+    assert_eq!(deaner::browse::open_project(e, &plain).unwrap(), "notes");
+    let wt = e.new_worktree(&f.repo, "feat").unwrap();
+    let wt_path = e.find(&wt).unwrap().path;
+    f.srv.tmux.kill_session(&wt).unwrap();
+    assert_eq!(
+        deaner::browse::open_project(e, &wt_path).unwrap(),
+        "api/feat"
+    );
+    assert_eq!(e.state().repos.len(), 2, "still just api and notes");
+
+    assert!(deaner::browse::open_project(e, Path::new("/nonexistent")).is_err());
+}
+
+#[test]
+fn a_deleted_project_leaves_the_sidebar_and_cannot_start() {
+    let f = fixture();
+    let e = &f.engine;
+    let parent = f.repo.parent().unwrap();
+    let clone = parent.join("throwaway");
+    std::fs::create_dir_all(&clone).unwrap();
+    git(&clone, &["init", "-q", "-b", "main"]);
+    e.add_repo(&f.repo.display().to_string()).unwrap();
+    e.add_repo(&clone.display().to_string()).unwrap();
+    e.update_state(|s| s.toggle_pin(&clone)).unwrap();
+    let names = || {
+        e.groups(e.workspaces())
+            .iter()
+            .map(|g| g.name.clone())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(names(), ["throwaway", "api"]);
+    let stale = e.find("throwaway").unwrap();
+
+    std::fs::remove_dir_all(&clone).unwrap();
+    assert_eq!(names(), ["api"], "gone from the sidebar");
+    let err = e.ensure_session(&stale).unwrap_err().to_string();
+    assert!(err.contains("no longer exists"), "{err}");
+    assert!(
+        f.srv.tmux.sessions().is_empty(),
+        "nothing started somewhere else"
+    );
+
+    // Still remembered, so it comes back (pin included) if the folder does.
+    std::fs::create_dir_all(&clone).unwrap();
+    assert_eq!(names(), ["throwaway", "api"]);
+
+    // A session still running in a deleted folder stays listed until it's closed.
+    let name = e.ensure_session(&e.find("throwaway").unwrap()).unwrap();
+    std::fs::remove_dir_all(&clone).unwrap();
+    assert!(names().contains(&"throwaway".to_string()));
+    f.srv.tmux.kill_session(&name).unwrap();
+    assert_eq!(names(), ["api"]);
+}

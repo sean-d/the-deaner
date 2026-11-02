@@ -4,23 +4,25 @@ A tmux-backed command center for running coding agents side by side. Linux first
 
 ```text
 ┌ sidebar ──────────────────┬ terminal ────────────────────────────────┐
-│ deaner             !1 ⠋1  │                                          │
-│ ▾ ★ deaner                │  your own tmux: claude, nvim, shells,    │
-│   ○ main                  │  one session per workspace,              │
-│ ▾ ★ shop-api              │  one window per tab                      │
-│   ⠋ main          ✎3 ↑1   │                                          │
-│   ! sec-bump        #42   │                                          │
+│ ★ PINNED                  │                                          │
+│ ▾ deaner                  │  your own tmux: claude, nvim, shells,    │
+│   ⎇ main                ✻ │  one session per workspace,              │
+│ ▾ shop-api                │  one window per tab                      │
+│   ⎇ main      ✎ 3 +1 -0 ⠋ │                                          │
+│   ⇄ sec-bump        #42 ! │                                          │
+│ ○ INACTIVE                │                                          │
 │ ▾ dotfiles                │                                          │
-│   ◌ main parked           │                                          │
+│   ⎇ main                ‖ │                                          │
+│ ? help            ! 1 ⠋ 1 │                                          │
 └───────────────────────────┴──────────────────────────────────────────┘
 ```
 
 - **Always-visible sidebar** of repos, worktrees and agents. Resize it by dragging, hide it with `Alt-b`.
 - **Repo first, worktree on demand.** `w` creates a worktree and session for a parallel branch.
 - **Any agent.** Tabs are tmux windows: claude, codex, aider, nvim, dev servers.
-- **Agent status.** Busy `⠋` / waiting on you `!` / idle `○`, via Claude Code hooks, with toasts.
-- **Git and PR status.** Changed files, ahead/behind, PR checks (via `gh`).
-- **Pinned repos keep your order.** Activity never reorders them.
+- **Agent status.** Working, waiting on you, or idle, via Claude Code hooks, with toasts.
+- **Git and PR status.** Branch, changed files, `+ahead -behind`, PR number colored by CI (via `gh`).
+- **Pinned, active, inactive sections.** Pinned repos keep your order; activity never moves them.
 - **Save, park, shut down, restore.** `deaner shutdown` at night; `deaner` in the morning brings
   everything back and each claude resumes its own conversation.
 - **Agents can message each other.** `deaner send shop-web:claude "…"`.
@@ -36,8 +38,8 @@ deaner install-hooks        # agent status for Claude Code
 deaner                      # open the frame
 ```
 
-In the sidebar: `j`/`k` to move, `Enter` to open, `t` new tab, `w` new worktree, `p` pin, `?` help.
-`Alt-s` jumps between the sidebar and the terminal.
+In the sidebar: `j`/`k` to move, `Enter` to open, `t` new tab, `w` new worktree, `p` pin.
+`Alt-s` jumps between the sidebar and the terminal. `Alt-/` opens a searchable cheat sheet of every shortcut.
 
 ## Documentation
 

@@ -15,6 +15,7 @@ pub mod process;
 pub mod sidebar;
 pub mod snapshot;
 pub mod state;
+pub mod tmux_keys;
 
 pub use agent::{AgentState, HookEvent, HookPayload};
 pub use config::{AgentDef, Config, RepoConfig, TabKind, TabSpec};

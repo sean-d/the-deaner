@@ -74,6 +74,7 @@ pub fn run(engine: Engine, standalone: bool) -> Result<()> {
 
     let mut app = App::new();
     app.standalone = standalone || !in_frame();
+    app.icons = deaner_ui::icons::for_style(engine.config.icons);
     let choices_engine = engine.clone();
     app.tab_choices = Box::new(move |repo| choices_engine.tab_choices(repo));
     offer_restore(&engine, &mut app);
@@ -188,6 +189,7 @@ fn spawn_refresher(engine: Engine, tx: Sender<Msg>, kick_tx: Sender<()>, kick_rx
         let git: Poller<GitStatus> = Poller::new(8);
         let trees: Poller<Vec<Checkout>> = Poller::new(4);
         let prs: Poller<Option<PrStatus>> = Poller::new(4);
+        let fetches: Poller<()> = Poller::new(4);
         let cfg = engine.config.clone();
 
         // Probing for gh can itself hang (it is a network tool); do it off-thread.
@@ -262,6 +264,17 @@ fn spawn_refresher(engine: Engine, tx: Sender<Msg>, kick_tx: Sender<()>, kick_rx
                     );
                 }
                 v.pr = prs.get(&v.path).flatten();
+
+                // Worktrees share their repo's remote refs, so this is per repo.
+                if live && cfg.fetch_seconds > 0 {
+                    let repo = v.repo.clone();
+                    fetches.request(
+                        &v.repo,
+                        Duration::from_secs(cfg.fetch_seconds.max(30)),
+                        move || deaner_git::fetch(&repo),
+                        kicker(&kick_tx),
+                    );
+                }
             }
 
             if tx.send(Msg::Groups(engine.groups(views))).is_err() {
@@ -346,6 +359,8 @@ fn lane(cmd: &Command, cfg: &Config) -> Lane {
         | Command::ToggleCollapse(_)
         | Command::ForgetRepo(_)
         | Command::Save
+        | Command::Cheatsheet
+        | Command::BrowseRepos
         | Command::Refresh
         | Command::Quit => Lane::Quick,
     }
@@ -507,6 +522,18 @@ fn execute(engine: &Engine, switcher: &Switcher, command: Command) -> Result<Out
                 text.push_str(&format!(", skipped {}", report.skipped.len()));
             }
             Outcome::Ok(text)
+        }
+        Command::Cheatsheet => {
+            if let Switcher::Frame(frame) = switcher {
+                crate::frame::open_popup(frame, "cheatsheet")?;
+            }
+            Outcome::Silent
+        }
+        Command::BrowseRepos => {
+            if let Switcher::Frame(frame) = switcher {
+                crate::frame::open_popup(frame, "browse")?;
+            }
+            Outcome::Silent
         }
         Command::Refresh | Command::Quit => Outcome::Silent,
     })

@@ -1,0 +1,12 @@
+---
+source: crates/deaner-ui/tests/cheatsheet.rs
+expression: "render(&mut s, 8)"
+---
+" How do I…  how do i hide                                             "
+"                                                                      "
+" Anywhere                                                             "
+"   Alt-b  Hide / show the sidebar                                     "
+"                                                                      "
+" Sidebar                                                              "
+"   ?      Show / hide this help                                       "
+" type to search · ↑↓ scroll · Esc closes                              "

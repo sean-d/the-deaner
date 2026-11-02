@@ -180,7 +180,8 @@ impl Engine {
             }
         };
 
-        for repo in &state.repos {
+        // A deleted folder isn't a workspace (a session still running in one is added below).
+        for repo in state.repos.iter().filter(|r| r.path.is_dir()) {
             for (path, branch, worktree) in checkouts(repo) {
                 let name = session_name(
                     &repo.name,
@@ -255,9 +256,17 @@ impl Engine {
     #[must_use]
     pub fn groups(&self, views: Vec<WorkspaceView>) -> Vec<RepoGroup> {
         let state = self.state();
+        // Repos whose folder is gone drop out of the sidebar. They stay in the state file,
+        // so a project on an unplugged drive, with its pin, comes back with the drive.
+        let repos: Vec<RepoEntry> = state
+            .repos
+            .iter()
+            .filter(|r| r.path.is_dir() || views.iter().any(|w| w.repo == r.path))
+            .cloned()
+            .collect();
         sidebar::build(
             &sidebar::Layout {
-                repos: &state.repos,
+                repos: &repos,
                 pins: &state.pins,
                 collapsed: &state.collapsed,
                 float_attention: self.config.float_attention,
@@ -296,6 +305,10 @@ impl Engine {
     /// # Errors
     /// When tmux or git fail.
     pub fn ensure_session(&self, ws: &WorkspaceView) -> Result<String> {
+        // tmux would quietly start somewhere else, and agents would run in the wrong place.
+        if ws.status != WsStatus::Live && !ws.path.is_dir() {
+            bail!("{} no longer exists", ws.path.display());
+        }
         match ws.status {
             WsStatus::Live => Ok(ws.name.clone()),
             WsStatus::Parked => self.unpark(&ws.path),

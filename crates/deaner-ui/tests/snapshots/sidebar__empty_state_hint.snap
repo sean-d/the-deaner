@@ -2,11 +2,11 @@
 source: crates/deaner-ui/tests/sidebar.rs
 expression: "render(&mut app, 34, 8)"
 ---
-" deaner                           "
 "                                  "
 " No repos yet.                    "
 " Press a to add one,              "
 " or run `deaner add <path>`.      "
+"                                  "
 "                                  "
 "                                  "
 " ? help                           "

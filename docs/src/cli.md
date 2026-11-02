@@ -14,7 +14,7 @@ Commands:
   add            Add repos or folders to the sidebar
   forget         Forget a repo; its sessions keep running and files are untouched
   new            Create a worktree for BRANCH in REPO and start a session for it
-  open           Start (or unpark) a workspace and switch to it
+  open           Start (or unpark) a workspace and switch to it. A folder that isn't added yet is added first
   tab            Add a tab to a workspace, e.g. `deaner tab api claude` or `deaner tab api logs -- tail -f app.log`
   archive        Remove a worktree and kill its session
   ls             List workspaces, tabs and agent states
@@ -25,6 +25,8 @@ Commands:
   restore        Rebuild workspaces from the latest snapshot
   shutdown       Done for the day: save everything, then stop all sessions
   install-hooks  Install deaner's status hooks into an agent's settings
+  browse         Browse folders to pick a project, add it, and open it (`a` in the sidebar)
+  cheatsheet     Open the searchable shortcut cheat sheet (Alt-/ inside deaner)
   keys           Show keybindings
   config         Show where config and state live, or print the default config
   help           Print this message or the help of the given subcommand(s)
@@ -106,7 +108,7 @@ Options:
 ## deaner open
 
 ```text
-Start (or unpark) a workspace and switch to it
+Start (or unpark) a workspace and switch to it. A folder that isn't added yet is added first
 
 Usage: deaner open <TARGET>
 
@@ -290,6 +292,34 @@ Options:
           
           [default: deaner]
 
+  -h, --help
+          Print help
+```
+
+## deaner browse
+
+```text
+Browse folders to pick a project, add it, and open it (`a` in the sidebar)
+
+Usage: deaner browse [DIR]
+
+Arguments:
+  [DIR]
+          Folder to start in (default: where your most recent project lives)
+
+Options:
+  -h, --help
+          Print help
+```
+
+## deaner cheatsheet
+
+```text
+Open the searchable shortcut cheat sheet (Alt-/ inside deaner)
+
+Usage: deaner cheatsheet
+
+Options:
   -h, --help
           Print help
 ```

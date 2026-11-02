@@ -12,18 +12,26 @@ Only set what you want to change. Missing keys keep their defaults.
 # Sidebar width (columns) until you drag it; after that your width is remembered.
 sidebar_width = 32
 
+# Sidebar icons: "nerd" (needs a Nerd Font, or a terminal with the glyphs built in, like Ghostty)
+# or "unicode" (plain symbols that work in any font).
+icons = "nerd"
+
 # Snapshot everything this often while something is running. 0 turns autosave off.
 autosave_minutes = 5
 # Timestamped snapshots to keep in ~/.local/state/deaner/snapshots/.
 snapshots_keep = 20
 
-# Float unpinned repos with an agent waiting on you to the top of the unpinned section.
+# Float active repos with an agent waiting on you to the top of the ACTIVE section.
 float_attention = true
 
 # How often to refresh git status for running workspaces (stopped ones: every 30 s).
 git_poll_seconds = 3
 # How often to ask `gh` about pull requests. 0 turns PR status off.
 pr_poll_seconds = 120
+# How often to `git fetch` repos with a running session, so the behind count stays current.
+# Never prompts, doesn't touch your checkout, and only updates remote-tracking branches.
+# 0 turns it off; the minimum otherwise is 30.
+fetch_seconds = 60
 
 # Where `w` / `deaner new` put worktrees. {repo_parent}, {repo} and {branch} are substituted.
 worktree_dir = "{repo_parent}/{repo}.worktrees/{branch}"
@@ -39,15 +47,12 @@ editors = ["nvim", "vim", "hx", "helix", "emacs"]
 [keys]
 focus = "M-s"           # move focus between the sidebar and the terminal
 toggle_sidebar = "M-b"  # hide / show the sidebar
+cheatsheet = "M-/"      # open the searchable shortcut cheat sheet
 
 # Tabs a new workspace starts with (a repo's .deaner.toml overrides these).
 [[tabs]]
 name = "claude"
 command = "claude"
-
-[[tabs]]
-name = "nvim"
-command = "nvim"
 
 [[tabs]]
 name = "shell"          # no command: a plain shell

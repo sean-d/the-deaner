@@ -18,13 +18,13 @@ Your other settings and hooks are kept, and a backup is written next to the file
 
 | Claude hook | deaner event | Badge |
 |---|---|---|
-| `SessionStart` | `session-start` (records the conversation id) | `○` idle |
-| `UserPromptSubmit` | `busy` | `⠋` busy |
-| `PreToolUse` | `pre-tool`: `AskUserQuestion` / `ExitPlanMode` mean waiting, other tools mean busy | `!` or `⠋` |
-| `PostToolUse` | `busy` | `⠋` busy |
-| `Notification` | `notification`: permission prompts mean waiting; the "waiting for your input" idle nudge is ignored | `!` waiting |
-| `PreCompact` | `compacting` | `◐` |
-| `Stop` | `stop` | `○` idle |
+| `SessionStart` | `session-start` (records the conversation id) | idle |
+| `UserPromptSubmit` | `busy` | working |
+| `PreToolUse` | `pre-tool`: `AskUserQuestion` / `ExitPlanMode` mean waiting, other tools mean busy | waiting or working |
+| `PostToolUse` | `busy` | working |
+| `Notification` | `notification`: permission prompts mean waiting; the "waiting for your input" idle nudge is ignored | waiting |
+| `PreCompact` | `compacting` | compacting |
+| `Stop` | `stop` | idle |
 | `SessionEnd` | `session-end` (clears the pane) | none |
 
 The hook command is `deaner hook claude <event>`. It reads Claude's JSON payload from stdin, writes

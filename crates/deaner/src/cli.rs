@@ -1,7 +1,7 @@
 //! Command-line interface.
 
 use crate::engine::Engine;
-use crate::{frame, hooks, sidebar};
+use crate::{browse, cheatsheet, frame, hooks, sidebar};
 use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser, Subcommand};
 use deaner_core::agent::{AgentState, HookEvent};
@@ -44,7 +44,7 @@ pub enum Cmd {
     Forget { target: String },
     /// Create a worktree for BRANCH in REPO and start a session for it
     New { repo: String, branch: String },
-    /// Start (or unpark) a workspace and switch to it
+    /// Start (or unpark) a workspace and switch to it. A folder that isn't added yet is added first
     Open { target: String },
     /// Add a tab to a workspace, e.g. `deaner tab api claude` or `deaner tab api logs -- tail -f app.log`
     Tab {
@@ -111,6 +111,13 @@ pub enum Cmd {
     /// Called by agent hooks to report status (internal)
     #[command(hide = true)]
     Hook { agent: String, event: String },
+    /// Browse folders to pick a project, add it, and open it (`a` in the sidebar)
+    Browse {
+        /// Folder to start in (default: where your most recent project lives)
+        dir: Option<String>,
+    },
+    /// Open the searchable shortcut cheat sheet (Alt-/ inside deaner)
+    Cheatsheet,
     /// Show keybindings
     Keys {
         /// Print the generated docs page
@@ -153,6 +160,8 @@ pub fn run(cli: Cli) -> Result<()> {
     match command {
         None => frame::open(&engine),
         Some(Cmd::Sidebar { standalone }) => sidebar::run(engine, standalone),
+        Some(Cmd::Cheatsheet) => cheatsheet::run(&engine),
+        Some(Cmd::Browse { dir }) => browse::run(&engine, dir.as_deref()),
         Some(Cmd::Term) => frame::term(&engine),
         Some(Cmd::Add { paths }) => {
             for p in paths {
@@ -178,8 +187,16 @@ pub fn run(cli: Cli) -> Result<()> {
             show(&engine, &name)
         }
         Some(Cmd::Open { target }) => {
-            let ws = engine.find(&target)?;
-            let name = engine.ensure_session(&ws)?;
+            let name = match engine.find(&target) {
+                Ok(ws) => engine.ensure_session(&ws)?,
+                Err(not_found) => {
+                    let path = crate::paths::expand(&target);
+                    if !path.is_dir() {
+                        return Err(not_found);
+                    }
+                    browse::open_project(&engine, &path)?
+                }
+            };
             show(&engine, &name)
         }
         Some(Cmd::Tab {
@@ -403,8 +420,8 @@ fn print_keys(markdown: bool) {
     }
     let keys = deaner_core::config::FrameKeys::default();
     println!("Frame (anywhere):");
-    for (k, help) in deaner_ui::keymap::frame_bindings(&keys) {
-        println!("  {k:<10} {help}");
+    for b in deaner_ui::keymap::frame_bindings(&keys) {
+        println!("  {:<10} {}", b.key, b.help);
     }
     for section in deaner_ui::keymap::sections() {
         println!("\n{section}:");

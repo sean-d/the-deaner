@@ -29,7 +29,7 @@ A tmux-backed command center for running coding agents side by side. Linux first
 
 ```sh
 # needs tmux >= 3.3 and git; gh optional
-cargo install --git https://github.com/sean-d/deaner deaner
+cargo install --locked --git https://github.com/sean-d/deaner deaner
 
 deaner add ~/dev/shop-api ~/dev/deaner
 deaner install-hooks        # agent status for Claude Code

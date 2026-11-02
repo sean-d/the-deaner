@@ -11,8 +11,16 @@
 From source (needs a Rust toolchain, stable):
 
 ```sh
-cargo install --git https://github.com/sean-d/deaner deaner
+cargo install --locked --git https://github.com/sean-d/deaner deaner
 ```
+
+From a local checkout (works from any directory):
+
+```sh
+cargo install --locked --path ~/dev/deaner/crates/deaner
+```
+
+`--locked` builds with the exact dependency versions in `Cargo.lock`, the ones CI tested.
 
 Or grab a binary from the GitHub releases page and put it on your `PATH`.
 
@@ -93,7 +101,7 @@ set -as terminal-features ",*:extkeys"
 ## Updating
 
 ```sh
-cargo install --git https://github.com/sean-d/deaner deaner --force
+cargo install --locked --force --git https://github.com/sean-d/deaner deaner
 ```
 
 Running sessions are not affected. The sidebar picks up the new binary the next time it restarts

@@ -1,0 +1,22 @@
+[package]
+name = "deaner-tmux"
+description = "tmux command wrapper and isolated test-server harness for deaner"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+deaner-core.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+
+
+[features]
+test-support = []

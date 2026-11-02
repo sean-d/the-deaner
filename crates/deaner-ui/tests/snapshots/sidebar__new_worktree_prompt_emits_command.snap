@@ -1,0 +1,16 @@
+---
+source: crates/deaner-ui/tests/sidebar.rs
+expression: "render(&mut app, 34, 12)"
+---
+" deaner                        ⠋1 "
+"▾ ★ deaner                        "
+"╭ New worktree · shop-api ───────╮"
+"│ sec/fix                        │"
+"│                                │"
+"│ Enter ok · Esc cancel          │"
+"╰────────────────────────────────╯"
+"  ◌ main parked                   "
+"                                  "
+"                                  "
+"                                  "
+" ? help                           "

@@ -1,0 +1,331 @@
+//! User configuration (`~/.config/deaner/config.toml`) and per-repo
+//! configuration (`<repo>/.deaner.toml`).
+//!
+//! Every field has a default, so an empty or missing file is a valid config.
+
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+
+/// A tab to open in a new workspace, or offered by "new tab".
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TabSpec {
+    pub name: String,
+    /// Command typed into the tab's shell. `None` leaves a plain shell.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+}
+
+impl TabSpec {
+    #[must_use]
+    pub fn new(name: &str, command: Option<&str>) -> Self {
+        Self {
+            name: name.to_string(),
+            command: command.map(str::to_string),
+        }
+    }
+}
+
+/// How to launch and resume a coding agent.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentDef {
+    /// Command that starts the agent, e.g. `claude`.
+    pub command: String,
+    /// Command that resumes a specific conversation; `{session_id}` is substituted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resume: Option<String>,
+}
+
+/// Keys bound in the outer frame (tmux root table, so they work from any pane).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct FrameKeys {
+    /// Move focus between the sidebar and the terminal.
+    pub focus: String,
+    /// Hide or show the sidebar.
+    pub toggle_sidebar: String,
+}
+
+impl Default for FrameKeys {
+    fn default() -> Self {
+        Self {
+            focus: "M-s".into(),
+            toggle_sidebar: "M-b".into(),
+        }
+    }
+}
+
+/// What kind of thing runs in a tab, which decides how it is restored.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TabKind {
+    Agent(String),
+    Editor,
+    Shell,
+    Command,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Config {
+    /// Sidebar width in columns when no width has been saved yet.
+    pub sidebar_width: u16,
+    /// Snapshot everything this often (minutes). 0 disables autosave.
+    pub autosave_minutes: u64,
+    /// How many timestamped snapshots to keep.
+    pub snapshots_keep: usize,
+    /// Float unpinned repos with an agent awaiting input to the top of the unpinned section.
+    pub float_attention: bool,
+    pub git_poll_seconds: u64,
+    /// How often to ask `gh` about pull requests. 0 disables PR status.
+    pub pr_poll_seconds: u64,
+    /// Where new worktrees go. `{repo_parent}`, `{repo}` and `{branch}` are substituted.
+    pub worktree_dir: String,
+    /// Process names that count as "just a shell" (nothing to restore).
+    pub shells: Vec<String>,
+    /// Editors that are relaunched on restore even if deaner did not start them.
+    pub editors: Vec<String>,
+    pub keys: FrameKeys,
+    /// Tabs a new workspace starts with (overridden by a repo's `.deaner.toml`).
+    pub tabs: Vec<TabSpec>,
+    /// Known agents, merged over the built-in `claude` and `codex` definitions.
+    pub agents: BTreeMap<String, AgentDef>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            sidebar_width: 32,
+            autosave_minutes: 5,
+            snapshots_keep: 20,
+            float_attention: true,
+            git_poll_seconds: 3,
+            pr_poll_seconds: 120,
+            worktree_dir: "{repo_parent}/{repo}.worktrees/{branch}".into(),
+            shells: ["zsh", "bash", "fish", "sh", "dash", "nu", "elvish", "xonsh"]
+                .map(String::from)
+                .to_vec(),
+            editors: ["nvim", "vim", "hx", "helix", "emacs"]
+                .map(String::from)
+                .to_vec(),
+            keys: FrameKeys::default(),
+            tabs: vec![
+                TabSpec::new("claude", Some("claude")),
+                TabSpec::new("nvim", Some("nvim")),
+                TabSpec::new("shell", None),
+            ],
+            agents: builtin_agents(),
+        }
+    }
+}
+
+fn builtin_agents() -> BTreeMap<String, AgentDef> {
+    BTreeMap::from([
+        (
+            "claude".to_string(),
+            AgentDef {
+                command: "claude".into(),
+                resume: Some("claude --resume {session_id}".into()),
+            },
+        ),
+        (
+            "codex".to_string(),
+            AgentDef {
+                command: "codex".into(),
+                resume: Some("codex resume {session_id}".into()),
+            },
+        ),
+    ])
+}
+
+/// The first word of a command line, without any directory part.
+#[must_use]
+pub fn program_name(command: &str) -> &str {
+    let first = command.split_whitespace().next().unwrap_or("");
+    first.rsplit('/').next().unwrap_or(first)
+}
+
+impl Config {
+    /// Parse a config file; user agents are merged over the built-in ones.
+    ///
+    /// # Errors
+    /// Returns the TOML error for invalid syntax or unknown value types.
+    pub fn from_toml(text: &str) -> Result<Self, toml::de::Error> {
+        let mut cfg: Self = toml::from_str(text)?;
+        for (name, def) in builtin_agents() {
+            cfg.agents.entry(name).or_insert(def);
+        }
+        Ok(cfg)
+    }
+
+    /// Classify a launch command.
+    #[must_use]
+    pub fn classify(&self, command: Option<&str>) -> TabKind {
+        let Some(command) = command.filter(|c| !c.trim().is_empty()) else {
+            return TabKind::Shell;
+        };
+        let program = program_name(command);
+        if let Some((name, _)) = self
+            .agents
+            .iter()
+            .find(|(_, def)| program_name(&def.command) == program)
+        {
+            return TabKind::Agent(name.clone());
+        }
+        if self.editors.iter().any(|e| e == program) {
+            TabKind::Editor
+        } else if self.shells.iter().any(|s| s == program) {
+            TabKind::Shell
+        } else {
+            TabKind::Command
+        }
+    }
+
+    /// Whether a pane's foreground process is just a shell.
+    #[must_use]
+    pub fn is_shell(&self, current_command: &str) -> bool {
+        let p = current_command.trim_start_matches('-');
+        p.is_empty() || self.shells.iter().any(|s| s == p)
+    }
+
+    /// Path for a new worktree of `repo` on `branch`.
+    #[must_use]
+    pub fn worktree_path(&self, repo: &Path, branch: &str) -> PathBuf {
+        let parent = repo.parent().unwrap_or(repo);
+        let name = repo
+            .file_name()
+            .map_or_else(|| "repo".to_string(), |n| n.to_string_lossy().into_owned());
+        let rendered = self
+            .worktree_dir
+            .replace("{repo_parent}", &parent.to_string_lossy())
+            .replace("{repo}", &name)
+            .replace("{branch}", branch);
+        PathBuf::from(rendered)
+    }
+
+    /// Tabs to open for a new workspace: the repo's own list if it has one.
+    #[must_use]
+    pub fn tabs_for(&self, repo: Option<&RepoConfig>) -> Vec<TabSpec> {
+        repo.and_then(|r| r.tabs.clone())
+            .filter(|t| !t.is_empty())
+            .unwrap_or_else(|| self.tabs.clone())
+    }
+
+    /// Choices offered by "new tab": the default tabs, every agent, and a shell.
+    #[must_use]
+    pub fn new_tab_choices(&self, repo: Option<&RepoConfig>) -> Vec<TabSpec> {
+        let mut out: Vec<TabSpec> = Vec::new();
+        let mut push = |t: TabSpec| {
+            if !out.iter().any(|o| o.name == t.name) {
+                out.push(t);
+            }
+        };
+        for t in self.tabs_for(repo) {
+            push(t);
+        }
+        for (name, def) in &self.agents {
+            push(TabSpec::new(name, Some(&def.command)));
+        }
+        push(TabSpec::new("shell", None));
+        out
+    }
+}
+
+/// `<repo>/.deaner.toml`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RepoConfig {
+    pub tabs: Option<Vec<TabSpec>>,
+}
+
+impl RepoConfig {
+    /// # Errors
+    /// Returns the TOML error for invalid syntax.
+    pub fn from_toml(text: &str) -> Result<Self, toml::de::Error> {
+        toml::from_str(text)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_file_is_default() {
+        assert_eq!(Config::from_toml("").unwrap(), Config::default());
+    }
+
+    #[test]
+    fn user_agents_merge_over_builtins() {
+        let cfg = Config::from_toml(
+            r#"
+sidebar_width = 40
+[agents.aider]
+command = "aider --no-auto-commits"
+[agents.claude]
+command = "claude --model opus"
+resume = "claude --model opus --resume {session_id}"
+"#,
+        )
+        .unwrap();
+        assert_eq!(cfg.sidebar_width, 40);
+        assert_eq!(cfg.agents.len(), 3);
+        assert_eq!(cfg.agents["claude"].command, "claude --model opus");
+        assert!(cfg.agents.contains_key("codex"));
+    }
+
+    #[test]
+    fn classifies_commands() {
+        let cfg = Config::default();
+        assert_eq!(
+            cfg.classify(Some("claude")),
+            TabKind::Agent("claude".into())
+        );
+        assert_eq!(
+            cfg.classify(Some("/usr/local/bin/claude --continue")),
+            TabKind::Agent("claude".into())
+        );
+        assert_eq!(cfg.classify(Some("nvim .")), TabKind::Editor);
+        assert_eq!(cfg.classify(Some("npm run dev")), TabKind::Command);
+        assert_eq!(cfg.classify(None), TabKind::Shell);
+        assert_eq!(cfg.classify(Some("  ")), TabKind::Shell);
+        assert!(cfg.is_shell("-zsh"));
+        assert!(!cfg.is_shell("nvim"));
+    }
+
+    #[test]
+    fn worktree_path_template() {
+        let cfg = Config::default();
+        assert_eq!(
+            cfg.worktree_path(Path::new("/home/sd/dev/api"), "feat/x"),
+            PathBuf::from("/home/sd/dev/api.worktrees/feat/x")
+        );
+    }
+
+    #[test]
+    fn repo_tabs_override_defaults() {
+        let cfg = Config::default();
+        let repo = RepoConfig::from_toml(
+            r#"
+[[tabs]]
+name = "claude"
+command = "claude"
+[[tabs]]
+name = "dev"
+command = "npm run dev"
+"#,
+        )
+        .unwrap();
+        let tabs = cfg.tabs_for(Some(&repo));
+        assert_eq!(tabs.len(), 2);
+        assert_eq!(tabs[1].command.as_deref(), Some("npm run dev"));
+        assert_eq!(cfg.tabs_for(None), cfg.tabs);
+
+        let choices: Vec<_> = cfg
+            .new_tab_choices(Some(&repo))
+            .into_iter()
+            .map(|t| t.name)
+            .collect();
+        assert_eq!(choices, ["claude", "dev", "codex", "shell"]);
+    }
+}

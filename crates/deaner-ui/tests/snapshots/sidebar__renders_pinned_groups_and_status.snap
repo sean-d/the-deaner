@@ -1,0 +1,16 @@
+---
+source: crates/deaner-ui/tests/sidebar.rs
+expression: "render(&mut app, 34, 12)"
+---
+" deaner                     !1 ⠋1 "
+"▾ ★ deaner                        "
+"  ○ main                          "
+"▾ ★ shop-api                      "
+"  ⠋ main                    ✎3 ↑1 "
+"  ! sec-bump                  #42 "
+"▾ dotfiles                        "
+"  ◌ main parked                   "
+"                                  "
+"                                  "
+"                                  "
+" ? help                           "

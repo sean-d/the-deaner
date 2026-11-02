@@ -1,0 +1,50 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT"
+repository = "https://github.com/sean-d/deaner"
+authors = ["sean-d"]
+
+[workspace.dependencies]
+deaner-core = { path = "crates/deaner-core" }
+deaner-tmux = { path = "crates/deaner-tmux" }
+deaner-git = { path = "crates/deaner-git" }
+deaner-ui = { path = "crates/deaner-ui" }
+
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive"] }
+crossterm = "0.29.0"
+dirs = "7.0.0"
+insta = "1.49.0"
+ratatui = "0.30.2"
+ratcn = { version = "0.0.6", features = ["crossterm"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.154", features = ["preserve_order"] }
+shell-words = "1.1.1"
+tempfile = "3.27.0"
+thiserror = "2.0.21"
+toml = "1.1.8"
+unicode-width = "0.2.2"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+# Fast dev builds: line tables only for our code, no debug info for deps.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

@@ -1,0 +1,12 @@
+[book]
+title = "deaner"
+authors = ["sd"]
+language = "en"
+src = "src"
+
+[output.html]
+git-repository-url = "https://github.com/sean-d/deaner"
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"

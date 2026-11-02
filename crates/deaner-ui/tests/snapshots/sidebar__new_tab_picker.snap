@@ -1,0 +1,16 @@
+---
+source: crates/deaner-ui/tests/sidebar.rs
+expression: "render(&mut app, 34, 12)"
+---
+" deaner                        ⠋1 "
+"▾ ★ deaner                        "
+"╭ New tab · deaner ──────────────╮"
+"│1 claude   claude               │"
+"│2 nvim     nvim                 │"
+"│3 shell    shell                │"
+"╰────────────────────────────────╯"
+"  ◌ main parked                   "
+"                                  "
+"                                  "
+"                                  "
+" ? help                           "

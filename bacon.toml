@@ -1,0 +1,25 @@
+# `bacon` runs clippy on every save. Keys: c clippy, t test, n nextest, d docs freshness.
+default_job = "clippy"
+
+[jobs.clippy]
+command = ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--color", "always"]
+need_stdout = false
+
+[jobs.test]
+command = ["cargo", "test", "--workspace", "--all-features", "--color", "always"]
+need_stdout = true
+
+[jobs.nextest]
+command = ["cargo", "nextest", "run", "--workspace", "--all-features", "--color", "always", "--hide-progress-bar", "--failure-output", "final"]
+need_stdout = true
+analyzer = "nextest"
+
+[jobs.docs]
+command = ["cargo", "test", "-p", "deaner", "--test", "docs", "--color", "always"]
+need_stdout = true
+
+[keybindings]
+c = "job:clippy"
+t = "job:test"
+n = "job:nextest"
+d = "job:docs"

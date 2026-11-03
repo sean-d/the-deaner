@@ -277,6 +277,43 @@ fn pins_order_groups_and_survive_forget() {
 }
 
 #[test]
+fn commands_are_typed_after_the_prompt_not_before_it() {
+    let f = fixture();
+    let e = &f.engine;
+    e.add_repo(&f.repo.display().to_string()).unwrap();
+    let name = e.ensure_session(&e.workspaces()[0]).unwrap();
+    e.new_tab(
+        &name,
+        &f.repo,
+        &TabSpec::new("tab", Some("echo marker-text")),
+    )
+    .unwrap();
+    let pane = e
+        .managed_panes()
+        .into_iter()
+        .find(|p| p.window_name == "tab")
+        .unwrap()
+        .pane_id;
+    wait_for("the command's output", || {
+        f.srv
+            .tmux
+            .capture_pane(&pane)
+            .unwrap()
+            .lines()
+            .filter(|l| l.contains("marker-text"))
+            .count()
+            >= 2
+    });
+    let screen = f.srv.tmux.capture_pane(&pane).unwrap();
+    let first = screen.lines().find(|l| !l.trim().is_empty()).unwrap();
+    assert!(
+        first.len() > "echo marker-text".len() && first.ends_with("echo marker-text"),
+        "the prompt comes first, with the command on it: {screen}"
+    );
+    assert_eq!(screen.matches("echo marker-text").count(), 1, "{screen}");
+}
+
+#[test]
 fn concurrent_state_updates_are_not_lost() {
     let f = fixture();
     let handles: Vec<_> = (0..32)

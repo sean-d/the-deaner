@@ -24,11 +24,15 @@ struct Palette {
     good: Style,
     busy: Style,
     branch: Style,
+    attention: Style,
     border: Style,
 }
 
 /// Selected row: a background, so each span keeps its own color.
 const SELECTED: Style = Style::new().bg(Color::DarkGray);
+/// The project shown in the terminal.
+const CURRENT_BG: Color = Color::Magenta;
+const CURRENT_FG: Color = Color::Black;
 
 fn palette(app: &App) -> Palette {
     let t = &app.theme;
@@ -40,6 +44,7 @@ fn palette(app: &App) -> Palette {
         good: Style::new().fg(Color::Green),
         busy: Style::new().fg(Color::Cyan),
         branch: Style::new().fg(Color::Blue),
+        attention: Style::new().fg(Color::Blue),
         border: Style::new().fg(t.border),
     }
 }
@@ -55,7 +60,8 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
     let items: Vec<ListItem<'_>> = app
         .rows
         .iter()
-        .map(|row| ListItem::new(row_line(app, &p, *row, list_area.width)))
+        .enumerate()
+        .map(|(i, row)| row_item(app, &p, *row, i, list_area.width))
         .collect();
     if items.is_empty() {
         let hint = Paragraph::new(vec![
@@ -67,7 +73,8 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
         .wrap(Wrap { trim: false });
         frame.render_widget(hint, list_area);
     } else {
-        let list = List::new(items).highlight_style(SELECTED);
+        // Rows style themselves: the cursor and the open project look different.
+        let list = List::new(items);
         frame.render_stateful_widget(list, list_area, &mut app.list);
     }
 
@@ -226,6 +233,28 @@ fn status_line<'a>(app: &App, p: &Palette, width: u16) -> Line<'a> {
     justify(vec![Span::styled(" ? help", p.muted)], right, width)
 }
 
+/// One row, styled. The project shown on the right gets a solid highlight that stays
+/// put while the cursor moves; the cursor on that row shows as a bar at its edge.
+fn row_item<'a>(app: &App, p: &Palette, row: Row, index: usize, width: u16) -> ListItem<'a> {
+    let mut line = row_line(app, p, row, width);
+    let selected = app.list.selected() == Some(index);
+    let current =
+        matches!(row, Row::Workspace { group, ws } if app.groups[group].workspaces[ws].current);
+    if current {
+        for span in &mut line.spans {
+            span.style = span.style.fg(CURRENT_FG).add_modifier(Modifier::BOLD);
+        }
+        if selected && let Some(first) = line.spans.first_mut() {
+            first.content = "▌ ".into();
+        }
+        return ListItem::new(line).style(Style::new().bg(CURRENT_BG));
+    }
+    if selected {
+        return ListItem::new(line).style(SELECTED);
+    }
+    ListItem::new(line)
+}
+
 fn row_line<'a>(app: &App, p: &Palette, row: Row, width: u16) -> Line<'a> {
     match row {
         Row::Header { section } => heading_line(app, p, section),
@@ -240,22 +269,34 @@ fn heading_line<'a>(app: &App, p: &Palette, section: Section) -> Line<'a> {
         Section::Active => (app.icons.active, p.good),
         Section::Inactive => (app.icons.inactive, p.muted),
     };
-    Line::styled(
+    let mut spans = vec![Span::styled(
         format!("{icon} {}", section.label()),
         style.add_modifier(Modifier::BOLD),
-    )
+    )];
+    let attention = app
+        .groups
+        .iter()
+        .filter(|g| g.section == section)
+        .flat_map(|g| &g.workspaces)
+        .any(|w| app.needs_attention(w));
+    if attention {
+        spans.push(Span::styled(format!(" {}", app.icons.active), p.attention));
+    }
+    Line::from(spans)
 }
 
 fn repo_line<'a>(app: &App, p: &Palette, g: &RepoGroup, width: u16) -> Line<'a> {
-    let caret = if g.collapsed && app.filter.is_empty() {
-        app.icons.collapsed
-    } else {
-        app.icons.expanded
-    };
-    let left = vec![
-        Span::styled(format!("{caret} "), p.muted),
-        Span::styled(g.name.clone(), Style::new().add_modifier(Modifier::BOLD)),
-    ];
+    let mut left = Vec::new();
+    // An arrow only says something when there's a hidden list to get back.
+    if g.collapsed && app.filter.is_empty() {
+        left.push(Span::styled(format!("{} ", app.icons.collapsed), p.muted));
+    }
+    let attention = g.workspaces.iter().any(|w| app.needs_attention(w));
+    let name_style = if attention { p.attention } else { Style::new() };
+    left.push(Span::styled(
+        g.name.clone(),
+        name_style.add_modifier(Modifier::BOLD),
+    ));
     let mut right = Vec::new();
     if g.collapsed
         && let Some(glyph) = agent_glyph(app, p, g.agent(), WsStatus::Live)
@@ -319,13 +360,11 @@ fn ws_label(w: &WorkspaceView) -> String {
 }
 
 fn ws_line<'a>(app: &App, p: &Palette, w: &WorkspaceView, width: u16) -> Line<'a> {
-    let mut label_style = match w.status {
+    let label_style = match w.status {
+        _ if app.needs_attention(w) => p.attention.add_modifier(Modifier::BOLD),
         WsStatus::Live => Style::new(),
         WsStatus::Parked | WsStatus::Stopped => p.muted,
     };
-    if w.current {
-        label_style = label_style.patch(p.accent).add_modifier(Modifier::BOLD);
-    }
     let left = vec![
         Span::raw("  "),
         git_icon(app, p, w),
@@ -353,14 +392,18 @@ fn ws_line<'a>(app: &App, p: &Palette, w: &WorkspaceView, width: u16) -> Line<'a
         }
     }
     if let Some(pr) = &w.pr {
-        let style = match (pr.state, pr.checks) {
-            (PrState::Merged, _) => p.accent,
-            (PrState::Closed | PrState::Draft, _) | (_, Checks::None) => p.muted,
-            (_, Checks::Passing) => p.good,
-            (_, Checks::Failing) => p.bad,
-            (_, Checks::Pending) => p.warn,
+        let (check, style) = match pr.checks {
+            Checks::None => (None, p.muted),
+            Checks::Passing => (Some(app.icons.checks_passing), p.good),
+            Checks::Failing => (Some(app.icons.checks_failing), p.bad),
+            Checks::Pending => (Some(app.icons.checks_pending), p.warn),
         };
-        right.push(vec![Span::styled(format!("#{}", pr.number), style)]);
+        let mut part = vec![Span::styled(format!("#{}", pr.number), p.muted)];
+        if let Some(check) = check {
+            part.push(Span::raw(" "));
+            part.push(Span::styled(check, style));
+        }
+        right.push(part);
     }
     if let Some(glyph) = agent_glyph(app, p, w.agent, w.status) {
         right.push(vec![glyph]);
@@ -436,10 +479,17 @@ fn draw_help(frame: &mut Frame<'_>, p: &Palette, icons: &Icons, area: Rect, scro
         (icons.detached, p.branch, "Detached HEAD"),
         (icons.folder, p.branch, "Plain folder"),
         (icons.pull_request, p.good, "Open pull request"),
-        (icons.merged, p.accent, "Merged pull request"),
+        (icons.merged, p.accent, "Last pull request, merged"),
         (icons.changed, p.warn, "Changed files"),
         ("+ -", p.good, "Commits ahead / behind"),
-        ("#", p.good, "PR number; color is CI status"),
+        (icons.checks_passing, p.good, "CI passing"),
+        (icons.checks_failing, p.bad, "CI failing"),
+        (icons.checks_pending, p.warn, "CI running"),
+        (
+            "Blue",
+            p.attention,
+            "Agent needs you, or finished elsewhere",
+        ),
         (SPINNER[0], p.busy, "Agent working"),
         (icons.awaiting, p.warn, "Agent waiting on you"),
         (icons.idle, p.good, "Agent idle"),

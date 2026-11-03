@@ -4,7 +4,7 @@
 //! builds, and behaviour identical to the user's own git (config, hooks,
 //! credential helpers).
 
-use deaner_core::pr::{GH_FIELDS, PrStatus};
+use deaner_core::pr::{GH_QUERY, PrStatus};
 use deaner_core::process::output_with_timeout;
 use deaner_core::{GitStatus, Worktree};
 use std::ffi::OsStr;
@@ -250,22 +250,34 @@ pub fn gh_available() -> bool {
         .is_ok_and(|o| o.status.success())
 }
 
-/// The pull request for `branch`, or `None` if there is none (or gh cannot tell).
+/// The pull request to show for `branch`, or `None` if it has never had one.
 ///
 /// # Errors
-/// When gh times out (keep showing the last known state) or its output cannot be parsed.
+/// When gh can't answer (offline, not a GitHub repo, not logged in, timed out). Callers
+/// keep showing the last known state rather than clearing the badge.
 pub fn pr_status(path: &Path, branch: &str) -> Result<Option<PrStatus>> {
-    match run(
+    let query = format!("query={GH_QUERY}");
+    let branch_field = format!("branch={branch}");
+    let json = run(
         "gh",
         path,
-        &["pr", "view", branch, "--json", GH_FIELDS],
+        &[
+            "api",
+            "graphql",
+            "-f",
+            &query,
+            // -F fills in {owner} and {repo} from the current repo. The branch uses -f,
+            // because -F would turn a branch named `123` into a number.
+            "-F",
+            "owner={owner}",
+            "-F",
+            "name={repo}",
+            "-f",
+            &branch_field,
+        ],
         GH_TIMEOUT,
-    ) {
-        Ok(json) => Ok(Some(PrStatus::parse_gh(&json)?)),
-        // "no pull requests found", not a GitHub remote, not logged in: no PR to show.
-        Err(Error::Failed { .. } | Error::Spawn { .. }) => Ok(None),
-        Err(e) => Err(e),
-    }
+    )?;
+    Ok(PrStatus::parse_graphql(&json, branch)?)
 }
 
 #[cfg(test)]

@@ -141,13 +141,19 @@ is read from your tmux config, so it shows your real keys, including anything yo
 
 | Part | Meaning |
 |---|---|
-| Git icon | Branch, or a pull request icon once there's a PR: green open, dim draft, purple merged, red closed. Dim when not running. A detached checkout shows a commit icon and short commit id; a plain folder shows a folder icon. |
+| Git icon | Branch, or a pull request icon once the branch has had a PR: green open, dim draft, purple merged. Dim when not running. A detached checkout shows a commit icon and short commit id; a plain folder shows a folder icon. |
 | Pencil and number | Changed files |
 | `+1 -0` | Commits ahead of and behind the upstream. Hidden when both are 0. deaner fetches running repos in the background every minute (`fetch_seconds`), so this tracks GitHub to within about a minute. Repos without a running session aren't fetched. |
-| `#259` | PR number, colored by CI: green passing, yellow running, red failing |
+| `#259` and a check | The branch's open PR, or its last merged one, with CI: green check passing, yellow clock running, red X failing. Running projects update every 2 minutes (`pr_poll_seconds`), others every 10. |
 | Agent | Spinner: working. Bell: waiting on you. `✻`: idle. `◐`: compacting. Pause: parked. |
 
-Press `?` in the sidebar for the same legend. Icons use a Nerd Font; set `icons = "unicode"` in
+The project shown on the right has a solid highlight. **A blue name means it needs you:** an agent is
+waiting, or finished while you were looking at something else. It clears when you open the project. The
+section heading gets a blue dot too, so you can spot it with a repo scrolled out of view.
+
+`Space` collapses a repo down to one line, and an arrow marks the ones that are collapsed.
+
+Press `Alt-/` and scroll down, or search for "icons", for the same legend. Icons use a Nerd Font; set `icons = "unicode"` in
 `config.toml` for plain symbols. The tab bar and terminal colors come from your tmux config and terminal.
 
 ## Choosing which tabs open

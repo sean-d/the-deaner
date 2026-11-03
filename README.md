@@ -5,14 +5,14 @@ A tmux-backed command center for running coding agents side by side. Linux first
 ```text
 ┌ sidebar ──────────────────┬ terminal ────────────────────────────────┐
 │ ★ PINNED                  │                                          │
-│ ▾ deaner                  │  your own tmux: claude, nvim, shells,    │
+│ deaner                    │  your own tmux: claude, nvim, shells,    │
 │   ⎇ main                ✻ │  one session per workspace,              │
-│ ▾ shop-api                │  one window per tab                      │
+│ shop-api                  │  one window per tab                      │
 │   ⎇ main      ✎ 3 +1 -0 ⠋ │                                          │
-│   ⇄ sec-bump        #42 ! │                                          │
+│   ⇄ sec-bump      #42 ✓ ! │                                          │
 │ ○ INACTIVE                │                                          │
-│ ▾ dotfiles                │                                          │
-│   ⎇ main                ‖ │                                          │
+│ dotfiles                  │                                          │
+│   ⇉ staging        #380 ✓ │                                          │
 │ ? help            ! 1 ⠋ 1 │                                          │
 └───────────────────────────┴──────────────────────────────────────────┘
 ```
@@ -21,7 +21,7 @@ A tmux-backed command center for running coding agents side by side. Linux first
 - **Repo first, worktree on demand.** `w` creates a worktree and session for a parallel branch.
 - **Any agent.** Tabs are tmux windows: claude, codex, aider, nvim, dev servers.
 - **Agent status.** Working, waiting on you, or idle, via Claude Code hooks, with toasts.
-- **Git and PR status.** Branch, changed files, `+ahead -behind`, PR number colored by CI (via `gh`).
+- **Git and PR status.** Branch, changed files, `+ahead -behind`, PR number and a CI check (via `gh`).
 - **Pinned, active, inactive sections.** Pinned repos keep your order; activity never moves them.
 - **Save, park, shut down, restore.** `deaner shutdown` at night; `deaner` in the morning brings
   everything back and each claude resumes its own conversation.

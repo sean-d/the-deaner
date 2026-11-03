@@ -6,14 +6,14 @@ It is built on tmux and works on Linux (the main target) and macOS.
 ```text
 ┌ sidebar ──────────────────┬ terminal ────────────────────────────────┐
 │ ★ PINNED                  │                                          │
-│ ▾ deaner                  │  claude, nvim, shells: your own tmux,    │
+│ deaner                    │  claude, nvim, shells: your own tmux,    │
 │   ⎇ main                ✻ │  your own config, one session per        │
-│ ▾ shop-api                │  workspace, one tmux window per tab      │
+│ shop-api                  │  workspace, one tmux window per tab      │
 │   ⎇ main      ✎ 3 +1 -0 ⠋ │                                          │
-│   ⇄ sec-bump        #42 ! │                                          │
+│   ⇄ sec-bump      #42 ✓ ! │                                          │
 │ ○ INACTIVE                │                                          │
-│ ▾ dotfiles                │                                          │
-│   ⎇ main                ‖ │                                          │
+│ dotfiles                  │                                          │
+│   ⇉ staging        #380 ✓ │                                          │
 │ ? help            ! 1 ⠋ 1 │                                          │
 └───────────────────────────┴──────────────────────────────────────────┘
 ```

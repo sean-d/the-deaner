@@ -351,7 +351,13 @@ fn nerd_icons_show_git_state() {
     app.set_groups(fixture(AgentState::Idle));
     let screen = render(&mut app, 34, 12);
     let nerd = &deaner_ui::icons::NERD;
-    for glyph in [nerd.branch, nerd.pull_request, nerd.pinned, nerd.changed] {
+    for glyph in [
+        nerd.branch,
+        nerd.pull_request,
+        nerd.pinned,
+        nerd.changed,
+        nerd.checks_passing,
+    ] {
         assert!(screen.contains(glyph), "missing {glyph:?} in {screen}");
     }
     assert!(screen.contains("+1 -0"), "{screen}");
@@ -433,4 +439,134 @@ fn a_browses_inside_the_frame_and_prompts_outside_it() {
     app.standalone = true;
     assert_eq!(app.handle_key(ch('a')), None);
     assert!(matches!(app.mode(), Mode::Prompt { .. }));
+}
+
+fn cell_at(app: &mut App, needle: &str) -> ratatui::buffer::Cell {
+    // Tall enough that toasts stacked at the bottom don't cover the rows being checked.
+    let mut term = Terminal::new(TestBackend::new(34, 40)).unwrap();
+    term.draw(|f| draw(f, app)).unwrap();
+    let buf = term.backend().buffer();
+    let width = usize::from(buf.area.width);
+    for (y, row) in buf.content.chunks(width).enumerate() {
+        let text: String = row.iter().map(ratatui::buffer::Cell::symbol).collect();
+        if let Some(byte) = text.find(needle) {
+            let x = text[..byte].chars().count();
+            return buf.content[y * width + x].clone();
+        }
+    }
+    panic!("{needle} not on screen");
+}
+
+#[test]
+fn the_open_project_is_highlighted_wherever_the_cursor_is() {
+    use ratatui::style::Color;
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    // shop-api's main is the open one (and the only "main" with changed files).
+    let mut term = Terminal::new(TestBackend::new(34, 14)).unwrap();
+    term.draw(|f| draw(f, &mut app)).unwrap();
+    let buf = term.backend().buffer().clone();
+    let row = |y: u16| -> String { (0..34).map(|x| buf[(x, y)].symbol().to_string()).collect() };
+    let y = (0..14).find(|y| row(*y).contains("3 +1")).unwrap();
+    assert_eq!(
+        buf[(0, y)].bg,
+        Color::Magenta,
+        "the whole row, edge to edge"
+    );
+    assert_eq!(buf[(33, y)].bg, Color::Magenta);
+    assert_eq!(buf[(4, y)].fg, Color::Black, "and readable");
+
+    // The cursor is elsewhere, on another background.
+    assert_eq!(cell_at(&mut app, "deaner").bg, Color::DarkGray);
+    assert!(
+        row(y).starts_with("  "),
+        "no cursor bar here yet: {}",
+        row(y)
+    );
+
+    // Moving onto it keeps the highlight, and the cursor shows as a bar.
+    for _ in 0..3 {
+        app.handle_key(ch('j'));
+    }
+    let mut term = Terminal::new(TestBackend::new(34, 14)).unwrap();
+    term.draw(|f| draw(f, &mut app)).unwrap();
+    let buf = term.backend().buffer();
+    assert_eq!(buf[(0, y)].symbol(), "▌");
+    assert_eq!(buf[(0, y)].bg, Color::Magenta);
+}
+
+#[test]
+fn needing_attention_turns_the_name_blue_until_you_look() {
+    use ratatui::style::Color;
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Busy));
+    assert_ne!(cell_at(&mut app, "shop-api").fg, Color::Blue);
+
+    // Waiting on you: blue while it waits.
+    app.set_groups(fixture(AgentState::Awaiting));
+    assert_eq!(cell_at(&mut app, "shop-api").fg, Color::Blue);
+    assert_eq!(cell_at(&mut app, "sec-bump").fg, Color::Blue);
+    assert_ne!(
+        cell_at(&mut app, "deaner").fg,
+        Color::Blue,
+        "only that repo"
+    );
+
+    // Finished while you were elsewhere: stays blue after it stops waiting.
+    app.set_groups(fixture(AgentState::Busy));
+    assert_ne!(cell_at(&mut app, "shop-api").fg, Color::Blue);
+    app.set_groups(fixture(AgentState::Idle));
+    assert_eq!(cell_at(&mut app, "shop-api").fg, Color::Blue);
+    app.set_groups(fixture(AgentState::Idle));
+    assert_eq!(
+        cell_at(&mut app, "sec-bump").fg,
+        Color::Blue,
+        "until you look"
+    );
+
+    // Opening it clears it.
+    let mut groups = fixture(AgentState::Idle);
+    let shop = groups.iter_mut().find(|g| g.name == "shop-api").unwrap();
+    for w in &mut shop.workspaces {
+        w.current = w.branch.as_deref() == Some("sec-bump");
+    }
+    app.set_groups(groups);
+    assert_ne!(cell_at(&mut app, "shop-api").fg, Color::Blue);
+}
+
+#[test]
+fn the_arrow_only_appears_on_a_collapsed_repo() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    let screen = render(&mut app, 34, 12);
+    assert!(!screen.contains('▾') && !screen.contains('▸'), "{screen}");
+
+    let mut groups = fixture(AgentState::Idle);
+    groups[0].collapsed = true;
+    app.set_groups(groups);
+    let screen = render(&mut app, 34, 12);
+    assert!(screen.contains("▸ deaner"), "{screen}");
+}
+
+#[test]
+fn passing_ci_shows_a_check_next_to_the_pr_number() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    assert!(render(&mut app, 34, 12).contains("#42 ✓"));
+
+    for (checks, glyph) in [(Checks::Failing, "#42 ✗"), (Checks::Pending, "#42 …")] {
+        let mut groups = fixture(AgentState::Idle);
+        let shop = groups.iter_mut().find(|g| g.name == "shop-api").unwrap();
+        shop.workspaces[1].pr.as_mut().unwrap().checks = checks;
+        app.set_groups(groups);
+        assert!(render(&mut app, 34, 12).contains(glyph));
+    }
+    let mut groups = fixture(AgentState::Idle);
+    let shop = groups.iter_mut().find(|g| g.name == "shop-api").unwrap();
+    let pr = shop.workspaces[1].pr.as_mut().unwrap();
+    pr.checks = Checks::None;
+    pr.state = PrState::Merged;
+    app.set_groups(groups);
+    let screen = render(&mut app, 34, 12);
+    assert!(screen.contains("#42") && !screen.contains('✓'), "{screen}");
 }

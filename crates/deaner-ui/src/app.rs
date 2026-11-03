@@ -13,7 +13,7 @@ use ratatui::crossterm::event::{
 use ratatui::layout::Rect;
 use ratatui::widgets::ListState;
 use ratcn::{InputState, Theme, Toast, ToasterState};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -96,6 +96,8 @@ pub struct App {
     pub(crate) list_area: Rect,
     pub(crate) loaded: bool,
     prev_agents: HashMap<PathBuf, AgentState>,
+    /// Workspaces whose agent finished while they weren't on screen.
+    unseen: HashSet<PathBuf>,
     pub theme: Theme,
     pub icons: &'static crate::icons::Icons,
     /// Running outside the frame: `q` quits.
@@ -125,6 +127,7 @@ impl App {
             list_area: Rect::default(),
             loaded: false,
             prev_agents: HashMap::new(),
+            unseen: HashSet::new(),
             theme: crate::theme::terminal(),
             icons: &crate::icons::UNICODE,
             standalone: false,
@@ -149,9 +152,14 @@ impl App {
                         }
                         (Some(AgentState::Busy), AgentState::Idle) => {
                             self.toast(Toast::success(format!("{} finished", w.name)));
+                            self.unseen.insert(w.path.clone());
                         }
                         _ => {}
                     }
+                }
+                // Looking at it counts as seeing it, and a stopped agent has nothing to see.
+                if w.current || w.status != WsStatus::Live {
+                    self.unseen.remove(&w.path);
                 }
                 agents.insert(w.path.clone(), w.agent);
             }
@@ -199,6 +207,12 @@ impl App {
         if found.is_some() && found == first {
             *self.list.offset_mut() = 0;
         }
+    }
+
+    /// An agent here is waiting on the user, or finished while they were elsewhere.
+    #[must_use]
+    pub fn needs_attention(&self, w: &WorkspaceView) -> bool {
+        w.agent == AgentState::Awaiting || self.unseen.contains(&w.path)
     }
 
     /// Advance the animation/toast clock.

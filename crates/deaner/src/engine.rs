@@ -16,7 +16,10 @@ use deaner_core::state::{RepoEntry, State};
 use deaner_tmux::{Scope, Tmux, window_target};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+/// How long to wait for a new pane's shell to draw its prompt.
+const PROMPT_WAIT: Duration = Duration::from_secs(3);
 
 /// tmux socket for workspaces (`tmux -L deaner`). `DEANER_SOCKET` overrides.
 #[must_use]
@@ -348,11 +351,13 @@ impl Engine {
         let created = self.tmux.new_session(&name, path, &first.name)?;
         self.tmux_server_defaults();
         self.mark_session(&name, repo, path, branch, worktree)?;
-        self.launch(&created.pane_id, first.command.as_deref())?;
+        let mut typed = Vec::new();
+        typed.extend(self.launch(&created.pane_id, first.command.as_deref())?);
         for tab in rest {
             let c = self.tmux.new_window(&name, path, &tab.name)?;
-            self.launch(&c.pane_id, tab.command.as_deref())?;
+            typed.extend(self.launch(&c.pane_id, tab.command.as_deref())?);
         }
+        self.type_when_ready(&typed)?;
         let _ = self
             .tmux
             .select_window(&window_target(&name, created.window_index));
@@ -392,18 +397,54 @@ impl Engine {
             .set_option(Scope::Server, "@continuum-save-interval", "0");
     }
 
-    /// Record and type a launch command into a fresh pane.
-    fn launch(&self, pane: &str, command: Option<&str>) -> Result<()> {
+    /// Record a pane's launch command, and return what [`Self::type_when_ready`] should type.
+    fn launch(&self, pane: &str, command: Option<&str>) -> Result<Option<(String, String)>> {
         let Some(cmd) = command.filter(|c| !c.trim().is_empty()) else {
-            return Ok(());
+            return Ok(None);
         };
         let p = Scope::Pane(pane);
         self.tmux.set_option(p, OPT_LAUNCH, cmd)?;
         if let TabKind::Agent(agent) = self.config.classify(Some(cmd)) {
             self.tmux.set_option(p, OPT_AGENT, &agent)?;
         }
-        self.tmux.send_text(pane, cmd, true)?;
-        Ok(())
+        Ok(Some((pane.to_string(), cmd.to_string())))
+    }
+
+    /// Type each `(pane, command)` once its shell has drawn a prompt, all at the same time.
+    ///
+    /// Typing sooner works, but the terminal echoes the text before the shell is ready and
+    /// then the shell shows it again, leaving a stray copy above the prompt.
+    fn type_when_ready(&self, commands: &[(String, String)]) -> Result<()> {
+        std::thread::scope(|s| {
+            let jobs: Vec<_> = commands
+                .iter()
+                .map(|(pane, cmd)| {
+                    s.spawn(move || {
+                        self.wait_for_prompt(pane);
+                        self.tmux.send_text(pane, cmd, true)
+                    })
+                })
+                .collect();
+            for job in jobs {
+                job.join().expect("typing into a pane doesn't panic")?;
+            }
+            Ok(())
+        })
+    }
+
+    /// Wait until a pane shows something and has stopped changing. A shell that never
+    /// draws a prompt just gets typed into after the deadline.
+    fn wait_for_prompt(&self, pane: &str) {
+        let deadline = Instant::now() + PROMPT_WAIT;
+        let mut last = String::new();
+        while Instant::now() < deadline {
+            let screen = self.tmux.capture_pane(pane).unwrap_or_default();
+            if !screen.trim().is_empty() && screen == last {
+                return;
+            }
+            last = screen;
+            std::thread::sleep(Duration::from_millis(60));
+        }
     }
 
     /// Add a tab to a running session and show it.
@@ -419,7 +460,11 @@ impl Engine {
             .collect();
         let name = unique(&tab.name, &taken);
         let c = self.tmux.new_window(session, cwd, &name)?;
-        self.launch(&c.pane_id, tab.command.as_deref())?;
+        let typed: Vec<_> = self
+            .launch(&c.pane_id, tab.command.as_deref())?
+            .into_iter()
+            .collect();
+        self.type_when_ready(&typed)?;
         let _ = self
             .tmux
             .select_window(&window_target(session, c.window_index));
@@ -590,6 +635,7 @@ impl Engine {
 
         let mut active_window = None;
         let mut active_pane = None;
+        let mut typed = Vec::new();
         for (wi, win) in windows.iter().enumerate() {
             let cwd = |i: usize| {
                 win.panes
@@ -633,7 +679,7 @@ impl Engine {
                 if let Some(cmd) =
                     restore_command(pane, &self.config, &crate::hooks::conversation_exists)
                 {
-                    self.tmux.send_text(id, &cmd, true)?;
+                    typed.push((id.clone(), cmd));
                 }
                 if win.active && pane.active {
                     active_pane = Some(id.clone());
@@ -643,6 +689,7 @@ impl Engine {
                 active_window = Some(target);
             }
         }
+        self.type_when_ready(&typed)?;
         if let Some(w) = active_window {
             let _ = self.tmux.select_window(&w);
         }

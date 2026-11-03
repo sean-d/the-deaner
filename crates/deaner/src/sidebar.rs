@@ -248,17 +248,13 @@ fn spawn_refresher(engine: Engine, tx: Sender<Msg>, kick_tx: Sender<()>, kick_rx
                     v.branch = v.git.as_ref().and_then(|g| g.branch.clone());
                 }
 
-                let feature_branch = v
-                    .branch
-                    .clone()
-                    .filter(|b| !matches!(b.as_str(), "main" | "master"));
-                if let (true, Some(branch), GH_YES) =
-                    (live, feature_branch, gh.load(Ordering::Relaxed))
-                {
+                // Projects that aren't running get their badge too, just less often.
+                if let (Some(branch), GH_YES) = (v.branch.clone(), gh.load(Ordering::Relaxed)) {
                     let path = v.path.clone();
+                    let every = cfg.pr_poll_seconds.max(30) * if live { 1 } else { 5 };
                     prs.request(
                         &v.path,
-                        Duration::from_secs(cfg.pr_poll_seconds.max(30)),
+                        Duration::from_secs(every),
                         move || deaner_git::pr_status(&path, &branch),
                         kicker(&kick_tx),
                     );

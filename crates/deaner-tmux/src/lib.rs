@@ -312,6 +312,12 @@ impl Tmux {
         Ok(())
     }
 
+    /// The text currently visible in a pane.
+    #[must_use]
+    pub fn capture_pane(&self, target: &str) -> Option<String> {
+        self.run(&["capture-pane", "-p", "-t", target]).ok()
+    }
+
     /// Send named keys (`Escape`, `C-c`, …).
     ///
     /// # Errors

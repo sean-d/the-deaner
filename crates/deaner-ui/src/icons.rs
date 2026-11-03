@@ -18,6 +18,9 @@ pub struct Icons {
     pub folder: &'static str,
     pub pull_request: &'static str,
     pub merged: &'static str,
+    pub checks_passing: &'static str,
+    pub checks_failing: &'static str,
+    pub checks_pending: &'static str,
     pub changed: &'static str,
     pub awaiting: &'static str,
     pub idle: &'static str,
@@ -26,18 +29,21 @@ pub struct Icons {
 }
 
 pub const NERD: Icons = Icons {
-    expanded: "\u{f47c}",     // oct chevron-down
-    collapsed: "\u{f460}",    // oct chevron-right
-    pinned: "\u{f435}",       // oct pin
-    active: "\u{f111}",       // fa circle
-    inactive: "\u{f10c}",     // fa circle-o
-    branch: "\u{f418}",       // oct git-branch
-    detached: "\u{f417}",     // oct git-commit
-    folder: "\u{f413}",       // oct file-directory
-    pull_request: "\u{f407}", // oct git-pull-request
-    merged: "\u{f419}",       // oct git-merge
-    changed: "\u{f448}",      // oct pencil
-    awaiting: "\u{f0f3}",     // fa bell
+    expanded: "\u{f47c}",       // oct chevron-down
+    collapsed: "\u{f460}",      // oct chevron-right
+    pinned: "\u{f435}",         // oct pin
+    active: "\u{f111}",         // fa circle
+    inactive: "\u{f10c}",       // fa circle-o
+    branch: "\u{f418}",         // oct git-branch
+    detached: "\u{f417}",       // oct git-commit
+    folder: "\u{f413}",         // oct file-directory
+    pull_request: "\u{f407}",   // oct git-pull-request
+    merged: "\u{f419}",         // oct git-merge
+    checks_passing: "\u{f42e}", // oct check
+    checks_failing: "\u{f467}", // oct x
+    checks_pending: "\u{f43a}", // oct clock
+    changed: "\u{f448}",        // oct pencil
+    awaiting: "\u{f0f3}",       // fa bell
     idle: "✻",
     compacting: "◐",
     parked: "\u{f04c}", // fa pause
@@ -54,6 +60,9 @@ pub const UNICODE: Icons = Icons {
     folder: "▫",
     pull_request: "⇄",
     merged: "⇉",
+    checks_passing: "✓",
+    checks_failing: "✗",
+    checks_pending: "…",
     changed: "✎",
     awaiting: "!",
     idle: "✻",

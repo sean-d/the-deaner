@@ -314,6 +314,44 @@ fn commands_are_typed_after_the_prompt_not_before_it() {
 }
 
 #[test]
+fn agent_worktrees_are_hidden_unless_something_runs_in_them() {
+    let f = fixture();
+    let e = &f.engine;
+    e.add_repo(&f.repo.display().to_string()).unwrap();
+    let branches = || {
+        e.workspaces()
+            .into_iter()
+            .filter_map(|w| w.branch)
+            .collect::<Vec<_>>()
+    };
+
+    // Worktrees you make yourself show up.
+    e.new_worktree(&f.repo, "mine").unwrap();
+    assert_eq!(branches(), ["main", "mine"]);
+
+    // One left behind by a sub-agent doesn't.
+    let agent = f.repo.join(".claude/worktrees/agent-abc");
+    git(
+        &f.repo,
+        &[
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "docs/agent",
+            agent.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(branches(), ["main", "mine"]);
+
+    // But a session in one can't go missing.
+    let repo = e.state().repos[0].clone();
+    e.create_session(&repo, &agent, Some("docs/agent"), true)
+        .unwrap();
+    assert_eq!(branches(), ["main", "mine", "docs/agent"]);
+}
+
+#[test]
 fn concurrent_state_updates_are_not_lost() {
     let f = fixture();
     let handles: Vec<_> = (0..32)

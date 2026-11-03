@@ -843,6 +843,19 @@ fn load_snapshot(path: &Path) -> Option<Snapshot> {
     Snapshot::from_toml(&std::fs::read_to_string(path).ok()?).ok()
 }
 
+/// Whether this is a checkout an agent made for itself. Claude Code puts sub-agents in
+/// `.claude/worktrees/`, and leaves them there once they hold commits. They aren't projects
+/// anyone chose to open, and they stay around after the work is done, so they aren't listed.
+/// A session started in one still is: anything running stays visible.
+#[must_use]
+pub fn is_agent_worktree(path: &Path) -> bool {
+    path.components()
+        .map(|c| c.as_os_str())
+        .collect::<Vec<_>>()
+        .windows(2)
+        .any(|pair| pair[0] == ".claude" && pair[1] == "worktrees")
+}
+
 /// A checkout of a repo: `(path, branch, is_worktree)`.
 pub type Checkout = (PathBuf, Option<String>, bool);
 
@@ -852,7 +865,7 @@ pub fn checkouts(repo: &RepoEntry) -> Vec<Checkout> {
     match deaner_git::worktrees(&repo.path) {
         Ok(list) if !list.is_empty() => list
             .into_iter()
-            .filter(|w| !w.bare && !w.prunable)
+            .filter(|w| !w.bare && !w.prunable && !is_agent_worktree(&w.path))
             .map(|w| {
                 let main = same_path(&w.path, &repo.path);
                 (

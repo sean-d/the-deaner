@@ -133,6 +133,16 @@ is read from your tmux config, so it shows your real keys, including anything yo
 | Next / previous tab | `prefix n` / `prefix p` |
 | Go to a tab by number | `prefix 1`-`9` |
 
+## Worktrees in the sidebar
+
+The sidebar has one row per checkout folder, not per branch, so a repo with 200 local branches and one
+folder has one row. Worktrees you make with `w` get a row until you remove them with `x`.
+
+Folders under `.claude/worktrees/` aren't listed. Claude Code creates those for sub-agents and leaves them
+behind once they hold commits. They aren't projects you opened, and a sub-agent's progress shows in the tab
+that started it. A session running in one does get listed. Clean up leftovers with
+`git worktree list` and `git worktree remove <path>`.
+
 ## Reading a sidebar row
 
 ```text

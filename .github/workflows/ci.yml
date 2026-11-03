@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays
 
 env:
   CARGO_TERM_COLOR: always
@@ -18,7 +20,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # GitHub's macOS machines can be unavailable for long enough that the job gives up,
+        # which would turn main red with nothing wrong. So pushes to main test on Linux, and
+        # macOS runs on pull requests and on the weekly schedule.
+        os: ${{ github.event_name == 'push' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "macos-latest"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

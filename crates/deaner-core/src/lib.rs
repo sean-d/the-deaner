@@ -21,7 +21,7 @@ pub use agent::{AgentState, HookEvent, HookPayload};
 pub use config::{AgentDef, Config, RepoConfig, TabKind, TabSpec};
 pub use git::{GitStatus, Worktree};
 pub use pane::PaneInfo;
-pub use pr::{Checks, PrState, PrStatus};
+pub use pr::{BranchStatus, Checks, PrState, PrStatus};
 pub use sidebar::{Row, WorkspaceView};
 pub use snapshot::Snapshot;
 pub use state::{RepoEntry, State};

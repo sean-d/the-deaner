@@ -93,7 +93,8 @@ pub struct Config {
     /// Float active repos with an agent awaiting input to the top of the active section.
     pub float_attention: bool,
     pub git_poll_seconds: u64,
-    /// How often to ask `gh` about pull requests. 0 disables PR status.
+    /// How often to ask `gh` about pull requests and CI for running projects. Others are
+    /// asked 5x less often. 0 disables both.
     pub pr_poll_seconds: u64,
     /// How often to `git fetch` repos with a running session, so ahead/behind stays
     /// current. 0 disables background fetching.
@@ -120,7 +121,7 @@ impl Default for Config {
             snapshots_keep: 20,
             float_attention: true,
             git_poll_seconds: 3,
-            pr_poll_seconds: 120,
+            pr_poll_seconds: 60,
             fetch_seconds: 60,
             worktree_dir: "{repo_parent}/{repo}.worktrees/{branch}".into(),
             shells: ["zsh", "bash", "fish", "sh", "dash", "nu", "elvish", "xonsh"]

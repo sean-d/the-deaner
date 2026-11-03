@@ -6,7 +6,7 @@
 
 use crate::agent::AgentState;
 use crate::git::GitStatus;
-use crate::pr::PrStatus;
+use crate::pr::{Checks, PrStatus};
 use crate::state::RepoEntry;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -45,6 +45,8 @@ pub struct WorkspaceView {
     pub agent: AgentState,
     pub git: Option<GitStatus>,
     pub pr: Option<PrStatus>,
+    /// CI for this branch.
+    pub checks: Checks,
     pub tabs: Vec<TabView>,
     /// Shown in the terminal pane right now.
     pub current: bool,
@@ -248,6 +250,7 @@ pub(crate) fn ws(repo: &str, path: &str, branch: &str, agent: AgentState) -> Wor
         agent,
         git: None,
         pr: None,
+        checks: Checks::None,
         tabs: Vec::new(),
         current: false,
     }

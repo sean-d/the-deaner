@@ -26,9 +26,9 @@ float_attention = true
 
 # How often to refresh git status for running workspaces (stopped ones: every 30 s).
 git_poll_seconds = 3
-# How often to ask `gh` about pull requests for running projects; others are asked 5x less often.
-# 0 turns PR status off.
-pr_poll_seconds = 120
+# How often to ask `gh` about pull requests and CI for running projects; others are asked 5x less
+# often. 0 turns both off.
+pr_poll_seconds = 60
 # How often to `git fetch` repos with a running session, so the behind count stays current.
 # Never prompts, doesn't touch your checkout, and only updates remote-tracking branches.
 # 0 turns it off; the minimum otherwise is 30.

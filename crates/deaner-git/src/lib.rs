@@ -4,7 +4,7 @@
 //! builds, and behaviour identical to the user's own git (config, hooks,
 //! credential helpers).
 
-use deaner_core::pr::{GH_QUERY, PrStatus};
+use deaner_core::pr::{BranchStatus, GH_QUERY};
 use deaner_core::process::output_with_timeout;
 use deaner_core::{GitStatus, Worktree};
 use std::ffi::OsStr;
@@ -250,14 +250,15 @@ pub fn gh_available() -> bool {
         .is_ok_and(|o| o.status.success())
 }
 
-/// The pull request to show for `branch`, or `None` if it has never had one.
+/// A branch's pull request and CI status.
 ///
 /// # Errors
 /// When gh can't answer (offline, not a GitHub repo, not logged in, timed out). Callers
 /// keep showing the last known state rather than clearing the badge.
-pub fn pr_status(path: &Path, branch: &str) -> Result<Option<PrStatus>> {
+pub fn branch_status(path: &Path, branch: &str) -> Result<BranchStatus> {
     let query = format!("query={GH_QUERY}");
     let branch_field = format!("branch={branch}");
+    let ref_field = format!("ref=refs/heads/{branch}");
     let json = run(
         "gh",
         path,
@@ -274,10 +275,12 @@ pub fn pr_status(path: &Path, branch: &str) -> Result<Option<PrStatus>> {
             "name={repo}",
             "-f",
             &branch_field,
+            "-f",
+            &ref_field,
         ],
         GH_TIMEOUT,
     )?;
-    Ok(PrStatus::parse_graphql(&json, branch)?)
+    Ok(BranchStatus::parse_graphql(&json, branch)?)
 }
 
 #[cfg(test)]

@@ -17,7 +17,7 @@ use crate::poller::Poller;
 use anyhow::Result;
 use deaner_core::config::Config;
 use deaner_core::sidebar::{RepoGroup, WsStatus};
-use deaner_core::{GitStatus, PrStatus};
+use deaner_core::{BranchStatus, GitStatus};
 use deaner_ui::{App, Command, Toast};
 use ratatui::crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event};
 use ratatui::crossterm::execute;
@@ -188,7 +188,7 @@ fn spawn_refresher(engine: Engine, tx: Sender<Msg>, kick_tx: Sender<()>, kick_rx
     std::thread::spawn(move || {
         let git: Poller<GitStatus> = Poller::new(8);
         let trees: Poller<Vec<Checkout>> = Poller::new(4);
-        let prs: Poller<Option<PrStatus>> = Poller::new(4);
+        let branches: Poller<BranchStatus> = Poller::new(4);
         let fetches: Poller<()> = Poller::new(4);
         let cfg = engine.config.clone();
 
@@ -248,18 +248,21 @@ fn spawn_refresher(engine: Engine, tx: Sender<Msg>, kick_tx: Sender<()>, kick_rx
                     v.branch = v.git.as_ref().and_then(|g| g.branch.clone());
                 }
 
-                // Projects that aren't running get their badge too, just less often.
+                // Projects that aren't running get their badges too, just less often.
                 if let (Some(branch), GH_YES) = (v.branch.clone(), gh.load(Ordering::Relaxed)) {
                     let path = v.path.clone();
                     let every = cfg.pr_poll_seconds.max(30) * if live { 1 } else { 5 };
-                    prs.request(
+                    branches.request(
                         &v.path,
                         Duration::from_secs(every),
-                        move || deaner_git::pr_status(&path, &branch),
+                        move || deaner_git::branch_status(&path, &branch),
                         kicker(&kick_tx),
                     );
                 }
-                v.pr = prs.get(&v.path).flatten();
+                if let Some(status) = branches.get(&v.path) {
+                    v.pr = status.pr;
+                    v.checks = status.checks;
+                }
 
                 // Worktrees share their repo's remote refs, so this is per repo.
                 if live && cfg.fetch_seconds > 0 {
@@ -553,6 +556,7 @@ mod tests {
             agent: AgentState::None,
             git: None,
             pr: None,
+            checks: deaner_core::Checks::None,
             tabs: vec![],
             current: false,
         }

@@ -391,19 +391,24 @@ fn ws_line<'a>(app: &App, p: &Palette, w: &WorkspaceView, width: u16) -> Line<'a
             ]);
         }
     }
+    let mut ci = Vec::new();
     if let Some(pr) = &w.pr {
-        let (check, style) = match pr.checks {
-            Checks::None => (None, p.muted),
-            Checks::Passing => (Some(app.icons.checks_passing), p.good),
-            Checks::Failing => (Some(app.icons.checks_failing), p.bad),
-            Checks::Pending => (Some(app.icons.checks_pending), p.warn),
-        };
-        let mut part = vec![Span::styled(format!("#{}", pr.number), p.muted)];
-        if let Some(check) = check {
-            part.push(Span::raw(" "));
-            part.push(Span::styled(check, style));
+        ci.push(Span::styled(format!("#{}", pr.number), p.muted));
+    }
+    let check = match w.checks {
+        Checks::None => None,
+        Checks::Passing => Some((app.icons.checks_passing, p.good)),
+        Checks::Failing => Some((app.icons.checks_failing, p.bad)),
+        Checks::Pending => Some((app.icons.checks_pending, p.warn)),
+    };
+    if let Some((glyph, style)) = check {
+        if !ci.is_empty() {
+            ci.push(Span::raw(" "));
         }
-        right.push(part);
+        ci.push(Span::styled(glyph, style));
+    }
+    if !ci.is_empty() {
+        right.push(ci);
     }
     if let Some(glyph) = agent_glyph(app, p, w.agent, w.status) {
         right.push(vec![glyph]);

@@ -154,7 +154,8 @@ that started it. A session running in one does get listed. Clean up leftovers wi
 | Git icon | Branch, or a pull request icon once the branch has had a PR: green open, dim draft, purple merged. Dim when not running. A detached checkout shows a commit icon and short commit id; a plain folder shows a folder icon. |
 | Pencil and number | Changed files |
 | `+1 -0` | Commits ahead of and behind the upstream. Hidden when both are 0. deaner fetches running repos in the background every minute (`fetch_seconds`), so this tracks GitHub to within about a minute. Repos without a running session aren't fetched. |
-| `#259` and a check | The branch's open PR, or its last merged one, with CI: green check passing, yellow clock running, red X failing. Running projects update every 2 minutes (`pr_poll_seconds`), others every 10. |
+| `#259` | The branch's open PR, or its last merged one. |
+| Check | CI: green check passing, yellow clock running, red X failing. It comes from an open PR, otherwise from the branch's latest commit on GitHub, so `main` shows one with no PR at all. Repos without CI show nothing. Running projects update every minute (`pr_poll_seconds`), others every 5. |
 | Agent | Spinner: working. Bell: waiting on you. `✻`: idle. `◐`: compacting. Pause: parked. |
 
 The project shown on the right has a solid highlight. **A blue name means it needs you:** an agent is

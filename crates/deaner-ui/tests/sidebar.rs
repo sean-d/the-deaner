@@ -23,6 +23,7 @@ fn ws(repo: &str, path: &str, branch: &str, agent: AgentState) -> WorkspaceView 
         agent,
         git: None,
         pr: None,
+        checks: Checks::None,
         tabs: vec![TabView {
             index: 0,
             name: "claude".into(),
@@ -62,9 +63,9 @@ fn fixture(agent_on_feat: AgentState) -> Vec<RepoGroup> {
         state: PrState::Open,
         title: "Bump deps".into(),
         url: String::new(),
-        checks: Checks::Passing,
         review: None,
     });
+    feat.checks = Checks::Passing;
     let deaner = ws("/dev/deaner", "/dev/deaner", "main", AgentState::Idle);
     let mut dot = ws("/dev/dotfiles", "/dev/dotfiles", "main", AgentState::None);
     dot.status = WsStatus::Parked;
@@ -557,16 +558,24 @@ fn passing_ci_shows_a_check_next_to_the_pr_number() {
     for (checks, glyph) in [(Checks::Failing, "#42 ✗"), (Checks::Pending, "#42 …")] {
         let mut groups = fixture(AgentState::Idle);
         let shop = groups.iter_mut().find(|g| g.name == "shop-api").unwrap();
-        shop.workspaces[1].pr.as_mut().unwrap().checks = checks;
+        shop.workspaces[1].checks = checks;
         app.set_groups(groups);
         assert!(render(&mut app, 34, 12).contains(glyph));
     }
     let mut groups = fixture(AgentState::Idle);
     let shop = groups.iter_mut().find(|g| g.name == "shop-api").unwrap();
-    let pr = shop.workspaces[1].pr.as_mut().unwrap();
-    pr.checks = Checks::None;
-    pr.state = PrState::Merged;
+    shop.workspaces[1].checks = Checks::None;
+    shop.workspaces[1].pr.as_mut().unwrap().state = PrState::Merged;
     app.set_groups(groups);
     let screen = render(&mut app, 34, 12);
     assert!(screen.contains("#42") && !screen.contains('✓'), "{screen}");
+
+    // A branch with no PR still shows its CI: commits pushed straight to main.
+    let mut groups = fixture(AgentState::Idle);
+    let deaner = groups.iter_mut().find(|g| g.name == "deaner").unwrap();
+    deaner.workspaces[0].checks = Checks::Passing;
+    app.set_groups(groups);
+    let screen = render(&mut app, 34, 12);
+    let row = screen.lines().nth(2).unwrap();
+    assert!(row.contains('✓') && !row.contains('#'), "{screen}");
 }

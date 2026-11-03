@@ -1,4 +1,4 @@
-//! The pull request for a branch, from GitHub's GraphQL API.
+//! A branch's pull request and CI status, from GitHub's GraphQL API.
 //!
 //! GraphQL rather than `gh pr view <branch>`, which finds nothing for long-lived
 //! branches like `staging` when a repo's PRs from them have all been merged. Those are
@@ -6,9 +6,13 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Open and merged PRs for a head branch, most recently updated first.
-pub const GH_QUERY: &str = r"query($owner: String!, $name: String!, $branch: String!) {
+/// Open and merged PRs for a head branch, most recently updated first, and the CI status
+/// of the branch's latest commit on GitHub. `$ref` is `refs/heads/<branch>`.
+pub const GH_QUERY: &str = r"query($owner: String!, $name: String!, $branch: String!, $ref: String!) {
   repository(owner: $owner, name: $name) {
+    ref(qualifiedName: $ref) {
+      target { ... on Commit { statusCheckRollup { state } } }
+    }
     pullRequests(first: 5, states: [OPEN, MERGED], headRefName: $branch,
                  orderBy: {field: UPDATED_AT, direction: DESC}) {
       nodes {
@@ -46,9 +50,15 @@ pub struct PrStatus {
     pub state: PrState,
     pub title: String,
     pub url: String,
-    pub checks: Checks,
     /// `APPROVED`, `CHANGES_REQUESTED`, `REVIEW_REQUIRED`, or `None`.
     pub review: Option<String>,
+}
+
+/// What the sidebar shows for a branch.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BranchStatus {
+    pub pr: Option<PrStatus>,
+    pub checks: Checks,
 }
 
 #[derive(Deserialize)]
@@ -106,7 +116,24 @@ struct Data {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Repository {
+    /// The branch on GitHub; `None` when it has never been pushed.
+    #[serde(rename = "ref", default)]
+    tip: Option<Tip>,
     pull_requests: PullRequests,
+}
+
+#[derive(Deserialize)]
+struct Tip {
+    #[serde(default)]
+    target: Option<Commit>,
+}
+
+fn checks_from(rollup: Option<Rollup>) -> Checks {
+    rollup.map_or(Checks::None, |r| match r.state.as_str() {
+        "SUCCESS" => Checks::Passing,
+        "FAILURE" | "ERROR" => Checks::Failing,
+        _ => Checks::Pending,
+    })
 }
 
 #[derive(Deserialize)]
@@ -120,6 +147,15 @@ impl Node {
         !self.is_cross_repository || self.base_ref_name.as_deref() != Some(branch)
     }
 
+    fn checks(&mut self) -> Checks {
+        let rollup = self
+            .commits
+            .nodes
+            .first_mut()
+            .and_then(|n| n.commit.status_check_rollup.take());
+        checks_from(rollup)
+    }
+
     fn into_status(self) -> PrStatus {
         let state = match (self.state.as_str(), self.is_draft) {
             ("MERGED", _) => PrState::Merged,
@@ -127,49 +163,60 @@ impl Node {
             (_, true) => PrState::Draft,
             _ => PrState::Open,
         };
-        let checks = self
-            .commits
-            .nodes
-            .into_iter()
-            .next()
-            .and_then(|n| n.commit.status_check_rollup)
-            .map_or(Checks::None, |r| match r.state.as_str() {
-                "SUCCESS" => Checks::Passing,
-                "FAILURE" | "ERROR" => Checks::Failing,
-                _ => Checks::Pending,
-            });
         PrStatus {
             number: self.number,
             state,
             title: self.title,
             url: self.url,
-            checks,
             review: self.review_decision.filter(|r| !r.is_empty()),
         }
     }
 }
 
-impl PrStatus {
-    /// Pick the PR to show for `branch` from a [`GH_QUERY`] response: the most recently
-    /// updated open one, otherwise the most recently updated merged one.
+impl BranchStatus {
+    /// Build a branch's status from a [`GH_QUERY`] response.
+    ///
+    /// The PR shown is the most recently updated open one, otherwise the most recently
+    /// updated merged one. CI comes from an open PR, otherwise the branch's latest commit
+    /// on GitHub, which is what's current for `main` or `staging`. If that commit has no
+    /// checks, the merged PR's result is the best remaining answer.
     ///
     /// # Errors
     /// Returns the JSON error when `json` isn't a query response.
-    pub fn parse_graphql(json: &str, branch: &str) -> Result<Option<Self>, serde_json::Error> {
+    pub fn parse_graphql(json: &str, branch: &str) -> Result<Self, serde_json::Error> {
         let response: Response = serde_json::from_str(json)?;
-        let mut nodes: Vec<Node> = response
-            .data
-            .repository
+        let repository = response.data.repository;
+        let tip = checks_from(
+            repository
+                .tip
+                .and_then(|t| t.target)
+                .and_then(|c| c.status_check_rollup),
+        );
+        let mut nodes: Vec<Node> = repository
             .pull_requests
             .nodes
             .into_iter()
             .filter(|n| n.belongs_to(branch))
             .collect();
-        let chosen = nodes
-            .iter()
-            .position(|n| n.state == "OPEN")
-            .or((!nodes.is_empty()).then_some(0));
-        Ok(chosen.map(|i| nodes.swap_remove(i).into_status()))
+        let open = nodes.iter().position(|n| n.state == "OPEN");
+        let chosen = open.or((!nodes.is_empty()).then_some(0));
+        let Some(chosen) = chosen else {
+            return Ok(Self {
+                pr: None,
+                checks: tip,
+            });
+        };
+        let mut node = nodes.swap_remove(chosen);
+        let own = node.checks();
+        let checks = if open.is_some() || tip == Checks::None {
+            own
+        } else {
+            tip
+        };
+        Ok(Self {
+            pr: Some(node.into_status()),
+            checks,
+        })
     }
 }
 
@@ -186,43 +233,77 @@ mod tests {
         )
     }
 
-    fn response(nodes: &[String]) -> String {
+    /// `tip`: `None` for a branch GitHub doesn't have, `Some(None)` for a commit without CI.
+    fn response(tip: Option<Option<&str>>, nodes: &[String]) -> String {
+        let tip = match tip {
+            None => "null".to_string(),
+            Some(None) => r#"{"target":{"statusCheckRollup":null}}"#.to_string(),
+            Some(Some(s)) => format!(r#"{{"target":{{"statusCheckRollup":{{"state":"{s}"}}}}}}"#),
+        };
         format!(
-            r#"{{"data":{{"repository":{{"pullRequests":{{"nodes":[{}]}}}}}}}}"#,
+            r#"{{"data":{{"repository":{{"ref":{tip},"pullRequests":{{"nodes":[{}]}}}}}}}}"#,
             nodes.join(",")
         )
     }
 
-    #[test]
-    fn long_lived_branch_shows_its_last_merged_pr() {
-        let json = response(&[
-            node(480, "MERGED", Some("SUCCESS")),
-            node(477, "MERGED", Some("FAILURE")),
-        ]);
-        let pr = PrStatus::parse_graphql(&json, "staging").unwrap().unwrap();
-        assert_eq!(pr.number, 480);
-        assert_eq!(pr.state, PrState::Merged);
-        assert_eq!(pr.checks, Checks::Passing);
+    fn parse(json: &str, branch: &str) -> BranchStatus {
+        BranchStatus::parse_graphql(json, branch).unwrap()
     }
 
     #[test]
-    fn an_open_pr_wins_over_a_newer_merged_one() {
-        let json = response(&[
-            node(9, "MERGED", Some("SUCCESS")),
-            node(8, "OPEN", Some("PENDING")),
-        ]);
-        let pr = PrStatus::parse_graphql(&json, "feat").unwrap().unwrap();
+    fn a_branch_with_no_pr_still_reports_ci() {
+        // Commits pushed straight to main.
+        let s = parse(&response(Some(Some("SUCCESS")), &[]), "main");
+        assert_eq!(s.pr, None);
+        assert_eq!(s.checks, Checks::Passing);
+        let s = parse(&response(Some(Some("PENDING")), &[]), "main");
+        assert_eq!(s.checks, Checks::Pending);
+    }
+
+    #[test]
+    fn current_ci_beats_a_merged_prs_old_result() {
+        // staging's last PR passed, but what's on the branch now is failing.
+        let json = response(
+            Some(Some("FAILURE")),
+            &[
+                node(480, "MERGED", Some("SUCCESS")),
+                node(477, "MERGED", Some("FAILURE")),
+            ],
+        );
+        let s = parse(&json, "staging");
+        let pr = s.pr.unwrap();
+        assert_eq!(pr.number, 480);
+        assert_eq!(pr.state, PrState::Merged);
+        assert_eq!(s.checks, Checks::Failing);
+    }
+
+    #[test]
+    fn a_merged_prs_result_is_the_fallback() {
+        let json = response(Some(None), &[node(480, "MERGED", Some("SUCCESS"))]);
+        assert_eq!(parse(&json, "staging").checks, Checks::Passing);
+        let json = response(None, &[node(480, "MERGED", Some("FAILURE"))]);
+        assert_eq!(parse(&json, "staging").checks, Checks::Failing);
+    }
+
+    #[test]
+    fn an_open_pr_wins_over_a_newer_merged_one_and_uses_its_own_ci() {
+        let json = response(
+            Some(Some("FAILURE")),
+            &[
+                node(9, "MERGED", Some("SUCCESS")),
+                node(8, "OPEN", Some("PENDING")),
+            ],
+        );
+        let s = parse(&json, "feat");
+        let pr = s.pr.unwrap();
         assert_eq!(pr.number, 8);
         assert_eq!(pr.state, PrState::Open);
-        assert_eq!(pr.checks, Checks::Pending);
+        assert_eq!(s.checks, Checks::Pending);
     }
 
     #[test]
     fn check_states() {
-        let checks = |rollup| {
-            let json = response(&[node(1, "OPEN", rollup)]);
-            PrStatus::parse_graphql(&json, "b").unwrap().unwrap().checks
-        };
+        let checks = |rollup| parse(&response(None, &[node(1, "OPEN", rollup)]), "b").checks;
         assert_eq!(checks(Some("SUCCESS")), Checks::Passing);
         assert_eq!(checks(Some("FAILURE")), Checks::Failing);
         assert_eq!(checks(Some("ERROR")), Checks::Failing);
@@ -237,21 +318,19 @@ mod tests {
             r#""isCrossRepository":false"#,
             r#""isCrossRepository":true"#,
         );
-        let json = response(&[fork]);
-        assert_eq!(PrStatus::parse_graphql(&json, "main").unwrap(), None);
+        let json = response(Some(None), &[fork]);
+        assert_eq!(parse(&json, "main").pr, None);
+        assert_eq!(parse(&json, "main").checks, Checks::None);
         assert_eq!(
-            PrStatus::parse_graphql(&json, "feature")
-                .unwrap()
-                .unwrap()
-                .number,
+            parse(&json, "feature").pr.unwrap().number,
             5,
             "a fork's feature branch into our main does match"
         );
     }
 
     #[test]
-    fn no_prs_and_bad_output() {
-        assert_eq!(PrStatus::parse_graphql(&response(&[]), "b").unwrap(), None);
-        assert!(PrStatus::parse_graphql("not json", "b").is_err());
+    fn nothing_known_and_bad_output() {
+        assert_eq!(parse(&response(None, &[]), "b"), BranchStatus::default());
+        assert!(BranchStatus::parse_graphql("not json", "b").is_err());
     }
 }

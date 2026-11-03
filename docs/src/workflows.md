@@ -47,7 +47,7 @@ If nothing is running (after a reboot, or after `deaner shutdown`), the sidebar 
 
 Press `y`. Every workspace comes back with its tabs, splits and layouts, in the same directories.
 Each claude resumes **its own** conversation (`claude --resume <id>`), even when several claudes
-share a repo. nvim reopens in the same folder, and dev-server tabs re-run their command.
+share a repo. A claude you never sent a message to has no conversation to resume, so it starts fresh. nvim reopens in the same folder, and dev-server tabs re-run their command.
 
 If something is already running, deaner just reattaches. Nothing restarts.
 

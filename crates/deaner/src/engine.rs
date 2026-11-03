@@ -622,13 +622,17 @@ impl Engine {
                 if let Some(agent) = &pane.agent {
                     self.tmux.set_option(scope, OPT_AGENT, agent)?;
                 }
-                if let Some(session) = &pane.agent_session {
+                if let (Some(agent), Some(session)) = (&pane.agent, &pane.agent_session)
+                    && crate::hooks::conversation_exists(agent, session)
+                {
                     self.tmux.set_option(scope, OPT_AGENT_SESSION, session)?;
                 }
                 if let Some(launch) = &pane.launch {
                     self.tmux.set_option(scope, OPT_LAUNCH, launch)?;
                 }
-                if let Some(cmd) = restore_command(pane, &self.config) {
+                if let Some(cmd) =
+                    restore_command(pane, &self.config, &crate::hooks::conversation_exists)
+                {
                     self.tmux.send_text(id, &cmd, true)?;
                 }
                 if win.active && pane.active {

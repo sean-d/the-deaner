@@ -63,6 +63,37 @@ pub fn claude_settings_path() -> PathBuf {
         .join("settings.json")
 }
 
+/// Whether `projects` (Claude's `projects` directory) holds a conversation with this id.
+///
+/// Claude keeps each one at `<projects>/<encoded project path>/<id>.jsonl`. Only an
+/// unreadable directory counts as a yes: better to try a resume that fails than to
+/// abandon a conversation that might be there.
+#[must_use]
+pub fn claude_conversation_exists(projects: &Path, id: &str) -> bool {
+    if id.is_empty() || id.contains(['/', '\\']) || id.starts_with('.') {
+        return false;
+    }
+    let file = format!("{id}.jsonl");
+    match std::fs::read_dir(projects) {
+        Ok(entries) => entries
+            .filter_map(Result::ok)
+            .any(|e| e.path().join(&file).is_file()),
+        Err(e) => e.kind() != std::io::ErrorKind::NotFound,
+    }
+}
+
+/// Whether a saved conversation id can be resumed. Agents deaner can't look inside get
+/// the benefit of the doubt.
+#[must_use]
+pub fn conversation_exists(agent: &str, id: &str) -> bool {
+    if agent != "claude" {
+        return true;
+    }
+    let settings = claude_settings_path();
+    let projects = settings.with_file_name("projects");
+    claude_conversation_exists(&projects, id)
+}
+
 fn is_ours(hook: &Value) -> bool {
     hook.get("command")
         .and_then(Value::as_str)
@@ -220,6 +251,28 @@ mod tests {
         let cleaned: Value =
             serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(cleaned, json!({"theme": "dark", "hooks": {}}));
+    }
+
+    #[test]
+    fn finds_conversations_in_any_project_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path().join("-Users-sd-dev-api");
+        std::fs::create_dir_all(&project).unwrap();
+        std::fs::write(project.join("real-id.jsonl"), "{}").unwrap();
+
+        let found = |id| claude_conversation_exists(dir.path(), id);
+        assert!(found("real-id"));
+        assert!(!found("never-used"), "an id alone isn't a conversation");
+        assert!(!found(""));
+        assert!(!found("../-Users-sd-dev-api/real-id"), "ids aren't paths");
+        assert!(
+            !claude_conversation_exists(&dir.path().join("missing"), "real-id"),
+            "no projects folder means no conversations"
+        );
+        assert!(
+            conversation_exists("codex", "anything"),
+            "can't check other agents"
+        );
     }
 
     #[test]

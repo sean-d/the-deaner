@@ -155,17 +155,25 @@ impl Snapshot {
 
 /// What to type into a restored pane, or `None` to leave a plain shell.
 ///
-/// 1. An agent with a known conversation id resumes that conversation.
-/// 2. An agent without one is started fresh.
+/// 1. An agent with a conversation that can be resumed resumes it. `resumable` is asked
+///    because an id alone proves nothing: Claude assigns one at startup, but only
+///    writes a conversation once it gets a first message.
+/// 2. Any other agent is started fresh.
 /// 3. A command deaner launched that was still running is launched again.
 /// 4. A known editor that was running is reopened.
 /// 5. Anything else (a bare shell, an unknown process) gets a shell.
 #[must_use]
-pub fn restore_command(pane: &PaneSnap, cfg: &Config) -> Option<String> {
+pub fn restore_command(
+    pane: &PaneSnap,
+    cfg: &Config,
+    resumable: &dyn Fn(&str, &str) -> bool,
+) -> Option<String> {
     if let Some(agent) = pane.agent.as_deref() {
         let def = cfg.agents.get(agent);
         if let (Some(id), Some(template)) = (
-            pane.agent_session.as_deref(),
+            pane.agent_session
+                .as_deref()
+                .filter(|id| resumable(agent, id)),
             def.and_then(|d| d.resume.as_deref()),
         ) {
             return Some(template.replace("{session_id}", &shell_words_quote(id)));
@@ -224,27 +232,40 @@ mod tests {
     }
 
     #[test]
+    fn an_id_with_no_conversation_starts_the_agent_fresh() {
+        let cfg = Config::default();
+        let p = pane(Some("claude"), Some("never-used"), Some("claude"), "claude");
+        let asked = std::cell::RefCell::new(Vec::new());
+        let cmd = restore_command(&p, &cfg, &|agent, id| {
+            asked.borrow_mut().push(format!("{agent}/{id}"));
+            false
+        });
+        assert_eq!(cmd.as_deref(), Some("claude"), "not claude --resume");
+        assert_eq!(*asked.borrow(), ["claude/never-used"]);
+    }
+
+    #[test]
     fn wrapped_commands_count_as_running() {
         let cfg = Config::default();
         let mut p = pane(None, None, Some("sh -c 'npm run dev'"), "bash");
         assert_eq!(
-            restore_command(&p, &cfg),
+            restore_command(&p, &cfg, &|_, _| true),
             None,
             "old snapshots fall back to the shell list"
         );
         p.running = Some(true);
         assert_eq!(
-            restore_command(&p, &cfg).as_deref(),
+            restore_command(&p, &cfg, &|_, _| true).as_deref(),
             Some("sh -c 'npm run dev'")
         );
         p.running = Some(false);
-        assert_eq!(restore_command(&p, &cfg), None);
+        assert_eq!(restore_command(&p, &cfg, &|_, _| true), None);
     }
 
     #[test]
     fn restore_rules() {
         let cfg = Config::default();
-        let r = |p: PaneSnap| restore_command(&p, &cfg);
+        let r = |p: PaneSnap| restore_command(&p, &cfg, &|_, _| true);
         assert_eq!(
             r(pane(
                 Some("claude"),

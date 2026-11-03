@@ -96,8 +96,9 @@ command, agent, conversation id, whether something other than the login shell wa
 foreground). Restore rebuilds sessions, splits, layouts and active selections, then types into
 each pane what `restore_command` decides:
 
-1. Agent with a conversation id: its `resume` template, e.g. `claude --resume <id>`.
-2. Agent without one: its command.
+1. Agent with a conversation that exists: its `resume` template, e.g. `claude --resume <id>`.
+2. Any other agent: its command, started fresh. (Claude assigns an id at startup but only writes a
+   conversation after the first message, so deaner checks for the transcript before resuming.)
 3. A launched command that was still running: run it again.
 4. A known editor that was running: reopen it.
 5. Otherwise: a plain shell.

@@ -44,7 +44,7 @@ fn palette(app: &App) -> Palette {
         good: Style::new().fg(Color::Green),
         busy: Style::new().fg(Color::Cyan),
         branch: Style::new().fg(Color::Blue),
-        attention: Style::new().fg(Color::Blue),
+        attention: Style::new().fg(crate::theme::ATTENTION),
         border: Style::new().fg(t.border),
     }
 }
@@ -221,7 +221,7 @@ fn status_line<'a>(app: &App, p: &Palette, width: u16) -> Line<'a> {
     if awaiting > 0 {
         right.push(Span::styled(
             format!("{} {awaiting} ", app.icons.awaiting),
-            p.warn.add_modifier(Modifier::BOLD),
+            p.attention.add_modifier(Modifier::BOLD),
         ));
     }
     if busy > 0 {
@@ -299,8 +299,11 @@ fn repo_line<'a>(app: &App, p: &Palette, g: &RepoGroup, width: u16) -> Line<'a> 
     ));
     let mut right = Vec::new();
     if g.collapsed
-        && let Some(glyph) = agent_glyph(app, p, g.agent(), WsStatus::Live)
+        && let Some(mut glyph) = agent_glyph(app, p, g.agent(), WsStatus::Live)
     {
+        if attention {
+            glyph.style = p.attention.add_modifier(Modifier::BOLD);
+        }
         right.push(glyph);
         right.push(Span::raw(" "));
     }
@@ -410,7 +413,10 @@ fn ws_line<'a>(app: &App, p: &Palette, w: &WorkspaceView, width: u16) -> Line<'a
     if !ci.is_empty() {
         right.push(ci);
     }
-    if let Some(glyph) = agent_glyph(app, p, w.agent, w.status) {
+    if let Some(mut glyph) = agent_glyph(app, p, w.agent, w.status) {
+        if app.needs_attention(w) {
+            glyph.style = p.attention.add_modifier(Modifier::BOLD);
+        }
         right.push(vec![glyph]);
     }
     let mut spaced = Vec::new();
@@ -490,11 +496,7 @@ fn draw_help(frame: &mut Frame<'_>, p: &Palette, icons: &Icons, area: Rect, scro
         (icons.checks_passing, p.good, "CI passing"),
         (icons.checks_failing, p.bad, "CI failing"),
         (icons.checks_pending, p.warn, "CI running"),
-        (
-            "Blue",
-            p.attention,
-            "Agent needs you, or finished elsewhere",
-        ),
+        ("Orange", p.attention, "Needs you, or finished elsewhere"),
         (SPINNER[0], p.busy, "Agent working"),
         (icons.awaiting, p.warn, "Agent waiting on you"),
         (icons.idle, p.good, "Agent idle"),

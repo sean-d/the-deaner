@@ -99,7 +99,7 @@ pub fn entries(frame: &FrameKeys, tmux: &[TmuxShortcut], icons: &Icons) -> Vec<E
             (icons.checks_failing, "CI failing"),
             (icons.checks_pending, "CI running"),
             (
-                "Blue name",
+                "Orange",
                 "An agent needs you, or finished while you were elsewhere",
             ),
             ("Highlight", "The project shown on the right"),

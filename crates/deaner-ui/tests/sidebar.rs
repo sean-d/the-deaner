@@ -400,7 +400,8 @@ fn sidebar_only_uses_the_terminals_colors() {
         for cell in &term.backend().buffer().content {
             for color in [cell.fg, cell.bg] {
                 assert!(
-                    !matches!(color, Color::Rgb(..) | Color::Indexed(_)),
+                    color == deaner_ui::theme::ATTENTION
+                        || !matches!(color, Color::Rgb(..) | Color::Indexed(_)),
                     "{what} paints fixed color {color:?} at {:?}",
                     cell.symbol()
                 );
@@ -497,42 +498,66 @@ fn the_open_project_is_highlighted_wherever_the_cursor_is() {
 }
 
 #[test]
-fn needing_attention_turns_the_name_blue_until_you_look() {
+fn needing_attention_turns_orange_until_you_look_then_the_symbol_is_green() {
+    use deaner_ui::theme::ATTENTION;
     use ratatui::style::Color;
+
+    /// The agent symbol at the end of the row containing `name`.
+    fn symbol_at(app: &mut App, name: &str) -> ratatui::buffer::Cell {
+        let mut term = Terminal::new(TestBackend::new(34, 40)).unwrap();
+        term.draw(|f| draw(f, app)).unwrap();
+        let buf = term.backend().buffer();
+        for y in 0..40u16 {
+            let row: String = (0..34).map(|x| buf[(x, y)].symbol().to_string()).collect();
+            if row.contains(name) {
+                return buf[(32, y)].clone();
+            }
+        }
+        panic!("{name} not on screen");
+    }
+
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Busy));
-    assert_ne!(cell_at(&mut app, "shop-api").fg, Color::Blue);
+    assert_ne!(cell_at(&mut app, "shop-api").fg, ATTENTION);
+    assert_eq!(symbol_at(&mut app, "sec-bump").fg, Color::Cyan, "working");
 
-    // Waiting on you: blue while it waits.
+    // Waiting on you: orange while it waits.
     app.set_groups(fixture(AgentState::Awaiting));
-    assert_eq!(cell_at(&mut app, "shop-api").fg, Color::Blue);
-    assert_eq!(cell_at(&mut app, "sec-bump").fg, Color::Blue);
-    assert_ne!(
-        cell_at(&mut app, "deaner").fg,
-        Color::Blue,
-        "only that repo"
-    );
+    assert_eq!(cell_at(&mut app, "shop-api").fg, ATTENTION);
+    assert_eq!(cell_at(&mut app, "sec-bump").fg, ATTENTION);
+    assert_eq!(symbol_at(&mut app, "sec-bump").fg, ATTENTION);
+    assert_ne!(cell_at(&mut app, "deaner").fg, ATTENTION, "only that repo");
 
-    // Finished while you were elsewhere: stays blue after it stops waiting.
+    // Finished while you were elsewhere: orange, and it stays that way.
     app.set_groups(fixture(AgentState::Busy));
-    assert_ne!(cell_at(&mut app, "shop-api").fg, Color::Blue);
+    assert_ne!(cell_at(&mut app, "shop-api").fg, ATTENTION);
     app.set_groups(fixture(AgentState::Idle));
-    assert_eq!(cell_at(&mut app, "shop-api").fg, Color::Blue);
     app.set_groups(fixture(AgentState::Idle));
+    assert_eq!(cell_at(&mut app, "shop-api").fg, ATTENTION);
     assert_eq!(
         cell_at(&mut app, "sec-bump").fg,
-        Color::Blue,
+        ATTENTION,
         "until you look"
     );
+    assert_eq!(symbol_at(&mut app, "sec-bump").fg, ATTENTION);
 
-    // Opening it clears it.
-    let mut groups = fixture(AgentState::Idle);
-    let shop = groups.iter_mut().find(|g| g.name == "shop-api").unwrap();
-    for w in &mut shop.workspaces {
-        w.current = w.branch.as_deref() == Some("sec-bump");
-    }
-    app.set_groups(groups);
-    assert_ne!(cell_at(&mut app, "shop-api").fg, Color::Blue);
+    // Open it: the row gets the normal highlight.
+    let with_sec_bump_open = |open: bool| {
+        let mut groups = fixture(AgentState::Idle);
+        let shop = groups.iter_mut().find(|g| g.name == "shop-api").unwrap();
+        for w in &mut shop.workspaces {
+            w.current = open && w.branch.as_deref() == Some("sec-bump");
+        }
+        groups
+    };
+    app.set_groups(with_sec_bump_open(true));
+    assert_ne!(cell_at(&mut app, "shop-api").fg, ATTENTION);
+    assert_eq!(symbol_at(&mut app, "sec-bump").bg, Color::Magenta);
+
+    // Move away again: it's been seen, so the symbol is green and the name is normal.
+    app.set_groups(with_sec_bump_open(false));
+    assert_ne!(cell_at(&mut app, "sec-bump").fg, ATTENTION);
+    assert_eq!(symbol_at(&mut app, "sec-bump").fg, Color::Green);
 }
 
 #[test]

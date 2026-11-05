@@ -158,9 +158,10 @@ that started it. A session running in one does get listed. Clean up leftovers wi
 | Check | CI: green check passing, yellow clock running, red X failing. It comes from an open PR, otherwise from the branch's latest commit on GitHub, so `main` shows one with no PR at all. Repos without CI show nothing. Running projects update every minute (`pr_poll_seconds`), others every 5. |
 | Agent | Spinner: working. Bell: waiting on you. `✻`: idle. `◐`: compacting. Pause: parked. |
 
-The project shown on the right has a solid highlight. **A blue name means it needs you:** an agent is
-waiting, or finished while you were looking at something else. It clears when you open the project. The
-section heading gets a blue dot too, so you can spot it with a repo scrolled out of view.
+The project shown on the right has a solid highlight. **Orange means it needs you:** an agent is waiting,
+or finished while you were looking at something else. The agent symbol, the repo and branch names, and a dot
+on the section heading all turn orange, so you can spot it even with the repo scrolled out of view. It clears
+when you open the project, and the symbol goes back to its normal color.
 
 `Space` collapses a repo down to one line, and an arrow marks the ones that are collapsed.
 

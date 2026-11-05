@@ -170,11 +170,11 @@ Press `Alt-/` and scroll down, or search for "icons", for the same legend. Icons
 
 ## Choosing which tabs open
 
-A new workspace starts the tabs in `[[tabs]]`: by default `claude` and a `shell`, in the project
-root (or the worktree root for a worktree). When you want more, press `t` in the sidebar and pick
-one: another claude, nvim, a shell. It opens in the same directory.
+A new workspace starts the tabs in `[[tabs]]`, in order: by default `nvim`, `claude` and a `shell`, in
+the project root (or the worktree root for a worktree). You land on the first one. When you want more,
+press `t` in the sidebar and pick one: another claude, a shell. It opens in the same directory.
 
-To always start with something else, set your own list:
+To start with something else, set your own list. This one starts lighter:
 
 ```toml
 # ~/.config/deaner/config.toml
@@ -183,12 +183,10 @@ name = "claude"
 command = "claude"
 
 [[tabs]]
-name = "nvim"
-command = "nvim"
-
-[[tabs]]
 name = "shell"
 ```
+
+This applies to projects as they start. A project restored from a snapshot keeps the tabs it had.
 
 A repo's own `.deaner.toml` overrides this. See [Configuration](configuration.md).
 

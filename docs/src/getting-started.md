@@ -35,7 +35,7 @@ deaner                                   # open the frame
 `deaner` opens a full-window frame: the sidebar on the left, a terminal on the right.
 
 1. Move to a repo with `j`/`k` and press `Enter`. deaner starts a tmux session for it with your
-   default tabs (`claude` and a `shell`) and shows it on the right.
+   default tabs (`nvim`, `claude` and a `shell`) and shows it on the right.
 2. Press `Alt-s` to jump between the sidebar and the terminal.
 3. In the terminal you are in plain tmux (your `~/.tmux.conf`, your prefix). Switch tabs the way
    you always do.

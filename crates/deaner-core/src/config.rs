@@ -132,6 +132,7 @@ impl Default for Config {
                 .to_vec(),
             keys: FrameKeys::default(),
             tabs: vec![
+                TabSpec::new("nvim", Some("nvim")),
                 TabSpec::new("claude", Some("claude")),
                 TabSpec::new("shell", None),
             ],
@@ -353,12 +354,12 @@ command = "npm run dev"
             .collect();
         assert_eq!(choices, ["claude", "dev", "codex", "nvim", "shell"]);
 
-        // The default start is light, but nvim stays one key away.
+        // The default tabs, in order, then anything else that can be opened.
         let names = |tabs: Vec<TabSpec>| tabs.into_iter().map(|t| t.name).collect::<Vec<_>>();
-        assert_eq!(names(cfg.tabs_for(None)), ["claude", "shell"]);
+        assert_eq!(names(cfg.tabs_for(None)), ["nvim", "claude", "shell"]);
         assert_eq!(
             names(cfg.new_tab_choices(None)),
-            ["claude", "shell", "codex", "nvim"]
+            ["nvim", "claude", "shell", "codex"]
         );
     }
 }

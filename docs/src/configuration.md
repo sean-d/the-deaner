@@ -50,7 +50,11 @@ focus = "M-s"           # move focus between the sidebar and the terminal
 toggle_sidebar = "M-e"  # hide / show the sidebar (think "explorer")
 cheatsheet = "M-/"      # open the searchable shortcut cheat sheet
 
-# Tabs a new workspace starts with (a repo's .deaner.toml overrides these).
+# Tabs a new workspace starts with, in order (a repo's .deaner.toml overrides these).
+[[tabs]]
+name = "nvim"
+command = "nvim"
+
 [[tabs]]
 name = "claude"
 command = "claude"

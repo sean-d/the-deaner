@@ -522,6 +522,7 @@ impl Engine {
         }
         let _ = std::fs::remove_file(self.parked_file(&ws.name));
         deaner_git::remove_worktree(&ws.repo, &ws.path, force)?;
+        remove_empty_worktree_folders(ws);
         Ok(())
     }
 
@@ -857,6 +858,29 @@ pub fn is_agent_worktree(path: &Path) -> bool {
         .collect::<Vec<_>>()
         .windows(2)
         .any(|pair| pair[0] == ".claude" && pair[1] == "worktrees")
+}
+
+/// After removing a worktree at `<repo>.worktrees/feat/x`, tidy up `feat/` and
+/// `<repo>.worktrees/` if nothing else is in them. Only reaches as far up as the branch
+/// name goes, and `remove_dir` refuses anything that isn't empty.
+fn remove_empty_worktree_folders(ws: &WorkspaceView) {
+    let Some(branch) = ws.branch.as_deref() else {
+        return;
+    };
+    if !ws.path.ends_with(branch) {
+        return;
+    }
+    for dir in ws
+        .path
+        .ancestors()
+        .skip(1)
+        .take(Path::new(branch).components().count())
+    {
+        // Never the folder the repo itself lives in, however worktree_dir is set.
+        if ws.repo.parent() == Some(dir) || std::fs::remove_dir(dir).is_err() {
+            return;
+        }
+    }
 }
 
 /// A checkout of a repo: `(path, branch, is_worktree)`.

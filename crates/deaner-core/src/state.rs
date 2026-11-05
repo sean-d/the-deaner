@@ -20,6 +20,8 @@ pub struct State {
     pub pins: Vec<PathBuf>,
     /// Repo groups collapsed in the sidebar.
     pub collapsed: Vec<PathBuf>,
+    /// Folders to jump to in the project browser. The first is where it starts.
+    pub favorites: Vec<PathBuf>,
     /// Last sidebar width the user dragged to.
     pub sidebar_width: Option<u16>,
     /// Session the terminal pane showed last, reattached first.
@@ -98,6 +100,17 @@ impl State {
         self.collapsed.iter().any(|p| p == path)
     }
 
+    /// Add a favorite to the end of the list, or remove it. Returns whether it's a favorite now.
+    pub fn toggle_favorite(&mut self, path: &Path) -> bool {
+        if self.favorites.iter().any(|p| p == path) {
+            self.favorites.retain(|p| p != path);
+            false
+        } else {
+            self.favorites.push(path.to_path_buf());
+            true
+        }
+    }
+
     pub fn toggle_collapsed(&mut self, path: &Path) {
         if self.is_collapsed(path) {
             self.collapsed.retain(|p| p != path);
@@ -145,6 +158,18 @@ mod tests {
 
         assert!(!s.toggle_pin(Path::new("/r/a")));
         assert_eq!(names(&s), ["/r/b", "/r/c"]);
+    }
+
+    #[test]
+    fn favorites_keep_their_order_and_toggle() {
+        let mut s = State::default();
+        assert!(s.toggle_favorite(Path::new("/dev")));
+        assert!(s.toggle_favorite(Path::new("/tmp")));
+        assert_eq!(s.favorites, [PathBuf::from("/dev"), PathBuf::from("/tmp")]);
+        assert!(!s.toggle_favorite(Path::new("/dev")));
+        assert_eq!(s.favorites, [PathBuf::from("/tmp")]);
+        let back = State::from_toml(&s.to_toml()).unwrap();
+        assert_eq!(back.favorites, s.favorites);
     }
 
     #[test]

@@ -29,10 +29,16 @@ pub enum BrowserAction {
     None,
     Close,
     Pick(PathBuf),
+    /// Add this folder to the favorites, or remove it.
+    ToggleFavorite(PathBuf),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Row {
+    /// A section title, or a blank line when empty. Can't be selected.
+    Heading(&'static str),
+    /// Jump to a favorite folder.
+    Favorite(usize),
     /// Pick the folder being browsed.
     ThisFolder,
     Item(usize),
@@ -45,6 +51,7 @@ pub struct Browser {
     cwd: PathBuf,
     home: Option<PathBuf>,
     items: Vec<DirItem>,
+    favorites: Vec<PathBuf>,
     query: InputState,
     list: ListState,
     lister: Lister,
@@ -65,6 +72,7 @@ impl Browser {
             cwd: start,
             home,
             items: Vec::new(),
+            favorites: Vec::new(),
             query: InputState::default(),
             list: ListState::default(),
             lister,
@@ -74,6 +82,48 @@ impl Browser {
         };
         b.load(None);
         b
+    }
+
+    /// Set the favorites, leaving out folders that don't exist right now (they may be on a
+    /// drive that's unplugged). The cursor stays on the same folder.
+    pub fn set_favorites(&mut self, favorites: Vec<PathBuf>) {
+        let selected = self.selected().and_then(|r| self.row_path(r));
+        self.favorites = favorites
+            .into_iter()
+            .filter(|f| (self.lister)(f).is_some())
+            .collect();
+        let found = selected.and_then(|path| {
+            self.rows()
+                .iter()
+                .position(|r| self.row_path(*r).as_ref() == Some(&path))
+        });
+        if found.is_some() {
+            self.list.select(found);
+        } else {
+            self.select_first();
+        }
+    }
+
+    /// The favorites currently listed.
+    #[must_use]
+    pub fn visible_favorites(&self) -> Vec<PathBuf> {
+        self.rows()
+            .into_iter()
+            .filter_map(|r| match r {
+                Row::Favorite(i) => Some(self.favorites[i].clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The folder a row stands for.
+    fn row_path(&self, row: Row) -> Option<PathBuf> {
+        match row {
+            Row::Heading(_) => None,
+            Row::Favorite(i) => self.favorites.get(i).cloned(),
+            Row::ThisFolder => Some(self.cwd.clone()),
+            Row::Item(i) => self.items.get(i).map(|item| item.path.clone()),
+        }
     }
 
     /// Show an error without closing, so another folder can be picked.
@@ -104,6 +154,19 @@ impl Browser {
     fn rows(&self) -> Vec<Row> {
         let query = self.query.value().trim().to_lowercase();
         let mut rows = Vec::new();
+        let favorites: Vec<Row> = (0..self.favorites.len())
+            .filter(|i| {
+                self.display(&self.favorites[*i])
+                    .to_lowercase()
+                    .contains(&query)
+            })
+            .map(Row::Favorite)
+            .collect();
+        if !favorites.is_empty() {
+            rows.push(Row::Heading("Favorites"));
+            rows.extend(favorites);
+            rows.push(Row::Heading(""));
+        }
         if query.is_empty() {
             rows.push(Row::ThisFolder);
         }
@@ -124,7 +187,8 @@ impl Browser {
     fn select_first(&mut self) {
         let rows = self.rows();
         let first = rows.iter().position(|r| matches!(r, Row::Item(_)));
-        self.list.select(first.or((!rows.is_empty()).then_some(0)));
+        let any = rows.iter().position(|r| !matches!(r, Row::Heading(_)));
+        self.list.select(first.or(any));
     }
 
     fn selected(&self) -> Option<Row> {
@@ -140,7 +204,7 @@ impl Browser {
             .into_iter()
             .filter_map(|r| match r {
                 Row::Item(i) => Some(self.items[i].name.clone()),
-                Row::ThisFolder => None,
+                _ => None,
             })
             .collect()
     }
@@ -189,13 +253,23 @@ impl Browser {
     }
 
     fn step(&mut self, delta: isize) {
-        let len = self.rows().len() as isize;
+        let rows = self.rows();
+        let len = rows.len() as isize;
         if len == 0 {
             return;
         }
         let cur = self.list.selected().unwrap_or(0) as isize;
-        self.list
-            .select(Some((cur + delta).clamp(0, len - 1) as usize));
+        let selectable = |i: isize| !matches!(rows[i as usize], Row::Heading(_));
+        // Past a heading in the direction of travel; at the end of the list, stay nearby.
+        let mut target = (cur + delta).clamp(0, len - 1);
+        let dir = delta.signum();
+        while (0..len).contains(&target) && !selectable(target) {
+            target += dir;
+        }
+        if !(0..len).contains(&target) {
+            target = cur;
+        }
+        self.list.select(Some(target as usize));
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> BrowserAction {
@@ -206,6 +280,11 @@ impl Browser {
         match key.code {
             KeyCode::Esc => return BrowserAction::Close,
             KeyCode::Char('c') if ctrl => return BrowserAction::Close,
+            KeyCode::Char('f') if ctrl => {
+                if let Some(path) = self.selected().and_then(|r| self.row_path(r)) {
+                    return BrowserAction::ToggleFavorite(path);
+                }
+            }
             KeyCode::Down => self.step(1),
             KeyCode::Up => self.step(-1),
             KeyCode::Char('n' | 'j') if ctrl => self.step(1),
@@ -214,13 +293,14 @@ impl Browser {
             KeyCode::PageUp => self.step(-10),
             KeyCode::Left => self.go_up(),
             KeyCode::Backspace if self.query.value().is_empty() => self.go_up(),
-            KeyCode::Right | KeyCode::Tab => {
-                if let Some(Row::Item(i)) = self.selected() {
-                    self.enter(self.items[i].path.clone());
-                }
-            }
+            KeyCode::Right | KeyCode::Tab => match self.selected() {
+                Some(Row::Item(i)) => self.enter(self.items[i].path.clone()),
+                Some(Row::Favorite(i)) => self.enter(self.favorites[i].clone()),
+                _ => {}
+            },
             KeyCode::Enter => match self.selected() {
                 Some(Row::ThisFolder) => return BrowserAction::Pick(self.cwd.clone()),
+                Some(Row::Favorite(i)) => self.enter(self.favorites[i].clone()),
                 Some(Row::Item(i)) => {
                     let item = &self.items[i];
                     if item.is_repo || item.added {
@@ -228,7 +308,7 @@ impl Browser {
                     }
                     self.enter(item.path.clone());
                 }
-                None => {}
+                Some(Row::Heading(_)) | None => {}
             },
             _ => {
                 self.query = crate::app::edit(std::mem::take(&mut self.query), key);
@@ -239,9 +319,10 @@ impl Browser {
         BrowserAction::None
     }
 
-    fn display_path(&self) -> String {
+    /// A path with the home directory shortened to `~`.
+    fn display(&self, path: &Path) -> String {
         if let Some(home) = &self.home
-            && let Ok(rest) = self.cwd.strip_prefix(home)
+            && let Ok(rest) = path.strip_prefix(home)
         {
             return if rest.as_os_str().is_empty() {
                 "~".to_string()
@@ -249,12 +330,23 @@ impl Browser {
                 format!("~/{}", rest.display())
             };
         }
-        self.cwd.display().to_string()
+        path.display().to_string()
     }
 
     fn row_line<'a>(&self, row: Row, width: usize) -> Line<'a> {
         let muted = Style::new().fg(self.theme.muted_foreground);
         match row {
+            Row::Heading(title) => Line::styled(
+                format!(" {title}"),
+                Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            ),
+            Row::Favorite(i) => Line::from(vec![
+                Span::styled(
+                    format!(" {} ", self.icons.pinned),
+                    Style::new().fg(Color::Yellow),
+                ),
+                Span::raw(self.display(&self.favorites[i])),
+            ]),
             Row::ThisFolder => Line::from(vec![
                 Span::styled(" + ", Style::new().fg(Color::Green)),
                 Span::raw("Use this folder"),
@@ -266,7 +358,13 @@ impl Browser {
                 } else {
                     (self.icons.folder, Style::new().fg(Color::Blue))
                 };
-                let note = if item.added { "in sidebar " } else { "" };
+                let favorite = self.favorites.contains(&item.path);
+                let note = match (favorite, item.added) {
+                    (true, true) => "favorite · in sidebar ",
+                    (true, false) => "favorite ",
+                    (false, true) => "in sidebar ",
+                    (false, false) => "",
+                };
                 let used = 3 + item.name.width() + note.width();
                 Line::from(vec![
                     Span::styled(format!(" {icon} "), style),
@@ -297,7 +395,7 @@ impl Browser {
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
-                    self.display_path(),
+                    self.display(&self.cwd),
                     Style::new().add_modifier(Modifier::BOLD),
                 ),
             ]),
@@ -330,7 +428,7 @@ impl Browser {
         let bottom = self.message.as_ref().map_or_else(
             || {
                 Line::styled(
-                    " Enter open · → into folder · ← up · ↑↓ move · Esc close",
+                    " Enter open · → into folder · ← up · ↑↓ move · Ctrl-f favorite · Esc close",
                     muted,
                 )
             },

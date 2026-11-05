@@ -248,7 +248,9 @@ pub const fn search_terms(action: Action) -> &'static str {
         Action::NewTab => {
             "window add open claude nvim neovim vim editor shell agent terminal right"
         }
-        Action::AddRepo => "add repo folder directory new select file browser browse system",
+        Action::AddRepo => {
+            "add repo folder directory new select file browser browse system favorite"
+        }
         Action::Archive => "delete remove worktree forget",
         Action::Park => "pause suspend stop",
         Action::Save => "snapshot backup",

@@ -65,6 +65,21 @@ fn sessions_windows_and_options() {
 }
 
 #[test]
+fn a_test_server_leaves_no_socket_file_behind() {
+    let srv = TestServer::new();
+    srv.tmux
+        .new_session("s", &std::env::temp_dir(), "w")
+        .unwrap();
+    let socket = srv.tmux.display(None, "#{socket_path}").unwrap();
+    assert!(Path::new(&socket).exists());
+    drop(srv);
+    assert!(
+        wait_for(|| !Path::new(&socket).exists()),
+        "{socket} still there"
+    );
+}
+
+#[test]
 fn send_text_reaches_the_pane() {
     let srv = TestServer::new();
     let t = &srv.tmux;

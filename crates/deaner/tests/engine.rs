@@ -352,6 +352,67 @@ fn agent_worktrees_are_hidden_unless_something_runs_in_them() {
 }
 
 #[test]
+fn archiving_the_last_worktree_leaves_no_empty_folders() {
+    let f = fixture();
+    let e = &f.engine;
+    e.add_repo(&f.repo.display().to_string()).unwrap();
+    let root = f.repo.parent().unwrap().join("api.worktrees");
+
+    e.new_worktree(&f.repo, "feat/one").unwrap();
+    e.new_worktree(&f.repo, "feat/two").unwrap();
+    e.new_worktree(&f.repo, "other").unwrap();
+    assert!(root.join("feat/one").is_dir() && root.join("other").is_dir());
+
+    // Neighbours keep their folders.
+    e.archive(&e.find("api/feat/one").unwrap(), false).unwrap();
+    assert!(!root.join("feat/one").exists());
+    assert!(root.join("feat/two").is_dir());
+
+    e.archive(&e.find("api/feat/two").unwrap(), false).unwrap();
+    assert!(!root.join("feat").exists(), "feat/ emptied");
+    assert!(
+        root.join("other").is_dir(),
+        "the worktrees folder stays while it's in use"
+    );
+
+    e.archive(&e.find("api/other").unwrap(), false).unwrap();
+    assert!(!root.exists(), "nothing left behind");
+    assert!(f.repo.is_dir(), "the repo itself is untouched");
+    assert!(f.repo.parent().unwrap().is_dir());
+}
+
+#[test]
+fn archiving_keeps_a_worktrees_folder_holding_anything_else() {
+    let f = fixture();
+    let e = &f.engine;
+    e.add_repo(&f.repo.display().to_string()).unwrap();
+    let root = f.repo.parent().unwrap().join("api.worktrees");
+    e.new_worktree(&f.repo, "one").unwrap();
+    std::fs::write(root.join("my-notes.txt"), "keep me").unwrap();
+
+    e.archive(&e.find("api/one").unwrap(), false).unwrap();
+    assert!(root.join("my-notes.txt").is_file());
+}
+
+#[test]
+fn the_browser_starts_in_the_first_favorite_that_exists() {
+    let f = fixture();
+    let e = &f.engine;
+    let parent = f.repo.parent().unwrap().to_path_buf();
+    e.add_repo(&f.repo.display().to_string()).unwrap();
+    assert_eq!(deaner::browse::start_dir(e), parent, "no favorites yet");
+
+    let elsewhere = parent.join("elsewhere");
+    std::fs::create_dir_all(&elsewhere).unwrap();
+    e.update_state(|s| {
+        s.toggle_favorite(Path::new("/nonexistent/drive"));
+        s.toggle_favorite(&elsewhere);
+    })
+    .unwrap();
+    assert_eq!(deaner::browse::start_dir(e), elsewhere);
+}
+
+#[test]
 fn concurrent_state_updates_are_not_lost() {
     let f = fixture();
     let handles: Vec<_> = (0..32)

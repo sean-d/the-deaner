@@ -2,6 +2,7 @@
 
 use crate::Tmux;
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -51,9 +52,22 @@ impl Default for TestServer {
     }
 }
 
+/// Where tmux keeps a named socket: `$TMUX_TMPDIR/tmux-<uid>/<name>`, or under `/tmp`.
+fn socket_path(name: &str) -> PathBuf {
+    let dir = std::env::var_os("TMUX_TMPDIR").map_or_else(|| PathBuf::from("/tmp"), PathBuf::from);
+    let uid = Command::new("id")
+        .arg("-u")
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+    dir.join(format!("tmux-{uid}")).join(name)
+}
+
 impl Drop for TestServer {
     fn drop(&mut self) {
         self.tmux.kill_server();
         let _ = std::fs::remove_file(&self.config);
+        // tmux leaves its socket file behind when it exits.
+        let _ = std::fs::remove_file(socket_path(&self.socket));
     }
 }

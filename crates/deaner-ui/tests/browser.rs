@@ -165,6 +165,113 @@ fn walking_up_reaches_the_root_and_stops() {
     assert_eq!(b.visible_names(), ["home", "tmp"]);
 }
 
+fn ctrl_f(b: &mut Browser) -> BrowserAction {
+    b.handle_key(KeyEvent::new(KeyCode::Char('f'), KeyModifiers::CONTROL))
+}
+
+fn with_favorites() -> Browser {
+    let mut b = browser();
+    b.set_favorites(vec![
+        PathBuf::from("/home/sd/dev/go"),
+        PathBuf::from("/tmp"),
+    ]);
+    b
+}
+
+#[test]
+fn enter_on_a_favorite_travels_there() {
+    let mut b = with_favorites();
+    // The cursor still starts on the first folder, so Enter never travels by accident.
+    assert_eq!(press(&mut b, KeyCode::Enter), picked("/home/sd/dev/api"));
+
+    // Up past "Use this folder" and over the blank line to the last favorite.
+    press(&mut b, KeyCode::Up);
+    press(&mut b, KeyCode::Up);
+    assert_eq!(press(&mut b, KeyCode::Enter), BrowserAction::None);
+    assert_eq!(b.cwd(), Path::new("/tmp"));
+
+    // Favorites stay listed wherever you are, and the arrow key travels too.
+    press(&mut b, KeyCode::Up);
+    press(&mut b, KeyCode::Up);
+    press(&mut b, KeyCode::Up);
+    assert_eq!(press(&mut b, KeyCode::Right), BrowserAction::None);
+    assert_eq!(b.cwd(), Path::new("/home/sd/dev/go"));
+}
+
+#[test]
+fn the_cursor_cant_land_on_a_heading() {
+    let mut b = with_favorites();
+    for _ in 0..20 {
+        press(&mut b, KeyCode::Up);
+    }
+    // Top of the list is the first favorite, not the "Favorites" title.
+    press(&mut b, KeyCode::Enter);
+    assert_eq!(b.cwd(), Path::new("/home/sd/dev/go"));
+}
+
+#[test]
+fn ctrl_f_toggles_whatever_is_highlighted() {
+    let mut b = browser();
+    // A folder in the list.
+    let toggle = |p: &str| BrowserAction::ToggleFavorite(PathBuf::from(p));
+    assert_eq!(ctrl_f(&mut b), toggle("/home/sd/dev/api"));
+    // The folder you're in.
+    press(&mut b, KeyCode::Up);
+    assert_eq!(ctrl_f(&mut b), toggle("/home/sd/dev"));
+
+    // A favorite, which removes it.
+    let mut b = with_favorites();
+    for _ in 0..20 {
+        press(&mut b, KeyCode::Up);
+    }
+    assert_eq!(ctrl_f(&mut b), toggle("/home/sd/dev/go"));
+
+    // Typing f is still typing.
+    let mut b = browser();
+    assert_eq!(press(&mut b, KeyCode::Char('f')), BrowserAction::None);
+}
+
+#[test]
+fn the_cursor_stays_put_when_favorites_change() {
+    let mut b = browser();
+    press(&mut b, KeyCode::Down); // on go
+    b.set_favorites(vec![PathBuf::from("/tmp"), PathBuf::from("/home/sd")]);
+    assert_eq!(press(&mut b, KeyCode::Right), BrowserAction::None);
+    assert_eq!(b.cwd(), Path::new("/home/sd/dev/go"));
+}
+
+#[test]
+fn favorites_filter_too_and_missing_ones_are_left_out() {
+    let mut b = browser();
+    b.set_favorites(vec![
+        PathBuf::from("/home/sd/dev/go"),
+        PathBuf::from("/tmp"),
+        PathBuf::from("/unplugged-drive"),
+    ]);
+    assert_eq!(b.visible_favorites().len(), 2);
+    typing(&mut b, "tmp");
+    assert_eq!(b.visible_favorites(), [PathBuf::from("/tmp")]);
+    assert_eq!(press(&mut b, KeyCode::Enter), BrowserAction::None);
+    assert_eq!(b.cwd(), Path::new("/tmp"), "the only match is reachable");
+}
+
+#[test]
+fn renders_favorites_at_the_top() {
+    use ratatui::style::Color;
+    let mut b = with_favorites();
+    let mut term = Terminal::new(TestBackend::new(60, 15)).unwrap();
+    term.draw(|f| b.draw(f)).unwrap();
+    insta::assert_snapshot!(term.backend());
+    for cell in &term.backend().buffer().content {
+        for color in [cell.fg, cell.bg] {
+            assert!(
+                !matches!(color, Color::Rgb(..) | Color::Indexed(_)),
+                "{color:?}"
+            );
+        }
+    }
+}
+
 #[test]
 fn escape_and_ctrl_c_close() {
     assert_eq!(press(&mut browser(), KeyCode::Esc), BrowserAction::Close);

@@ -12,10 +12,16 @@ project lives:
 | `Enter` | On a git repo: add it, start it and show it. On a plain folder: go into it. |
 | `→` | Go into the highlighted folder |
 | `←` | Up one folder |
+| `Ctrl-f` | Add the highlighted folder to your favorites, or remove it |
 | `Esc` | Close |
 
 Git repos have a branch icon, plain folders a folder icon. To use a plain folder as a project, go into
 it and pick **Use this folder** at the top. Folders starting with a dot are hidden until you type a `.`.
+
+**Favorites** are folders you jump to, listed at the top wherever you are. `Enter` on one takes you there.
+The browser starts in your first favorite, so make that where you usually begin. To add the folder you're
+in, go to **Use this folder** and press `Ctrl-f`. They're kept in order in `state.toml`, which is how to
+reorder them for now.
 
 To go anywhere on the system, press `←` until you reach the folder you want, or type a path the way
 you would in a shell: `/tmp/`, `~/`, `../`, `go/`. Anything ending in `/` that exists is entered.
@@ -59,6 +65,45 @@ Both work in the same checkout, so you don't need a worktree:
 2. Tell one to work on code and the other on docs. They edit different files.
 
 The sidebar shows the more urgent of the two: waiting on you if either is, otherwise working if either is.
+
+## What worktrees are for
+
+A worktree is a git branch **plus its own folder**. A normal repo has one folder, so only one branch can be
+checked out at a time. A worktree adds a second folder on another branch. Both folders share one git history,
+so a commit in either is visible to both, but their files on disk are separate.
+
+Worktrees are a git feature, and they're useful with or without agents.
+
+**Example:** you're halfway through a new endpoint in `shop-api`, with 12 files edited and nothing committed.
+Then a security fix has to ship today.
+
+| Step | With `git stash` | With a worktree |
+|---|---|---|
+| Stop what you're doing | Yes | No, it keeps running |
+| Stash your work | Yes | No, it stays where it is |
+| Create a branch | Yes | Yes, `w` does it |
+| Do the work, commit, push | Yes | Yes, in the new folder |
+| Pop and go back | Yes | No, switch rows in the sidebar |
+| Clean up | No | Yes, `x` removes the folder |
+
+```text
+shop-api
+   feat/new-endpoint  ✎ 12  ⠋     ← still working
+   deps/security-fix  #260 ✓       ← the fix, done separately
+```
+
+This matters most with agents, because a stash can't pause a claude that's in the middle of editing those
+files, and a worktree leaves it running.
+
+**When you don't need one:** working on one thing at a time, or two claudes on the same branch editing
+different files. Plain branches are fine for those.
+
+**Worth knowing:**
+- Files git ignores don't come along: `node_modules`, build output, virtualenvs and `.env` files are per folder.
+  A new worktree may need its own install or copy of `.env`.
+- Two worktrees can collide if they run at once and use a fixed dev-server port, database name or Docker
+  container name.
+- A branch can only be checked out in one folder at a time.
 
 ## A security bump in the middle of a feature (two branches at once)
 

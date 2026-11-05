@@ -29,11 +29,15 @@ pub fn list_dirs(dir: &Path, added: &[PathBuf]) -> Vec<DirItem> {
         .collect()
 }
 
-/// Where to start: the folder holding the most recently added project, or home.
+/// Where to start: the first favorite, otherwise the folder holding the most recently
+/// added project, otherwise home.
 #[must_use]
 pub fn start_dir(engine: &Engine) -> PathBuf {
-    engine
-        .state()
+    let state = engine.state();
+    if let Some(favorite) = state.favorites.iter().find(|f| f.is_dir()) {
+        return favorite.clone();
+    }
+    state
         .repos
         .last()
         .and_then(|r| r.path.parent().map(Path::to_path_buf))
@@ -73,6 +77,7 @@ pub fn run(engine: &Engine, start: Option<&str>) -> Result<()> {
         deaner_ui::icons::for_style(engine.config.icons),
         Box::new(move |dir| dir.is_dir().then(|| list_dirs(dir, &added))),
     );
+    browser.set_favorites(engine.state().favorites);
     let switcher = Switcher::detect(engine);
     let mut hint = None;
     let mut terminal = ratatui::init();
@@ -85,6 +90,15 @@ pub fn run(engine: &Engine, start: Option<&str>) -> Result<()> {
             match browser.handle_key(key) {
                 BrowserAction::None => {}
                 BrowserAction::Close => return Ok(()),
+                BrowserAction::ToggleFavorite(path) => {
+                    match engine.update_state(|s| {
+                        s.toggle_favorite(&path);
+                        s.favorites.clone()
+                    }) {
+                        Ok(favorites) => browser.set_favorites(favorites),
+                        Err(e) => browser.set_message(format!("{e:#}")),
+                    }
+                }
                 BrowserAction::Pick(path) => {
                     let opened =
                         open_project(engine, &path).and_then(|name| switcher.show(engine, &name));

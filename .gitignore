@@ -2,3 +2,4 @@
 /docs/book
 *.snap.new
 *.pending-snap
+.DS_Store

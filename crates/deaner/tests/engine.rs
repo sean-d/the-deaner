@@ -199,9 +199,11 @@ fn full_day_create_status_save_restore_park_archive() {
     // archive it: session gone, worktree removed
     let ws = e.find("api/sec/bump").unwrap();
     std::fs::write(ws.path.join("scratch.txt"), "x").unwrap();
+    let refused = e.archive(&ws, false).unwrap_err().to_string();
     assert!(
-        e.archive(&ws, false).is_err(),
-        "dirty worktree needs --force"
+        refused.contains("1 uncommitted change.")
+            && refused.contains("deaner archive api/sec/bump --force"),
+        "says what to do: {refused}"
     );
     e.archive(&ws, true).unwrap();
     assert!(!ws.path.exists());
@@ -410,6 +412,24 @@ fn the_browser_starts_in_the_first_favorite_that_exists() {
     })
     .unwrap();
     assert_eq!(deaner::browse::start_dir(e), elsewhere);
+}
+
+#[test]
+fn saving_with_nothing_running_keeps_the_last_snapshot() {
+    let f = fixture();
+    let e = &f.engine;
+    e.add_repo(&f.repo.display().to_string()).unwrap();
+    e.ensure_session(&e.workspaces()[0]).unwrap();
+    assert!(e.autosave().unwrap().is_some());
+    assert_eq!(e.latest_snapshot().unwrap().workspaces.len(), 1);
+
+    f.srv.tmux.kill_server();
+    assert!(e.autosave().unwrap().is_none(), "nothing to save");
+    assert_eq!(
+        e.latest_snapshot().unwrap().workspaces.len(),
+        1,
+        "the good snapshot is still there"
+    );
 }
 
 #[test]

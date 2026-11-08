@@ -400,16 +400,21 @@ fn shutdown(engine: &Engine, force: bool) -> Result<()> {
             }
         }
     }
-    let snap = engine.snapshot();
-    let path = engine.save_snapshot(&snap)?;
-    println!(
-        "saved {} workspace(s) to {}",
-        snap.workspaces.len(),
-        path.display()
-    );
+    // Nothing running means nothing to save, and saving would replace the last good
+    // snapshot with an empty one.
+    match engine.autosave()? {
+        Some(path) => println!(
+            "saved {} workspace(s) to {}",
+            engine.snapshot().workspaces.len(),
+            path.display()
+        ),
+        None => println!("nothing running; keeping the last snapshot"),
+    }
     println!("stopping deaner. Run `deaner` to pick up where you left off.");
-    engine.tmux.kill_server();
+    // The frame goes first: this command may be running inside a workspace tab, and
+    // stopping the workspace server ends this process along with that tab.
     frame::frame_tmux(engine).kill_server();
+    engine.tmux.kill_server();
     Ok(())
 }
 

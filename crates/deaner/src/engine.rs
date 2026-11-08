@@ -511,10 +511,13 @@ impl Engine {
             && let Ok(s) = deaner_git::status(&ws.path)
             && !s.is_clean()
         {
+            let n = s.changed();
             bail!(
-                "{} has {} uncommitted change(s); commit them or archive with --force",
+                "{} has {n} uncommitted {}. Commit or delete {} first, or run: deaner archive {} --force",
                 ws.name,
-                s.changed()
+                if n == 1 { "change" } else { "changes" },
+                if n == 1 { "it" } else { "them" },
+                ws.name
             );
         }
         if let Some(session) = self.session_for(&ws.path) {

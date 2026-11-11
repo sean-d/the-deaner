@@ -109,6 +109,7 @@ pub fn entries(frame: &FrameKeys, tmux: &[TmuxShortcut], icons: &Icons) -> Vec<E
             (icons.idle, "Agent idle"),
             (icons.compacting, "Agent compacting"),
             (icons.parked, "Parked"),
+            ("!1 ⠋2 ✻1", "Agents on a project: waiting, working, idle"),
         ]
         .map(|(icon, what)| Entry::new(ICONS, icon, what, "legend symbol badge status")),
     );

@@ -879,3 +879,36 @@ fn v_peeks_at_the_agent_that_needs_you_first() {
     app.handle_key(key(KeyCode::End)); // parked dotfiles
     assert_eq!(app.handle_key(ch('v')), None);
 }
+
+#[test]
+fn a_project_with_several_agents_counts_them_on_its_row() {
+    let mut groups = fixture(AgentState::Awaiting);
+    // Nothing open, so shop-api is a plain repo row, not a box.
+    groups
+        .iter_mut()
+        .flat_map(|g| &mut g.workspaces)
+        .for_each(|w| w.current = false);
+    let mut app = App::new();
+    app.set_groups(groups);
+    let screen = render(&mut app, 34, 14);
+    let row = |name: &str| {
+        screen
+            .lines()
+            .find(|l| l.contains(name))
+            .unwrap()
+            .to_string()
+    };
+    assert!(
+        row("shop-api").contains("!1 ⠋1"),
+        "one waiting, one working: {screen}"
+    );
+    assert_eq!(
+        cell_at(&mut app, "!1").fg,
+        deaner_ui::theme::ATTENTION,
+        "the waiting count is orange"
+    );
+    assert!(
+        !row("deaner").contains('1'),
+        "one agent: no counts: {screen}"
+    );
+}

@@ -395,9 +395,58 @@ fn box_top<'a>(app: &App, p: &Palette, g: &RepoGroup, width: u16) -> Line<'a> {
         name_style.add_modifier(Modifier::BOLD),
     ));
     let used: usize = spans.iter().map(|s| s.content.width()).sum();
+    // `╭ name ───── !1 ⠋2 ─╮` when there are counts and room for them.
+    if let Some(counts) = agent_counts(app, p, g) {
+        let counts_w: usize = counts.iter().map(|s| s.content.width()).sum();
+        let rule = usize::from(width).saturating_sub(used + counts_w + 5);
+        if rule > 0 {
+            spans.push(Span::styled(format!(" {} ", "─".repeat(rule)), gold));
+            spans.extend(counts);
+            spans.push(Span::styled(" ─╮", gold));
+            return Line::from(spans);
+        }
+    }
     let rule = usize::from(width).saturating_sub(used + 2);
     spans.push(Span::styled(format!(" {}╮", "─".repeat(rule)), gold));
     Line::from(spans)
+}
+
+/// `!1 ⠋2 ✻1`: how many of a repo's agents are waiting on you, working, compacting and
+/// idle, for a repo running two or more (with one, its workspace row says it all).
+fn agent_counts<'a>(app: &App, p: &Palette, g: &RepoGroup) -> Option<Vec<Span<'a>>> {
+    let states: Vec<AgentState> = g
+        .workspaces
+        .iter()
+        .filter(|w| w.status == WsStatus::Live)
+        .flat_map(|w| &w.tabs)
+        .filter(|t| t.agent.is_some() && t.state != AgentState::None)
+        .map(|t| t.state)
+        .collect();
+    if states.len() < 2 {
+        return None;
+    }
+    let spinner = SPINNER[(app.tick as usize) % SPINNER.len()];
+    let kinds = [
+        (
+            AgentState::Awaiting,
+            app.icons.awaiting,
+            p.attention.add_modifier(Modifier::BOLD),
+        ),
+        (AgentState::Busy, spinner, p.busy),
+        (AgentState::Compacting, app.icons.compacting, p.busy),
+        (AgentState::Idle, app.icons.idle, p.good),
+    ];
+    let mut spans = Vec::new();
+    for (state, icon, style) in kinds {
+        let n = states.iter().filter(|s| **s == state).count();
+        if n > 0 {
+            if !spans.is_empty() {
+                spans.push(Span::raw(" "));
+            }
+            spans.push(Span::styled(format!("{icon}{n}"), style));
+        }
+    }
+    Some(spans)
 }
 
 fn row_line<'a>(app: &App, p: &Palette, row: Row, width: u16) -> Line<'a> {
@@ -466,7 +515,10 @@ fn repo_line<'a>(app: &App, p: &Palette, g: &RepoGroup, width: u16) -> Line<'a> 
         name_style.add_modifier(Modifier::BOLD),
     ));
     let mut right = Vec::new();
-    if g.collapsed
+    if let Some(counts) = agent_counts(app, p, g) {
+        right.extend(counts);
+        right.push(Span::raw(" "));
+    } else if g.collapsed
         && let Some(mut glyph) = agent_glyph(app, p, g.agent(), WsStatus::Live)
     {
         if attention {
@@ -686,6 +738,11 @@ fn draw_help(frame: &mut Frame<'_>, p: &Palette, icons: &Icons, area: Rect, scro
         (icons.checks_pending, p.warn, "CI running"),
         ("Orange", p.attention, "Needs you, or finished elsewhere"),
         (SPINNER[0], p.busy, "Agent working"),
+        (
+            "!1 ⠋2",
+            p.muted,
+            "Agents on a project: waiting, working, idle",
+        ),
         (icons.awaiting, p.warn, "Agent waiting on you"),
         (icons.idle, p.good, "Agent idle"),
         (icons.compacting, p.busy, "Agent compacting"),

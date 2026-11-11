@@ -27,6 +27,7 @@ These work while the sidebar has focus.
 | `g` / `Home` | Jump to top |
 | `G` / `End` | Jump to bottom |
 | `Enter` | Open workspace in the terminal (starts or unparks it) |
+| `n` | Next agent that needs you |
 | `Space` | Collapse / expand repo |
 | `/` | Filter by repo or branch (Esc clears) |
 

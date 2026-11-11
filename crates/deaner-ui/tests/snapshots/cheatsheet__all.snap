@@ -1,5 +1,6 @@
 ---
 source: crates/deaner-ui/tests/cheatsheet.rs
+assertion_line: 112
 expression: "render(&mut s, 24)"
 ---
 " How do I…  hide the sidebar, new tab, split…                         "
@@ -15,6 +16,7 @@ expression: "render(&mut s, 24)"
 "   g / Home                   Jump to top                             "
 "   G / End                    Jump to bottom                          "
 "   Enter                      Open workspace in the terminal (starts o"
+"   n                          Next agent that needs you               "
 "   Space                      Collapse / expand repo                  "
 "   /                          Filter by repo or branch (Esc clears)   "
 "   w                          New worktree + session for a branch     "
@@ -24,5 +26,4 @@ expression: "render(&mut s, 24)"
 "   P                          Park: save and stop the session         "
 "   S                          Save a snapshot now                     "
 "   p                          Pin / unpin repo                        "
-"   K                          Move pinned repo up                     "
 " type to search · ↑↓ scroll · Esc closes                              "

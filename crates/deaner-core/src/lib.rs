@@ -18,7 +18,7 @@ pub mod state;
 pub mod tmux_keys;
 
 pub use agent::{AgentState, HookEvent, HookPayload};
-pub use config::{AgentDef, Config, RepoConfig, TabKind, TabSpec};
+pub use config::{AgentDef, Config, OpenStyle, RepoConfig, TabKind, TabSpec};
 pub use git::{GitStatus, Worktree};
 pub use pane::PaneInfo;
 pub use pr::{BranchStatus, Checks, PrState, PrStatus};

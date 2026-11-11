@@ -3,10 +3,11 @@
 //! No IO here: the caller supplies a function that lists a directory.
 
 use crate::icons::Icons;
+use crate::theme::colors;
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::layout::{Constraint, Layout};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem, ListState};
 use ratcn::{InputState, InputWidget, Theme};
@@ -77,7 +78,7 @@ impl Browser {
             list: ListState::default(),
             lister,
             icons,
-            theme: crate::theme::terminal(),
+            theme: crate::theme::deaner(),
             message: None,
         };
         b.load(None);
@@ -338,25 +339,25 @@ impl Browser {
         match row {
             Row::Heading(title) => Line::styled(
                 format!(" {title}"),
-                Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::new().fg(colors::GOLD).add_modifier(Modifier::BOLD),
             ),
             Row::Favorite(i) => Line::from(vec![
                 Span::styled(
                     format!(" {} ", self.icons.pinned),
-                    Style::new().fg(Color::Yellow),
+                    Style::new().fg(colors::GOLD),
                 ),
                 Span::raw(self.display(&self.favorites[i])),
             ]),
             Row::ThisFolder => Line::from(vec![
-                Span::styled(" + ", Style::new().fg(Color::Green)),
+                Span::styled(" + ", Style::new().fg(colors::GREEN)),
                 Span::raw("Use this folder"),
             ]),
             Row::Item(i) => {
                 let item = &self.items[i];
                 let (icon, style) = if item.is_repo {
-                    (self.icons.branch, Style::new().fg(Color::Green))
+                    (self.icons.branch, Style::new().fg(colors::GREEN))
                 } else {
-                    (self.icons.folder, Style::new().fg(Color::Blue))
+                    (self.icons.folder, Style::new().fg(colors::BLUE))
                 };
                 let favorite = self.favorites.contains(&item.path);
                 let note = match (favorite, item.added) {
@@ -378,6 +379,8 @@ impl Browser {
 
     /// Draw the whole popup.
     pub fn draw(&mut self, frame: &mut Frame<'_>) {
+        let full = frame.area();
+        frame.buffer_mut().set_style(full, crate::theme::base());
         let [title, search, list, hint] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Length(2),
@@ -420,7 +423,7 @@ impl Browser {
                 .map(|r| ListItem::new(self.row_line(*r, width)))
                 .collect();
             frame.render_stateful_widget(
-                List::new(items).highlight_style(Style::new().bg(Color::DarkGray)),
+                List::new(items).highlight_style(Style::new().bg(colors::SEL)),
                 list,
                 &mut self.list,
             );

@@ -100,6 +100,8 @@ pub struct App {
     unseen: HashSet<PathBuf>,
     pub theme: Theme,
     pub icons: &'static crate::icons::Icons,
+    /// How the project shown in the terminal is marked.
+    pub open_style: deaner_core::OpenStyle,
     /// Running outside the frame: `q` quits.
     pub standalone: bool,
     /// Choices for "new tab", given a repo path.
@@ -128,8 +130,9 @@ impl App {
             loaded: false,
             prev_agents: HashMap::new(),
             unseen: HashSet::new(),
-            theme: crate::theme::terminal(),
+            theme: crate::theme::deaner(),
             icons: &crate::icons::UNICODE,
+            open_style: deaner_core::OpenStyle::default(),
             standalone: false,
             tab_choices: Box::new(|_| vec![TabSpec::new("shell", None)]),
         }
@@ -171,7 +174,8 @@ impl App {
     }
 
     fn rebuild_rows(&mut self, key: Option<SelKey>) {
-        self.rows = rows(&self.groups, &self.filter);
+        let boxed = self.open_style == deaner_core::OpenStyle::Box;
+        self.rows = rows(&self.groups, &self.filter, boxed);
         let found = key.and_then(|k| self.rows.iter().position(|r| self.key_of(*r) == k));
         let idx = found
             .or_else(|| self.list.selected())
@@ -180,17 +184,25 @@ impl App {
         self.select_near(idx, 1);
     }
 
-    /// Select the row at `target`, or the nearest selectable one: headings are
-    /// skipped in direction `dir` first, then the other way. Reaching the first
-    /// selectable row scrolls its heading back into view.
+    /// Whether the cursor can stop on row `i`: workspaces, and a repo row only when
+    /// it's all there is of the repo (collapsed). An expanded repo's name opens the same
+    /// thing as its workspace, so the cursor goes straight between workspaces.
+    fn can_select(&self, i: usize) -> bool {
+        match self.rows.get(i) {
+            Some(Row::Repo { group }) => !matches!(
+                self.rows.get(i + 1),
+                Some(Row::Workspace { group: g, .. }) if g == group
+            ),
+            Some(row) => row.selectable(),
+            None => false,
+        }
+    }
+
+    /// Select the row at `target`, or the nearest selectable one: headings and the
+    /// names of expanded repos are skipped in direction `dir` first, then the other way.
+    /// Reaching the first selectable row scrolls its heading back into view.
     fn select_near(&mut self, target: usize, dir: isize) {
-        let selectable = |i: isize| {
-            usize::try_from(i)
-                .ok()
-                .and_then(|i| self.rows.get(i).map(|r| (i, r)))
-                .filter(|(_, r)| !matches!(r, Row::Header { .. }))
-                .map(|(i, _)| i)
-        };
+        let selectable = |i: isize| usize::try_from(i).ok().filter(|&i| self.can_select(i));
         let search = |dir: isize| {
             let mut i = target as isize;
             while i >= 0 && (i as usize) < self.rows.len() {
@@ -266,7 +278,8 @@ impl App {
 
     fn key_of(&self, row: Row) -> SelKey {
         match row {
-            Row::Header { section } => SelKey::Header(section),
+            Row::Header { section } | Row::Gap { section } => SelKey::Header(section),
+            Row::BoxEnd { group } => SelKey::Header(self.groups[group].section),
             Row::Repo { group } => SelKey::Repo(self.groups[group].path.clone()),
             Row::Workspace { group, ws } => {
                 SelKey::Ws(self.groups[group].workspaces[ws].path.clone())
@@ -286,7 +299,7 @@ impl App {
     #[must_use]
     pub fn selected_group(&self) -> Option<&RepoGroup> {
         self.selected_row().and_then(|r| match r {
-            Row::Header { .. } => None,
+            Row::Header { .. } | Row::Gap { .. } | Row::BoxEnd { .. } => None,
             Row::Repo { group } | Row::Workspace { group, .. } => Some(&self.groups[group]),
         })
     }
@@ -295,7 +308,7 @@ impl App {
     #[must_use]
     pub fn selected_ws(&self) -> Option<&WorkspaceView> {
         match self.selected_row()? {
-            Row::Header { .. } => None,
+            Row::Header { .. } | Row::Gap { .. } | Row::BoxEnd { .. } => None,
             Row::Workspace { group, ws } => Some(&self.groups[group].workspaces[ws]),
             Row::Repo { group } => {
                 let g = &self.groups[group];
@@ -305,6 +318,67 @@ impl App {
                     .or(g.workspaces.first())
             }
         }
+    }
+
+    /// What Enter opens: the workspace under the cursor. On a collapsed repo, the
+    /// workspace that needs you if there is one, since its row can't be reached.
+    fn ws_to_open(&self) -> Option<&WorkspaceView> {
+        if let Some(Row::Repo { group }) = self.selected_row() {
+            let g = &self.groups[group];
+            if g.collapsed
+                && let Some(w) = g.workspaces.iter().find(|w| self.needs_attention(w))
+            {
+                return Some(w);
+            }
+        }
+        self.selected_ws()
+    }
+
+    /// The workspaces a row stands for: its own, or all of a collapsed repo's.
+    fn row_workspaces(&self, row: Row) -> &[WorkspaceView] {
+        match row {
+            Row::Workspace { group, ws } => {
+                std::slice::from_ref(&self.groups[group].workspaces[ws])
+            }
+            Row::Repo { group } if self.groups[group].collapsed => &self.groups[group].workspaces,
+            Row::Repo { .. } | Row::Header { .. } | Row::Gap { .. } | Row::BoxEnd { .. } => &[],
+        }
+    }
+
+    /// Step through the rows that need you: agents waiting on you first, then ones
+    /// that finished while you weren't looking, each top to bottom, then around again.
+    fn next_attention(&mut self) {
+        let rows_where = |wanted: &dyn Fn(&WorkspaceView) -> bool| -> Vec<usize> {
+            (0..self.rows.len())
+                .filter(|&i| self.row_workspaces(self.rows[i]).iter().any(wanted))
+                .collect()
+        };
+        let mut targets = rows_where(&|w| w.agent == AgentState::Awaiting);
+        for i in rows_where(&|w| self.unseen.contains(&w.path)) {
+            if !targets.contains(&i) {
+                targets.push(i);
+            }
+        }
+        if !targets.is_empty() {
+            let cur = self.list.selected();
+            let next = targets
+                .iter()
+                .position(|&i| Some(i) == cur)
+                .map_or(0, |k| (k + 1) % targets.len());
+            self.list.select(Some(targets[next]));
+            return;
+        }
+        let anywhere = self
+            .groups
+            .iter()
+            .flat_map(|g| &g.workspaces)
+            .any(|w| self.needs_attention(w));
+        let message = if anywhere {
+            "Something needs you, but the filter hides it (Esc clears)"
+        } else {
+            "Nothing needs you"
+        };
+        self.toast(Toast::info(message));
     }
 
     fn move_by(&mut self, delta: isize) {
@@ -363,7 +437,8 @@ impl App {
             Action::Up => self.move_by(-1),
             Action::Top => self.move_by(isize::MIN / 2),
             Action::Bottom => self.move_by(isize::MAX / 2),
-            Action::Open => return self.selected_ws().cloned().map(Command::Open),
+            Action::Open => return self.ws_to_open().cloned().map(Command::Open),
+            Action::NextAttention => self.next_attention(),
             Action::ToggleCollapse => {
                 return self
                     .selected_group()
@@ -455,7 +530,7 @@ impl App {
                     Command::Archive(w),
                 )
             }
-            Row::Header { .. } => return,
+            Row::Header { .. } | Row::Gap { .. } | Row::BoxEnd { .. } => return,
             Row::Repo { group } | Row::Workspace { group, .. } => {
                 let g = &self.groups[group];
                 (
@@ -574,12 +649,15 @@ impl App {
                 }
                 let idx = self.list.offset() + usize::from(ev.row - a.y);
                 let row = *self.rows.get(idx)?;
-                if matches!(row, Row::Header { .. }) {
+                if !self.can_select(idx) {
                     return None;
                 }
                 self.list.select(Some(idx));
                 return match row {
-                    Row::Header { .. } | Row::Repo { .. } => None,
+                    Row::Header { .. }
+                    | Row::Gap { .. }
+                    | Row::BoxEnd { .. }
+                    | Row::Repo { .. } => None,
                     Row::Workspace { .. } => self.selected_ws().cloned().map(Command::Open),
                 };
             }

@@ -5,12 +5,13 @@
 
 use crate::icons::Icons;
 use crate::keymap::{BINDINGS, frame_bindings, keys_label, search_terms};
+use crate::theme::colors;
 use deaner_core::config::FrameKeys;
 use deaner_core::tmux_keys::TmuxShortcut;
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::layout::{Constraint, Layout};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 use ratcn::{InputState, InputWidget, Theme};
@@ -147,7 +148,7 @@ impl Cheatsheet {
             entries,
             query: InputState::default(),
             scroll: 0,
-            theme: crate::theme::terminal(),
+            theme: crate::theme::deaner(),
         }
     }
 
@@ -197,6 +198,8 @@ impl Cheatsheet {
 
     /// Draw the whole popup.
     pub fn draw(&mut self, frame: &mut Frame<'_>) {
+        let full = frame.area();
+        frame.buffer_mut().set_style(full, crate::theme::base());
         let [search, list, hint] = Layout::vertical([
             Constraint::Length(2),
             Constraint::Min(1),
@@ -228,13 +231,13 @@ impl Cheatsheet {
                 section = e.section;
                 lines.push(Line::styled(
                     format!(" {section}"),
-                    Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                    Style::new().fg(colors::GOLD).add_modifier(Modifier::BOLD),
                 ));
             }
             lines.push(Line::from(vec![
                 Span::styled(
                     format!("   {:<width$}  ", e.keys),
-                    Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                    Style::new().fg(colors::CYAN).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(e.what.clone()),
             ]));

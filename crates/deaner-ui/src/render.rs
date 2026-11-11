@@ -3,12 +3,13 @@
 use crate::app::{App, Mode, PromptKind};
 use crate::icons::Icons;
 use crate::keymap::{BINDINGS, keys_label, sections};
-use deaner_core::AgentState;
+use crate::theme::colors;
 use deaner_core::pr::{Checks, PrState};
 use deaner_core::sidebar::{RepoGroup, Row, Section, WorkspaceView, WsStatus};
+use deaner_core::{AgentState, OpenStyle};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Clear, List, ListItem, Paragraph, Wrap};
 use ratcn::{InputWidget, ToastPosition, ToasterWidget};
@@ -24,33 +25,35 @@ struct Palette {
     good: Style,
     busy: Style,
     branch: Style,
+    merged: Style,
     attention: Style,
     border: Style,
 }
 
 /// Selected row: a background, so each span keeps its own color.
-const SELECTED: Style = Style::new().bg(Color::DarkGray);
-/// The project shown in the terminal.
-const CURRENT_BG: Color = Color::Magenta;
-const CURRENT_FG: Color = Color::Black;
+const SELECTED: Style = Style::new().bg(colors::SEL);
+/// Where the name sits in a workspace row's spans (see `ws_line`).
+const WS_LABEL: usize = 3;
 
-fn palette(app: &App) -> Palette {
-    let t = &app.theme;
+fn palette(_app: &App) -> Palette {
     Palette {
-        muted: Style::new().fg(t.muted_foreground),
-        accent: Style::new().fg(t.accent),
-        warn: Style::new().fg(t.warning),
-        bad: Style::new().fg(t.destructive),
-        good: Style::new().fg(Color::Green),
-        busy: Style::new().fg(Color::Cyan),
-        branch: Style::new().fg(Color::Blue),
-        attention: Style::new().fg(crate::theme::ATTENTION),
-        border: Style::new().fg(t.border),
+        muted: Style::new().fg(colors::DIM),
+        accent: Style::new().fg(colors::GOLD),
+        warn: Style::new().fg(colors::GOLD),
+        bad: Style::new().fg(colors::RED),
+        good: Style::new().fg(colors::GREEN),
+        busy: Style::new().fg(colors::BUSY),
+        branch: Style::new().fg(colors::BLUE),
+        merged: Style::new().fg(colors::VIOLET),
+        attention: Style::new().fg(colors::ATTENTION),
+        border: Style::new().fg(colors::LINE),
     }
 }
 
 /// Draw the whole sidebar into `frame`.
 pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
+    let full = frame.area();
+    frame.buffer_mut().set_style(full, crate::theme::base());
     let area = frame.area();
     let p = palette(app);
     let [list_area, footer] =
@@ -233,54 +236,140 @@ fn status_line<'a>(app: &App, p: &Palette, width: u16) -> Line<'a> {
     justify(vec![Span::styled(" ? help", p.muted)], right, width)
 }
 
-/// One row, styled. The project shown on the right gets a solid highlight that stays
-/// put while the cursor moves; the cursor on that row shows as a bar at its edge.
+/// One row, styled. The project shown on the right stays marked while the cursor moves,
+/// in one of two styles (`open_project` in the config):
+///
+/// - **Block**: a dark gold background with a bar down its left edge, over the repo row
+///   and all its workspaces; names in gold.
+/// - **Box**: a thin gold box around it, the repo name in the top border.
+///
+/// Either way the open workspace's name is bold gold, and the cursor is a navy row.
 fn row_item<'a>(app: &App, p: &Palette, row: Row, index: usize, width: u16) -> ListItem<'a> {
-    let mut line = row_line(app, p, row, width);
     let selected = app.list.selected() == Some(index);
-    let current =
-        matches!(row, Row::Workspace { group, ws } if app.groups[group].workspaces[ws].current);
-    if current {
-        for span in &mut line.spans {
-            span.style = span.style.fg(CURRENT_FG).add_modifier(Modifier::BOLD);
+    let is_open = |group: usize| app.groups[group].workspaces.iter().any(|w| w.current);
+    let (in_block, open) = match row {
+        Row::Repo { group } => (is_open(group), false),
+        Row::Workspace { group, ws } => (is_open(group), app.groups[group].workspaces[ws].current),
+        Row::BoxEnd { .. } => (true, false),
+        Row::Header { .. } | Row::Gap { .. } => (false, false),
+    };
+    let boxed = app.open_style == OpenStyle::Box;
+    let gold = Style::new().fg(colors::GOLD);
+    let bar = || Span::styled("▌", gold);
+    let mut line = match row {
+        Row::BoxEnd { .. } => Line::styled(
+            format!("╰{}╯", "─".repeat(usize::from(width.saturating_sub(2)))),
+            gold,
+        ),
+        Row::Repo { group } if in_block && boxed => box_top(app, p, &app.groups[group], width),
+        Row::Repo { .. } if in_block => {
+            let mut line = row_line(app, p, row, width.saturating_sub(1));
+            line.spans.insert(0, bar());
+            line
         }
-        if selected && let Some(first) = line.spans.first_mut() {
-            first.content = "▌ ".into();
+        Row::Workspace { .. } if in_block && boxed => {
+            // The two spaces of indent become the box's left side; its right side closes it.
+            let mut line = row_line(app, p, row, width.saturating_sub(1));
+            line.spans[0] = Span::styled("│ ", gold);
+            line.spans.push(Span::styled("│", gold));
+            line
         }
-        return ListItem::new(line).style(Style::new().bg(CURRENT_BG));
+        Row::Workspace { .. } if in_block => {
+            // Workspace rows start with two spaces of indent: the bar takes the first.
+            let mut line = row_line(app, p, row, width);
+            line.spans[0] = Span::raw(" ");
+            line.spans.insert(0, bar());
+            line
+        }
+        _ => row_line(app, p, row, width),
+    };
+    if in_block && !boxed {
+        // Names take the accent; orange still means "needs you".
+        let name = match row {
+            Row::Repo { group } => {
+                let repo = &app.groups[group].name;
+                line.spans.iter_mut().find(|s| s.content == repo.as_str())
+            }
+            _ => line.spans.get_mut(WS_LABEL + 1),
+        };
+        if let Some(name) = name
+            && name.style.fg != Some(crate::theme::ATTENTION)
+        {
+            name.style = name.style.fg(colors::GOLD);
+        }
+    }
+    if open {
+        let at = if boxed { WS_LABEL } else { WS_LABEL + 1 };
+        if let Some(name) = line.spans.get_mut(at) {
+            if name.style.fg != Some(crate::theme::ATTENTION) {
+                name.style = name.style.fg(colors::GOLD);
+            }
+            name.style = name.style.add_modifier(Modifier::BOLD);
+        }
     }
     if selected {
         return ListItem::new(line).style(SELECTED);
     }
+    if in_block && !boxed {
+        return ListItem::new(line).style(Style::new().bg(colors::VIEW));
+    }
     ListItem::new(line)
+}
+
+/// `╭ deaner ──────╮`: the open project's repo row, as the top of its box.
+fn box_top<'a>(app: &App, p: &Palette, g: &RepoGroup, width: u16) -> Line<'a> {
+    let gold = Style::new().fg(colors::GOLD);
+    let attention = g.workspaces.iter().any(|w| app.needs_attention(w));
+    let name_style = if attention { p.attention } else { gold };
+    let mut spans = vec![Span::styled("╭ ", gold)];
+    if g.collapsed && app.filter.is_empty() {
+        spans.push(Span::styled(format!("{} ", app.icons.collapsed), p.muted));
+    }
+    spans.push(Span::styled(
+        g.name.clone(),
+        name_style.add_modifier(Modifier::BOLD),
+    ));
+    let used: usize = spans.iter().map(|s| s.content.width()).sum();
+    let rule = usize::from(width).saturating_sub(used + 2);
+    spans.push(Span::styled(format!(" {}╮", "─".repeat(rule)), gold));
+    Line::from(spans)
 }
 
 fn row_line<'a>(app: &App, p: &Palette, row: Row, width: u16) -> Line<'a> {
     match row {
-        Row::Header { section } => heading_line(app, p, section),
+        Row::Gap { .. } => Line::raw(""),
+        Row::Header { section } => heading_line(app, p, section, width),
         Row::Repo { group } => repo_line(app, p, &app.groups[group], width),
         Row::Workspace { group, ws } => ws_line(app, p, &app.groups[group].workspaces[ws], width),
+        Row::BoxEnd { .. } => Line::raw(""),
     }
 }
 
-fn heading_line<'a>(app: &App, p: &Palette, section: Section) -> Line<'a> {
+/// `● ACTIVE 5 ───────`: icon, name and how many repos, then a rule to the edge.
+fn heading_line<'a>(app: &App, p: &Palette, section: Section, width: u16) -> Line<'a> {
     let (icon, style) = match section {
         Section::Pinned => (app.icons.pinned, p.warn),
         Section::Active => (app.icons.active, p.good),
         Section::Inactive => (app.icons.inactive, p.muted),
     };
-    let mut spans = vec![Span::styled(
-        format!("{icon} {}", section.label()),
-        style.add_modifier(Modifier::BOLD),
-    )];
-    let attention = app
-        .groups
-        .iter()
-        .filter(|g| g.section == section)
+    let in_section = || app.groups.iter().filter(|g| g.section == section);
+    let mut spans = vec![
+        Span::styled(
+            format!("{icon} {}", section.label()),
+            style.add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(format!(" {}", in_section().count()), p.muted),
+    ];
+    if in_section()
         .flat_map(|g| &g.workspaces)
-        .any(|w| app.needs_attention(w));
-    if attention {
+        .any(|w| app.needs_attention(w))
+    {
         spans.push(Span::styled(format!(" {}", app.icons.active), p.attention));
+    }
+    let used: usize = spans.iter().map(|s| s.content.width()).sum();
+    let rule = usize::from(width).saturating_sub(used + 2);
+    if rule > 0 {
+        spans.push(Span::styled(format!(" {}", "─".repeat(rule)), p.border));
     }
     Line::from(spans)
 }
@@ -292,7 +381,11 @@ fn repo_line<'a>(app: &App, p: &Palette, g: &RepoGroup, width: u16) -> Line<'a> 
         left.push(Span::styled(format!("{} ", app.icons.collapsed), p.muted));
     }
     let attention = g.workspaces.iter().any(|w| app.needs_attention(w));
-    let name_style = if attention { p.attention } else { Style::new() };
+    let name_style = match g.section {
+        _ if attention => p.attention,
+        Section::Inactive => p.muted,
+        Section::Pinned | Section::Active => Style::new(),
+    };
     left.push(Span::styled(
         g.name.clone(),
         name_style.add_modifier(Modifier::BOLD),
@@ -340,7 +433,7 @@ fn git_icon<'a>(app: &App, p: &Palette, w: &WorkspaceView) -> Span<'a> {
         return match pr.state {
             PrState::Open => Span::styled(app.icons.pull_request, p.good),
             PrState::Draft => Span::styled(app.icons.pull_request, p.muted),
-            PrState::Merged => Span::styled(app.icons.merged, p.accent),
+            PrState::Merged => Span::styled(app.icons.merged, p.merged),
             PrState::Closed => Span::styled(app.icons.pull_request, p.bad),
         };
     }
@@ -490,7 +583,7 @@ fn draw_help(frame: &mut Frame<'_>, p: &Palette, icons: &Icons, area: Rect, scro
         (icons.detached, p.branch, "Detached HEAD"),
         (icons.folder, p.branch, "Plain folder"),
         (icons.pull_request, p.good, "Open pull request"),
-        (icons.merged, p.accent, "Last pull request, merged"),
+        (icons.merged, p.merged, "Last pull request, merged"),
         (icons.changed, p.warn, "Changed files"),
         ("+ -", p.good, "Commits ahead / behind"),
         (icons.checks_passing, p.good, "CI passing"),

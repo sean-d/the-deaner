@@ -144,8 +144,8 @@ fn enter_opens_main_checkout_from_repo_row() {
 fn selection_survives_refresh_and_reorder() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Idle));
-    // move to the sec-bump worktree row: deaner, deaner/main, shop-api, main, sec-bump
-    for _ in 0..4 {
+    // From deaner's main to the sec-bump worktree: shop-api's main, then sec-bump.
+    for _ in 0..2 {
         app.handle_key(ch('j'));
     }
     assert_eq!(
@@ -392,17 +392,15 @@ fn question_mark_opens_the_popup_inside_the_frame() {
 }
 
 #[test]
-fn sidebar_only_uses_the_terminals_colors() {
-    use ratatui::style::Color;
+fn sidebar_only_uses_the_palette() {
     let check = |app: &mut App, what: &str| {
         let mut term = Terminal::new(TestBackend::new(34, 16)).unwrap();
         term.draw(|f| draw(f, app)).unwrap();
         for cell in &term.backend().buffer().content {
             for color in [cell.fg, cell.bg] {
                 assert!(
-                    color == deaner_ui::theme::ATTENTION
-                        || !matches!(color, Color::Rgb(..) | Color::Indexed(_)),
-                    "{what} paints fixed color {color:?} at {:?}",
+                    deaner_ui::theme::colors::ALL.contains(&color),
+                    "{what} paints {color:?}, outside the palette, at {:?}",
                     cell.symbol()
                 );
             }
@@ -461,8 +459,9 @@ fn cell_at(app: &mut App, needle: &str) -> ratatui::buffer::Cell {
 
 #[test]
 fn the_open_project_is_highlighted_wherever_the_cursor_is() {
-    use ratatui::style::Color;
+    use deaner_ui::theme::colors::{GOLD, SEL, VIEW};
     let mut app = App::new();
+    app.open_style = deaner_core::OpenStyle::Block;
     app.set_groups(fixture(AgentState::Idle));
     // shop-api's main is the open one (and the only "main" with changed files).
     let mut term = Terminal::new(TestBackend::new(34, 14)).unwrap();
@@ -470,37 +469,28 @@ fn the_open_project_is_highlighted_wherever_the_cursor_is() {
     let buf = term.backend().buffer().clone();
     let row = |y: u16| -> String { (0..34).map(|x| buf[(x, y)].symbol().to_string()).collect() };
     let y = (0..14).find(|y| row(*y).contains("3 +1")).unwrap();
-    assert_eq!(
-        buf[(0, y)].bg,
-        Color::Magenta,
-        "the whole row, edge to edge"
-    );
-    assert_eq!(buf[(33, y)].bg, Color::Magenta);
-    assert_eq!(buf[(4, y)].fg, Color::Black, "and readable");
+    assert_eq!(buf[(0, y)].bg, VIEW, "the whole row, edge to edge");
+    assert_eq!(buf[(33, y)].bg, VIEW);
+    assert_eq!(buf[(4, y)].fg, GOLD, "the name in gold");
 
-    // The cursor is elsewhere, on another background.
-    assert_eq!(cell_at(&mut app, "deaner").bg, Color::DarkGray);
-    assert!(
-        row(y).starts_with("  "),
-        "no cursor bar here yet: {}",
-        row(y)
-    );
+    assert_eq!(buf[(0, y)].symbol(), "▌", "a bar marks the open workspace");
 
-    // Moving onto it keeps the highlight, and the cursor shows as a bar.
-    for _ in 0..3 {
-        app.handle_key(ch('j'));
-    }
+    // The cursor is elsewhere (deaner's main), on another background.
+    assert_eq!(cell_at(&mut app, "⎇ main").bg, SEL);
+
+    // Moving onto it: the cursor's navy, with the bar still in the open color.
+    app.handle_key(ch('j'));
     let mut term = Terminal::new(TestBackend::new(34, 14)).unwrap();
     term.draw(|f| draw(f, &mut app)).unwrap();
     let buf = term.backend().buffer();
     assert_eq!(buf[(0, y)].symbol(), "▌");
-    assert_eq!(buf[(0, y)].bg, Color::Magenta);
+    assert_eq!(buf[(0, y)].fg, GOLD);
+    assert_eq!(buf[(10, y)].bg, SEL);
 }
 
 #[test]
 fn needing_attention_turns_orange_until_you_look_then_the_symbol_is_green() {
-    use deaner_ui::theme::ATTENTION;
-    use ratatui::style::Color;
+    use deaner_ui::theme::{ATTENTION, colors};
 
     /// The agent symbol at the end of the row containing `name`.
     fn symbol_at(app: &mut App, name: &str) -> ratatui::buffer::Cell {
@@ -517,9 +507,16 @@ fn needing_attention_turns_orange_until_you_look_then_the_symbol_is_green() {
     }
 
     let mut app = App::new();
-    app.set_groups(fixture(AgentState::Busy));
+    app.open_style = deaner_core::OpenStyle::Block;
+    // Nothing open, so shop-api isn't drawn as the open block.
+    let mut groups = fixture(AgentState::Busy);
+    groups
+        .iter_mut()
+        .flat_map(|g| &mut g.workspaces)
+        .for_each(|w| w.current = false);
+    app.set_groups(groups);
     assert_ne!(cell_at(&mut app, "shop-api").fg, ATTENTION);
-    assert_eq!(symbol_at(&mut app, "sec-bump").fg, Color::Cyan, "working");
+    assert_eq!(symbol_at(&mut app, "sec-bump").fg, colors::BUSY, "working");
 
     // Waiting on you: orange while it waits.
     app.set_groups(fixture(AgentState::Awaiting));
@@ -552,12 +549,12 @@ fn needing_attention_turns_orange_until_you_look_then_the_symbol_is_green() {
     };
     app.set_groups(with_sec_bump_open(true));
     assert_ne!(cell_at(&mut app, "shop-api").fg, ATTENTION);
-    assert_eq!(symbol_at(&mut app, "sec-bump").bg, Color::Magenta);
+    assert_eq!(symbol_at(&mut app, "sec-bump").bg, colors::VIEW);
 
     // Move away again: it's been seen, so the symbol is green and the name is normal.
     app.set_groups(with_sec_bump_open(false));
     assert_ne!(cell_at(&mut app, "sec-bump").fg, ATTENTION);
-    assert_eq!(symbol_at(&mut app, "sec-bump").fg, Color::Green);
+    assert_eq!(symbol_at(&mut app, "sec-bump").fg, colors::GREEN);
 }
 
 #[test]
@@ -603,4 +600,164 @@ fn passing_ci_shows_a_check_next_to_the_pr_number() {
     let screen = render(&mut app, 34, 12);
     let row = screen.lines().nth(2).unwrap();
     assert!(row.contains('✓') && !row.contains('#'), "{screen}");
+}
+
+/// sec-bump finished while you weren't looking, and deaner is waiting on you.
+fn waiting_and_finished() -> (App, Vec<RepoGroup>) {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Busy));
+    let mut groups = fixture(AgentState::Idle);
+    assert_eq!(groups[0].name, "deaner");
+    groups[0].workspaces[0].agent = AgentState::Awaiting;
+    (app, groups)
+}
+
+#[test]
+fn n_steps_through_what_needs_you_waiting_first() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Busy));
+    assert_eq!(app.handle_key(ch('n')), None);
+    assert_eq!(
+        app.selected_group().unwrap().name,
+        "deaner",
+        "nothing to go to"
+    );
+
+    let (mut app, groups) = waiting_and_finished();
+    app.set_groups(groups);
+    app.handle_key(key(KeyCode::End));
+    let branch = |app: &App| app.selected_ws().unwrap().branch.clone().unwrap();
+    app.handle_key(ch('n'));
+    assert_eq!(
+        app.selected_ws().unwrap().name,
+        "deaner",
+        "waiting comes first"
+    );
+    app.handle_key(ch('n'));
+    assert_eq!(branch(&app), "sec-bump", "then finished");
+    app.handle_key(ch('n'));
+    assert_eq!(
+        app.selected_ws().unwrap().name,
+        "deaner",
+        "and around again"
+    );
+}
+
+#[test]
+fn n_finds_a_worktree_inside_a_collapsed_repo_and_enter_opens_it() {
+    let (mut app, mut groups) = waiting_and_finished();
+    groups[0].workspaces[0].agent = AgentState::Idle;
+    groups[1].collapsed = true; // shop-api: sec-bump's row is hidden
+    app.set_groups(groups);
+    app.handle_key(ch('n'));
+    assert_eq!(app.selected_group().unwrap().name, "shop-api");
+    assert!(
+        matches!(app.handle_key(key(KeyCode::Enter)), Some(Command::Open(w)) if w.branch.as_deref() == Some("sec-bump"))
+    );
+}
+
+#[test]
+fn the_open_project_is_one_solid_block() {
+    use deaner_ui::theme::colors::{SEL, VIEW};
+    use ratatui::style::Color;
+    let mut app = App::new();
+    app.open_style = deaner_core::OpenStyle::Block;
+    // shop-api's main checkout is open; the cursor starts on deaner.
+    app.set_groups(fixture(AgentState::Idle));
+    assert_eq!(cell_at(&mut app, "shop-api").bg, VIEW, "repo row");
+    assert_eq!(cell_at(&mut app, "sec-bump").bg, VIEW, "the other worktree");
+    assert_eq!(
+        cell_at(&mut app, "⎇ main").bg,
+        SEL,
+        "cursor, on deaner's main"
+    );
+    assert_eq!(
+        cell_at(&mut app, "dotfiles").bg,
+        Color::Reset,
+        "everything else"
+    );
+    let screen = render(&mut app, 34, 12);
+    assert!(
+        screen.contains("▌ ⎇ main"),
+        "a bar marks the open workspace: {screen}"
+    );
+
+    // The cursor inside the block is navy, like anywhere else.
+    app.handle_key(ch('j'));
+    assert_eq!(app.selected_group().unwrap().name, "shop-api");
+    assert_eq!(cell_at(&mut app, "✎ 3").bg, SEL);
+}
+
+#[test]
+fn the_cursor_goes_between_workspaces_and_skips_repo_names() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    let at = |app: &App| {
+        let w = app.selected_ws().unwrap();
+        format!(
+            "{}:{}",
+            app.selected_group().unwrap().name,
+            w.branch.clone().unwrap()
+        )
+    };
+    assert_eq!(at(&app), "deaner:main", "starts on the first workspace");
+    let mut seen = vec![at(&app)];
+    for _ in 0..3 {
+        app.handle_key(ch('j'));
+        seen.push(at(&app));
+    }
+    assert_eq!(
+        seen,
+        [
+            "deaner:main",
+            "shop-api:main",
+            "shop-api:sec-bump",
+            "dotfiles:main"
+        ]
+    );
+    app.handle_key(ch('k'));
+    assert_eq!(at(&app), "shop-api:sec-bump");
+
+    // A collapsed repo shows only its name, so the cursor stops there.
+    let mut groups = fixture(AgentState::Idle);
+    groups[1].collapsed = true; // shop-api
+    app.set_groups(groups);
+    app.handle_key(key(KeyCode::Home));
+    app.handle_key(ch('j'));
+    assert!(matches!(
+        app.selected_row(),
+        Some(deaner_core::sidebar::Row::Repo { .. })
+    ));
+    assert_eq!(app.selected_group().unwrap().name, "shop-api");
+}
+
+#[test]
+fn the_open_project_can_be_a_box_instead() {
+    use deaner_ui::theme::colors::{GOLD, SEL};
+    let mut app = App::new();
+    app.open_style = deaner_core::OpenStyle::Box;
+    app.set_groups(fixture(AgentState::Idle));
+    let screen = render(&mut app, 34, 14);
+    insta::assert_snapshot!(screen);
+    // No fill, a gold frame, and the bottom edge can't be selected.
+    assert_eq!(
+        cell_at(&mut app, "sec-bump").bg,
+        ratatui::style::Color::Reset
+    );
+    assert_eq!(cell_at(&mut app, "╭").fg, GOLD);
+    // deaner, main, shop-api, main, sec-bump, then over the box end, gap and heading.
+    for _ in 0..5 {
+        app.handle_key(ch('j'));
+    }
+    assert_eq!(
+        app.selected_group().unwrap().name,
+        "dotfiles",
+        "j steps over the box's end"
+    );
+    app.handle_key(ch('k'));
+    assert_eq!(
+        app.selected_ws().unwrap().branch.as_deref(),
+        Some("sec-bump")
+    );
+    assert_eq!(cell_at(&mut app, "sec-bump").bg, SEL);
 }

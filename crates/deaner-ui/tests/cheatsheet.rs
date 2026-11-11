@@ -127,14 +127,13 @@ fn scrolling_stops_at_the_end() {
     );
 }
 
-/// Fails on any color that wouldn't follow the terminal's theme.
-fn assert_terminal_palette(buffer: &ratatui::buffer::Buffer, what: &str) {
-    use ratatui::style::Color;
+/// Fails on any color outside deaner's palette.
+fn assert_palette(buffer: &ratatui::buffer::Buffer, what: &str) {
     for cell in &buffer.content {
         for color in [cell.fg, cell.bg] {
             assert!(
-                !matches!(color, Color::Rgb(..) | Color::Indexed(_)),
-                "{what} paints fixed color {color:?} at {:?}",
+                deaner_ui::theme::colors::ALL.contains(&color),
+                "{what} paints {color:?}, outside the palette, at {:?}",
                 cell.symbol()
             );
         }
@@ -142,15 +141,15 @@ fn assert_terminal_palette(buffer: &ratatui::buffer::Buffer, what: &str) {
 }
 
 #[test]
-fn popup_only_uses_the_terminals_colors() {
+fn popup_only_uses_the_palette() {
     let mut s = sheet();
     let mut term = Terminal::new(TestBackend::new(70, 30)).unwrap();
     term.draw(|f| s.draw(f)).unwrap();
-    assert_terminal_palette(term.backend().buffer(), "empty popup");
+    assert_palette(term.backend().buffer(), "empty popup");
     search(&mut s, "tab");
     term.draw(|f| s.draw(f)).unwrap();
-    assert_terminal_palette(term.backend().buffer(), "popup with a search");
+    assert_palette(term.backend().buffer(), "popup with a search");
     search(&mut s, "zzz");
     term.draw(|f| s.draw(f)).unwrap();
-    assert_terminal_palette(term.backend().buffer(), "popup with no results");
+    assert_palette(term.backend().buffer(), "popup with no results");
 }

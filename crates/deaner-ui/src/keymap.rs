@@ -13,6 +13,7 @@ pub enum Action {
     Top,
     Bottom,
     Open,
+    NextAttention,
     ToggleCollapse,
     Filter,
     NewWorktree,
@@ -107,6 +108,12 @@ pub const BINDINGS: &[Binding] = &[
         action: Action::Open,
         section: "Navigate",
         help: "Open workspace in the terminal (starts or unparks it)",
+    },
+    Binding {
+        keys: &[Char('n')],
+        action: Action::NextAttention,
+        section: "Navigate",
+        help: "Next agent that needs you",
     },
     Binding {
         keys: &[Space],
@@ -242,6 +249,7 @@ pub fn tmux_key_label(key: &str) -> String {
 pub const fn search_terms(action: Action) -> &'static str {
     match action {
         Action::Open => "start switch go project repo",
+        Action::NextAttention => "jump waiting needs attention orange finished done agent claude",
         Action::ToggleCollapse => "fold tree group",
         Action::Filter => "search find",
         Action::NewWorktree => "branch parallel create",

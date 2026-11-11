@@ -94,6 +94,10 @@ impl RepoGroup {
 /// A visible sidebar line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Row {
+    /// Blank line above a section heading, after the section before it; can't be selected.
+    Gap {
+        section: Section,
+    },
     /// Section heading; can't be selected.
     Header {
         section: Section,
@@ -105,6 +109,18 @@ pub enum Row {
         group: usize,
         ws: usize,
     },
+    /// Bottom edge of the box around the open project; can't be selected.
+    BoxEnd {
+        group: usize,
+    },
+}
+
+impl Row {
+    /// Repos and workspaces; not headings or the gaps above them.
+    #[must_use]
+    pub const fn selectable(self) -> bool {
+        matches!(self, Self::Repo { .. } | Self::Workspace { .. })
+    }
 }
 
 /// Inputs for [`build`].
@@ -194,14 +210,35 @@ fn matches(haystack: &str, needle: &str) -> bool {
 }
 
 /// Flatten groups into visible rows. A non-empty `filter` matches repo names,
-/// branches and session names, and ignores collapsing.
+/// branches and session names, and ignores collapsing. With `boxed`, the open
+/// project (the one with a workspace on screen) gets a row closing its box.
 #[must_use]
-pub fn rows(groups: &[RepoGroup], filter: &str) -> Vec<Row> {
+pub fn rows(groups: &[RepoGroup], filter: &str, boxed: bool) -> Vec<Row> {
+    let mut out = visible_rows(groups, filter);
+    if boxed
+        && let Some(open) = groups
+            .iter()
+            .position(|g| g.workspaces.iter().any(|w| w.current))
+    {
+        let last = out.iter().rposition(
+            |r| matches!(r, Row::Repo { group } | Row::Workspace { group, .. } if *group == open),
+        );
+        if let Some(i) = last {
+            out.insert(i + 1, Row::BoxEnd { group: open });
+        }
+    }
+    out
+}
+
+fn visible_rows(groups: &[RepoGroup], filter: &str) -> Vec<Row> {
     let filter = filter.trim().to_lowercase();
     let mut out = Vec::new();
     let mut current = None;
     let mut heading = |out: &mut Vec<Row>, section: Section| {
         if current != Some(section) {
+            if current.is_some() {
+                out.push(Row::Gap { section });
+            }
             current = Some(section);
             out.push(Row::Header { section });
         }
@@ -369,7 +406,7 @@ mod tests {
             ],
         );
         assert_eq!(
-            rows(&groups, ""),
+            rows(&groups, "", false),
             [
                 Row::Header {
                     section: Section::Active
@@ -381,7 +418,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            rows(&groups, "SECUR"),
+            rows(&groups, "SECUR", false),
             [
                 Row::Header {
                     section: Section::Active
@@ -392,7 +429,7 @@ mod tests {
         );
         // repo-name match shows all its workspaces, even when collapsed
         assert_eq!(
-            rows(&groups, "web"),
+            rows(&groups, "web", false),
             [
                 Row::Header {
                     section: Section::Active
@@ -401,6 +438,35 @@ mod tests {
                 Row::Workspace { group: 1, ws: 0 }
             ]
         );
+    }
+
+    #[test]
+    fn the_open_project_gets_a_box_end_after_its_last_visible_row() {
+        let repos = repos(&["api", "web"]);
+        let layout = Layout {
+            repos: &repos,
+            pins: &[],
+            collapsed: &[],
+            float_attention: false,
+        };
+        let mut open = ws("/r/api", "/r/api", "main", AgentState::Idle);
+        open.current = true;
+        let groups = build(
+            &layout,
+            vec![
+                open,
+                ws("/r/api", "/r/api.wt/sec", "sec", AgentState::Idle),
+                ws("/r/web", "/r/web", "main", AgentState::Idle),
+            ],
+        );
+        let boxed = rows(&groups, "", true);
+        assert_eq!(boxed[4], Row::BoxEnd { group: 0 }, "{boxed:?}");
+        assert!(!boxed[4].selectable());
+        assert_eq!(boxed.len(), rows(&groups, "", false).len() + 1);
+        // Nothing open, nothing to close.
+        let mut closed = groups.clone();
+        closed[0].workspaces[0].current = false;
+        assert!(!rows(&closed, "", true).contains(&Row::BoxEnd { group: 0 }));
     }
 
     #[test]
@@ -440,7 +506,7 @@ mod tests {
         );
 
         // Each section gets one heading, in order, and only if it has repos.
-        let headings: Vec<_> = rows(&groups, "")
+        let headings: Vec<_> = rows(&groups, "", false)
             .into_iter()
             .filter_map(|r| match r {
                 Row::Header { section } => Some(section),
@@ -464,7 +530,7 @@ mod tests {
         assert_eq!(names(&groups), ["zed", "api", "notes", "web"]);
         assert_eq!(groups[0].section, Section::Pinned);
         assert_eq!(groups[1].section, Section::Active);
-        assert!(rows(&groups, "").contains(&Row::Header {
+        assert!(rows(&groups, "", false).contains(&Row::Header {
             section: Section::Pinned
         }));
     }

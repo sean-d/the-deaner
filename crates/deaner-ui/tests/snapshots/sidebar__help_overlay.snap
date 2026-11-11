@@ -1,5 +1,6 @@
 ---
 source: crates/deaner-ui/tests/sidebar.rs
+assertion_line: 120
 expression: "render(&mut app, 40, 30)"
 ---
 "╭ Keys ────────────────────────────────╮"
@@ -10,6 +11,7 @@ expression: "render(&mut app, 40, 30)"
 "│G / End  Jump to bottom               │"
 "│Enter    Open workspace in the        │"
 "│terminal (starts or unparks it)       │"
+"│n        Next agent that needs you    │"
 "│Space    Collapse / expand repo       │"
 "│/        Filter by repo or branch (Esc│"
 "│clears)                               │"
@@ -30,5 +32,4 @@ expression: "render(&mut app, 40, 30)"
 "│Pins                                  │"
 "│p        Pin / unpin repo             │"
 "│K        Move pinned repo up          │"
-"│J        Move pinned repo down        │"
 "╰──────────────────────────────────────╯"

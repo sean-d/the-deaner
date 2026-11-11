@@ -69,6 +69,17 @@ pub enum IconStyle {
     Unicode,
 }
 
+/// How the sidebar marks the project shown in the terminal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OpenStyle {
+    /// A thin gold box around the project, its name in the top border.
+    #[default]
+    Box,
+    /// A dark gold block with a bar down its left edge.
+    Block,
+}
+
 /// What kind of thing runs in a tab, which decides how it is restored.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -86,6 +97,8 @@ pub struct Config {
     pub sidebar_width: u16,
     /// Sidebar icon set.
     pub icons: IconStyle,
+    /// How the open project is marked.
+    pub open_project: OpenStyle,
     /// Snapshot everything this often (minutes). 0 disables autosave.
     pub autosave_minutes: u64,
     /// How many timestamped snapshots to keep.
@@ -117,6 +130,7 @@ impl Default for Config {
         Self {
             sidebar_width: 32,
             icons: IconStyle::Nerd,
+            open_project: OpenStyle::Box,
             autosave_minutes: 5,
             snapshots_keep: 20,
             float_attention: true,

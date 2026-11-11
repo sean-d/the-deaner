@@ -16,6 +16,10 @@ sidebar_width = 32
 # or "unicode" (plain symbols that work in any font).
 icons = "nerd"
 
+# How the project open in the terminal is marked: "box" (a thin gold box around it, its
+# name in the top border) or "block" (dark gold rows with a bar down the left edge).
+open_project = "box"
+
 # Snapshot everything this often while something is running. 0 turns autosave off.
 autosave_minutes = 5
 # Timestamped snapshots to keep in ~/.local/state/deaner/snapshots/.

@@ -75,6 +75,7 @@ pub fn run(engine: Engine, standalone: bool) -> Result<()> {
     let mut app = App::new();
     app.standalone = standalone || !in_frame();
     app.icons = deaner_ui::icons::for_style(engine.config.icons);
+    app.open_style = engine.config.open_project;
     let choices_engine = engine.clone();
     app.tab_choices = Box::new(move |repo| choices_engine.tab_choices(repo));
     offer_restore(&engine, &mut app);

@@ -257,7 +257,6 @@ fn favorites_filter_too_and_missing_ones_are_left_out() {
 
 #[test]
 fn renders_favorites_at_the_top() {
-    use ratatui::style::Color;
     let mut b = with_favorites();
     let mut term = Terminal::new(TestBackend::new(60, 15)).unwrap();
     term.draw(|f| b.draw(f)).unwrap();
@@ -265,8 +264,8 @@ fn renders_favorites_at_the_top() {
     for cell in &term.backend().buffer().content {
         for color in [cell.fg, cell.bg] {
             assert!(
-                !matches!(color, Color::Rgb(..) | Color::Indexed(_)),
-                "{color:?}"
+                deaner_ui::theme::colors::ALL.contains(&color),
+                "{color:?} is not in the palette"
             );
         }
     }
@@ -282,8 +281,7 @@ fn escape_and_ctrl_c_close() {
 }
 
 #[test]
-fn renders_with_only_terminal_colors() {
-    use ratatui::style::Color;
+fn renders_with_only_palette_colors() {
     let mut b = browser();
     let mut term = Terminal::new(TestBackend::new(60, 10)).unwrap();
     term.draw(|f| b.draw(f)).unwrap();
@@ -291,8 +289,8 @@ fn renders_with_only_terminal_colors() {
     for cell in &term.backend().buffer().content {
         for color in [cell.fg, cell.bg] {
             assert!(
-                !matches!(color, Color::Rgb(..) | Color::Indexed(_)),
-                "{color:?}"
+                deaner_ui::theme::colors::ALL.contains(&color),
+                "{color:?} is not in the palette"
             );
         }
     }

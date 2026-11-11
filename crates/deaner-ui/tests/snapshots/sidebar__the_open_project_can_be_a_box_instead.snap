@@ -1,0 +1,19 @@
+---
+source: crates/deaner-ui/tests/sidebar.rs
+assertion_line: 694
+expression: screen
+---
+"★ PINNED 2 ────────────────────── "
+"deaner                            "
+"  ⎇ main                        ✻ "
+"╭ shop-api ──────────────────────╮"
+"│ ⎇ main             ✎ 3 +1 -0 ⠋ │"
+"│ ⇄ sec-bump             #42 ✓ ✻ │"
+"╰────────────────────────────────╯"
+"                                  "
+"○ INACTIVE 1 ──────────────────── "
+"dotfiles                          "
+"  ⎇ main                        ‖ "
+"                                  "
+"                                  "
+" ? help                       ⠋ 1 "

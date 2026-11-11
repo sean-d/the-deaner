@@ -32,6 +32,8 @@ struct Palette {
 
 /// Selected row: a background, so each span keeps its own color.
 const SELECTED: Style = Style::new().bg(colors::SEL);
+/// In front of each inactive repo, so the rows don't run together.
+const INACTIVE_MARK: &str = "› ";
 /// Where the name sits in a workspace row's spans (see `ws_line`).
 const WS_LABEL: usize = 3;
 
@@ -446,6 +448,9 @@ fn heading_line<'a>(app: &App, p: &Palette, section: Section, width: u16) -> Lin
 
 fn repo_line<'a>(app: &App, p: &Palette, g: &RepoGroup, width: u16) -> Line<'a> {
     let mut left = Vec::new();
+    if g.section == Section::Inactive {
+        left.push(Span::styled(INACTIVE_MARK, p.muted));
+    }
     // An arrow only says something when there's a hidden list to get back.
     if g.collapsed && app.filter.is_empty() {
         left.push(Span::styled(format!("{} ", app.icons.collapsed), p.muted));
@@ -544,6 +549,7 @@ fn ws_line<'a>(
         Some(name) => {
             let style = if attention { p.attention } else { p.muted };
             vec![
+                Span::styled(INACTIVE_MARK, p.muted),
                 Span::styled(name.to_string(), style.add_modifier(Modifier::BOLD)),
                 Span::raw("  "),
             ]

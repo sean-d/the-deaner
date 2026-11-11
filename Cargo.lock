@@ -365,65 +365,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "deaner"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "deaner-core",
- "deaner-git",
- "deaner-tmux",
- "deaner-ui",
- "dirs",
- "ratatui",
- "serde",
- "serde_json",
- "shell-words",
- "tempfile",
- "toml",
-]
-
-[[package]]
-name = "deaner-core"
-version = "0.1.0"
-dependencies = [
- "insta",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "toml",
-]
-
-[[package]]
-name = "deaner-git"
-version = "0.1.0"
-dependencies = [
- "deaner-core",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "deaner-tmux"
-version = "0.1.0"
-dependencies = [
- "deaner-core",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "deaner-ui"
-version = "0.1.0"
-dependencies = [
- "deaner-core",
- "insta",
- "ratatui",
- "ratcn",
- "unicode-width",
-]
-
-[[package]]
 name = "deltae"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1738,6 +1679,65 @@ dependencies = [
  "wezterm-dynamic",
  "wezterm-input-types",
  "winapi",
+]
+
+[[package]]
+name = "the-deaner"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "dirs",
+ "ratatui",
+ "serde",
+ "serde_json",
+ "shell-words",
+ "tempfile",
+ "the-deaner-core",
+ "the-deaner-git",
+ "the-deaner-tmux",
+ "the-deaner-ui",
+ "toml",
+]
+
+[[package]]
+name = "the-deaner-core"
+version = "0.1.0"
+dependencies = [
+ "insta",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "toml",
+]
+
+[[package]]
+name = "the-deaner-git"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tempfile",
+ "the-deaner-core",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "the-deaner-tmux"
+version = "0.1.0"
+dependencies = [
+ "the-deaner-core",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "the-deaner-ui"
+version = "0.1.0"
+dependencies = [
+ "insta",
+ "ratatui",
+ "ratcn",
+ "the-deaner-core",
+ "unicode-width",
 ]
 
 [[package]]

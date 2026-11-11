@@ -15,7 +15,7 @@ need_stdout = true
 analyzer = "nextest"
 
 [jobs.docs]
-command = ["cargo", "test", "-p", "deaner", "--test", "docs", "--color", "always"]
+command = ["cargo", "test", "-p", "the-deaner", "--test", "docs", "--color", "always"]
 need_stdout = true
 
 [keybindings]

@@ -1,0 +1,19 @@
+---
+source: crates/the-deaner-ui/tests/browser.rs
+expression: term.backend()
+---
+" Open a project  ~/dev                                      "
+" Filter  type to narrow, or a path like /tmp/ or ~/         "
+"                                                            "
+" Favorites                                                  "
+" ★ ~/dev/go                                                 "
+" ★ /tmp                                                     "
+"                                                            "
+" + Use this folder                                          "
+" ⎇ api                                           in sidebar "
+" ▫ go                                              favorite "
+" ⎇ website                                                  "
+"                                                            "
+"                                                            "
+"                                                            "
+" Enter open · → into folder · ← up · ↑↓ move · Ctrl-f favori"

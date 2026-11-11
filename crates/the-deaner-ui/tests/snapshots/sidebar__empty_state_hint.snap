@@ -1,0 +1,13 @@
+---
+source: crates/the-deaner-ui/tests/sidebar.rs
+assertion_line: 139
+expression: "render(&mut app, 34, 8)"
+---
+"                                  "
+" No repos yet.                    "
+" Press a to add one,              "
+" or run `the-deaner add <path>`.  "
+"                                  "
+"                                  "
+" ? keys                           "
+" q detach | n next | v peek       "

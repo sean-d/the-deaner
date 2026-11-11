@@ -1,11 +1,15 @@
-# deaner
+# the-deaner
+
+> *Just give'r.*
+> Named for Dean "Deaner" Murdoch of [FUBAR](https://en.wikipedia.org/wiki/FUBAR_(film)) (2002).
+> It keeps your agents going, so you can keep going too.
 
 A tmux-backed command center for running coding agents side by side. Linux first, macOS too.
 
 ```text
 ┌ sidebar ──────────────────┬ terminal ────────────────────────────────┐
 │ ★ PINNED                  │                                          │
-│ deaner                    │  your own tmux: claude, nvim, shells,    │
+│ the-deaner                    │  your own tmux: claude, nvim, shells,    │
 │   ⎇ main                ✻ │  one session per workspace,              │
 │ shop-api                  │  one window per tab                      │
 │   ⎇ main      ✎ 3 +1 -0 ⠋ │                                          │
@@ -23,19 +27,19 @@ A tmux-backed command center for running coding agents side by side. Linux first
 - **Agent status.** Working, waiting on you, or idle, via Claude Code hooks, with toasts.
 - **Git and PR status.** Branch, changed files, `+ahead -behind`, PR number and a CI check (via `gh`).
 - **Pinned, active, inactive sections.** Pinned repos keep your order; activity never moves them.
-- **Save, park, shut down, restore.** `deaner shutdown` at night; `deaner` in the morning brings
+- **Save, park, shut down, restore.** `the-deaner shutdown` at night; `the-deaner` in the morning brings
   everything back and each claude resumes its own conversation.
-- **Agents can message each other.** `deaner send shop-web:claude "…"`.
+- **Agents can message each other.** `the-deaner send shop-web:claude "…"`.
 
 ## Quick start
 
 ```sh
 # needs tmux >= 3.3 and git; gh optional
-cargo install --locked --git https://github.com/sean-d/deaner deaner
+cargo install --locked --git https://github.com/sean-d/the-deaner the-deaner
 
-deaner add ~/dev/shop-api ~/dev/deaner
-deaner install-hooks        # agent status for Claude Code
-deaner                      # open the frame
+the-deaner add ~/dev/shop-api ~/dev/the-deaner
+the-deaner install-hooks        # agent status for Claude Code
+the-deaner                      # open the frame
 ```
 
 In the sidebar: `j`/`k` to move, `Enter` to open, `t` new tab, `w` new worktree, `p` pin.
@@ -43,11 +47,11 @@ In the sidebar: `j`/`k` to move, `Enter` to open, `t` new tab, `w` new worktree,
 
 ## Documentation
 
-The full docs live in [`docs/`](docs/src/SUMMARY.md) (published with GitHub Pages):
-[getting started](docs/src/getting-started.md), [workflows](docs/src/workflows.md),
-[keybindings](docs/src/keybindings.md), [configuration](docs/src/configuration.md),
-[agents and hooks](docs/src/agents.md), [CLI](docs/src/cli.md),
-[architecture](docs/src/architecture.md), [development](docs/src/development.md).
+The full docs live in [`docs/`](docs/README.md):
+[getting started](docs/getting-started.md), [workflows](docs/workflows.md),
+[keybindings](docs/keybindings.md), [configuration](docs/configuration.md),
+[agents and hooks](docs/agents.md), [CLI](docs/cli.md),
+[architecture](docs/architecture.md), [development](docs/development.md).
 
 ## Development
 
@@ -56,7 +60,7 @@ cargo nextest run --workspace --all-features   # unit, tmux/git integration, UI 
 bacon                                          # clippy on save
 ```
 
-See [development](docs/src/development.md) for the test layout, generated docs, and build-speed setup.
+See [development](docs/development.md) for the test layout, generated docs, and build-speed setup.
 
 ## License
 

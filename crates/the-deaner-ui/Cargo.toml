@@ -1,0 +1,21 @@
+[package]
+name = "the-deaner-ui"
+description = "ratatui sidebar for the-deaner"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+the-deaner-core.workspace = true
+ratatui.workspace = true
+ratcn.workspace = true
+unicode-width.workspace = true
+
+[dev-dependencies]
+insta.workspace = true

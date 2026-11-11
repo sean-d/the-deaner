@@ -1,0 +1,13 @@
+---
+source: crates/the-deaner-ui/tests/sidebar.rs
+assertion_line: 982
+expression: bottom
+---
+" ▲ 1 more                         "
+"╰────────────────────────────────╯"
+"                                  "
+"○ INACTIVE 1 ──────────────────── "
+"› dotfiles  ⎇ main              ‖ "
+"                                  "
+" ? keys                       ⠋ 1 "
+" q detach | n next | v peek       "

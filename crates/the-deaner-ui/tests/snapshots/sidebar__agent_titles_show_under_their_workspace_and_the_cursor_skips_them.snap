@@ -1,0 +1,21 @@
+---
+source: crates/the-deaner-ui/tests/sidebar.rs
+assertion_line: 791
+expression: screen
+---
+"★ PINNED 2 ● ──────────────────── "
+"the-deaner                        "
+"  ⎇ main                        ✻ "
+"╭ shop-api ────────────── !1 ⠋1 ─╮"
+"│ ⎇ main             ✎ 3 +1 -0 ⠋ │"
+"│   ⠋ Readiness probe without R… │"
+"│ ⇄ sec-bump             #42 ✓ ! │"
+"│   ! Bump every dependency to … │"
+"╰────────────────────────────────╯"
+"                                  "
+"○ INACTIVE 1 ──────────────────── "
+"› dotfiles  ⎇ main              ‖ "
+"                                  "
+"                                  "
+" ? keys                   ! 1 ⠋ 1 "
+" q detach | n next | v peek       "

@@ -1,0 +1,17 @@
+---
+source: crates/the-deaner-ui/tests/sidebar.rs
+assertion_line: 254
+expression: "render(&mut app, 34, 12)"
+---
+"★ PINNED 2 ────────────────────── "
+"the-deaner                        "
+"╭ New tab · the-deaner ──────────╮"
+"│1 claude   claude               │"
+"│2 nvim     nvim                 │"
+"│3 shell    shell                │"
+"╰────────────────────────────────╯"
+"                                  "
+"○ INACTIVE 1 ──────────────────── "
+"› dotfiles  ⎇ main              ‖ "
+" ? keys                       ⠋ 1 "
+" q detach | n next | v peek       "

@@ -1,0 +1,13 @@
+---
+source: crates/the-deaner-ui/tests/sidebar.rs
+assertion_line: 993
+expression: top
+---
+"                                  "
+"★ PINNED 2 ────────────────────── "
+"the-deaner                        "
+"  ⎇ main                        ✻ "
+"╭ shop-api ────────────── ⠋1 ✻1 ─╮"
+" ▼ 1 more                         "
+" ? keys                       ⠋ 1 "
+" q detach | n next | v peek       "

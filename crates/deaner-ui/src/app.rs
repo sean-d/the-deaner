@@ -102,6 +102,8 @@ pub struct App {
     prev_agents: HashMap<PathBuf, AgentState>,
     /// Workspaces whose agent finished while they weren't on screen.
     unseen: HashSet<PathBuf>,
+    /// Workspaces whose agent started waiting on you and that you haven't been to since.
+    waiting_unvisited: HashSet<PathBuf>,
     pub theme: Theme,
     pub icons: &'static crate::icons::Icons,
     /// How the project shown in the terminal is marked.
@@ -134,6 +136,7 @@ impl App {
             loaded: false,
             prev_agents: HashMap::new(),
             unseen: HashSet::new(),
+            waiting_unvisited: HashSet::new(),
             theme: crate::theme::deaner(),
             icons: &crate::icons::UNICODE,
             open_style: deaner_core::OpenStyle::default(),
@@ -156,6 +159,7 @@ impl App {
                     match (prev, w.agent) {
                         (Some(p), AgentState::Awaiting) if p != AgentState::Awaiting => {
                             self.toast(Toast::warning(format!("{} needs you", w.name)));
+                            self.waiting_unvisited.insert(w.path.clone());
                         }
                         (Some(AgentState::Busy), AgentState::Idle) => {
                             self.toast(Toast::success(format!("{} finished", w.name)));
@@ -163,10 +167,17 @@ impl App {
                         }
                         _ => {}
                     }
+                } else if w.agent == AgentState::Awaiting {
+                    // Already waiting when the sidebar started.
+                    self.waiting_unvisited.insert(w.path.clone());
                 }
                 // Looking at it counts as seeing it, and a stopped agent has nothing to see.
                 if w.current || w.status != WsStatus::Live {
                     self.unseen.remove(&w.path);
+                    self.waiting_unvisited.remove(&w.path);
+                }
+                if w.agent != AgentState::Awaiting {
+                    self.waiting_unvisited.remove(&w.path);
                 }
                 agents.insert(w.path.clone(), w.agent);
             }
@@ -236,6 +247,13 @@ impl App {
         self.clock += dt;
         self.tick = self.tick.wrapping_add(1);
         self.toasts.prune_expired(self.clock);
+    }
+
+    /// Whether `w`'s row gets the orange background: its agent started waiting on you, or
+    /// finished while you were elsewhere, and you haven't been there since.
+    #[must_use]
+    pub fn unvisited(&self, w: &WorkspaceView) -> bool {
+        self.unseen.contains(&w.path) || self.waiting_unvisited.contains(&w.path)
     }
 
     pub fn toast(&mut self, toast: Toast<'static>) {

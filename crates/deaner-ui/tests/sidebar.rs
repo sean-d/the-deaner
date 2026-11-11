@@ -520,11 +520,11 @@ fn needing_attention_turns_orange_until_you_look_then_the_symbol_is_green() {
     assert_ne!(cell_at(&mut app, "shop-api").fg, ATTENTION);
     assert_eq!(symbol_at(&mut app, "sec-bump").fg, colors::BUSY, "working");
 
-    // Waiting on you: orange while it waits.
+    // Waiting on you: the repo name orange, the row on an orange background.
     app.set_groups(fixture(AgentState::Awaiting));
     assert_eq!(cell_at(&mut app, "shop-api").fg, ATTENTION);
-    assert_eq!(cell_at(&mut app, "sec-bump").fg, ATTENTION);
-    assert_eq!(symbol_at(&mut app, "sec-bump").fg, ATTENTION);
+    assert_eq!(cell_at(&mut app, "sec-bump").bg, ATTENTION);
+    assert_eq!(symbol_at(&mut app, "sec-bump").bg, ATTENTION);
     assert_ne!(cell_at(&mut app, "deaner").fg, ATTENTION, "only that repo");
 
     // Finished while you were elsewhere: orange, and it stays that way.
@@ -534,11 +534,10 @@ fn needing_attention_turns_orange_until_you_look_then_the_symbol_is_green() {
     app.set_groups(fixture(AgentState::Idle));
     assert_eq!(cell_at(&mut app, "shop-api").fg, ATTENTION);
     assert_eq!(
-        cell_at(&mut app, "sec-bump").fg,
+        cell_at(&mut app, "sec-bump").bg,
         ATTENTION,
         "until you look"
     );
-    assert_eq!(symbol_at(&mut app, "sec-bump").fg, ATTENTION);
 
     // Open it: the row gets the normal highlight.
     let with_sec_bump_open = |open: bool| {
@@ -911,4 +910,51 @@ fn a_project_with_several_agents_counts_them_on_its_row() {
         !row("deaner").contains('1'),
         "one agent: no counts: {screen}"
     );
+}
+
+#[test]
+fn a_row_stays_orange_until_you_go_there() {
+    use deaner_ui::theme::ATTENTION;
+    use std::time::Duration;
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Busy));
+    assert_ne!(cell_at(&mut app, "sec-bump").bg, ATTENTION, "nothing yet");
+
+    // sec-bump starts waiting on you: orange, and it stays.
+    app.set_groups(fixture(AgentState::Awaiting));
+    for _ in 0..5 {
+        assert_eq!(cell_at(&mut app, "sec-bump").bg, ATTENTION);
+        app.advance(Duration::from_secs(10));
+        app.set_groups(fixture(AgentState::Awaiting));
+    }
+    assert_ne!(cell_at(&mut app, "deaner").bg, ATTENTION, "only that row");
+
+    // You go there: the background is done, though it still waits (bell, orange text).
+    let open_sec_bump = |agent| {
+        let mut groups = fixture(agent);
+        let shop = groups.iter_mut().find(|g| g.name == "shop-api").unwrap();
+        for w in &mut shop.workspaces {
+            w.current = w.branch.as_deref() == Some("sec-bump");
+        }
+        groups
+    };
+    app.set_groups(open_sec_bump(AgentState::Awaiting));
+    app.set_groups(fixture(AgentState::Awaiting));
+    assert_ne!(cell_at(&mut app, "sec-bump").bg, ATTENTION, "been there");
+    assert_eq!(cell_at(&mut app, "sec-bump").fg, ATTENTION, "still waiting on you");
+
+    // It works, then finishes while you're elsewhere: orange again until you look.
+    app.set_groups(fixture(AgentState::Busy));
+    app.set_groups(fixture(AgentState::Idle));
+    assert_eq!(cell_at(&mut app, "sec-bump").bg, ATTENTION);
+    app.set_groups(open_sec_bump(AgentState::Idle));
+    app.set_groups(fixture(AgentState::Idle));
+    assert_ne!(cell_at(&mut app, "sec-bump").bg, ATTENTION);
+}
+
+#[test]
+fn an_agent_already_waiting_at_startup_is_orange_too() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Awaiting));
+    assert_eq!(cell_at(&mut app, "sec-bump").bg, deaner_ui::theme::ATTENTION);
 }

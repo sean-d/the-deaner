@@ -82,13 +82,19 @@ bind -n {focus} select-pane -t :.+
 bind -n {toggle} select-pane -t :.1 \; resize-pane -Z -t :.1
 bind -n {cheatsheet} display-popup -E -w {POPUP_WIDTH} -h {POPUP_HEIGHT} "{exe} cheatsheet"
 
+# Pass the mouse through to the panes. Letting go after a drag is DragEnd, not Up:
+# without it the workspace tmux never finishes a selection, so nothing gets copied.
 bind -n MouseDown1Pane select-pane -t = \; send-keys -M
 bind -n MouseDrag1Pane send-keys -M
 bind -n MouseUp1Pane send-keys -M
+bind -n MouseDragEnd1Pane send-keys -M
 bind -n MouseDrag1Border resize-pane -M
 bind -n WheelUpPane send-keys -M
 bind -n WheelDownPane send-keys -M
 bind -n MouseDown3Pane send-keys -M
+bind -n MouseDrag3Pane send-keys -M
+bind -n MouseUp3Pane send-keys -M
+bind -n MouseDragEnd3Pane send-keys -M
 "#,
         focus = keys.focus,
         toggle = keys.toggle_sidebar,

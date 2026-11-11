@@ -3,3 +3,5 @@
 *.snap.new
 *.pending-snap
 .DS_Store
+# Working notes, kept locally
+/TODO.md

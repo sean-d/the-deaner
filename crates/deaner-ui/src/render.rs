@@ -403,7 +403,11 @@ fn row_line<'a>(app: &App, p: &Palette, row: Row, width: u16) -> Line<'a> {
         Row::Gap { .. } => Line::raw(""),
         Row::Header { section } => heading_line(app, p, section, width),
         Row::Repo { group } => repo_line(app, p, &app.groups[group], width),
-        Row::Workspace { group, ws } => ws_line(app, p, &app.groups[group].workspaces[ws], width),
+        Row::Workspace { group, ws } => {
+            let g = &app.groups[group];
+            let repo = g.one_line().then_some(g.name.as_str());
+            ws_line(app, p, &g.workspaces[ws], repo, width)
+        }
         Row::Agent { group, ws, tab } => {
             agent_line(app, p, &app.groups[group].workspaces[ws].tabs[tab], width)
         }
@@ -521,18 +525,37 @@ fn ws_label(w: &WorkspaceView) -> String {
         .unwrap_or_else(|| w.name.clone())
 }
 
-fn ws_line<'a>(app: &App, p: &Palette, w: &WorkspaceView, width: u16) -> Line<'a> {
+/// A workspace: indented under its repo, or with `repo` given, the repo's name first and
+/// the workspace beside it on one row (see [`RepoGroup::one_line`]).
+fn ws_line<'a>(
+    app: &App,
+    p: &Palette,
+    w: &WorkspaceView,
+    repo: Option<&str>,
+    width: u16,
+) -> Line<'a> {
+    let attention = app.needs_attention(w);
     let label_style = match w.status {
-        _ if app.needs_attention(w) => p.attention.add_modifier(Modifier::BOLD),
+        _ if attention => p.attention.add_modifier(Modifier::BOLD),
         WsStatus::Live => Style::new(),
         WsStatus::Parked | WsStatus::Stopped => p.muted,
     };
-    let left = vec![
-        Span::raw("  "),
+    let lead = match repo {
+        Some(name) => {
+            let style = if attention { p.attention } else { p.muted };
+            vec![
+                Span::styled(name.to_string(), style.add_modifier(Modifier::BOLD)),
+                Span::raw("  "),
+            ]
+        }
+        None => vec![Span::raw("  ")],
+    };
+    let mut left = lead;
+    left.extend([
         git_icon(app, p, w),
         Span::raw(" "),
         Span::styled(ws_label(w), label_style),
-    ];
+    ]);
 
     let mut right: Vec<Vec<Span<'a>>> = Vec::new();
     if let Some(git) = &w.git {

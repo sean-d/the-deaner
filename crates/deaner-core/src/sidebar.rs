@@ -93,6 +93,15 @@ impl RepoGroup {
     pub fn agent(&self) -> AgentState {
         AgentState::rollup(self.workspaces.iter().map(|w| w.agent))
     }
+
+    /// Shown as a single row, name and branch together: an inactive repo with only its
+    /// one checkout. Not the open project, which needs its own row for the box.
+    #[must_use]
+    pub fn one_line(&self) -> bool {
+        self.section == Section::Inactive
+            && self.workspaces.len() == 1
+            && !self.workspaces[0].current
+    }
 }
 
 /// A visible sidebar line.
@@ -257,6 +266,10 @@ fn visible_rows(groups: &[RepoGroup], filter: &str) -> Vec<Row> {
     for (gi, g) in groups.iter().enumerate() {
         if filter.is_empty() {
             heading(&mut out, g.section);
+            if g.one_line() {
+                push_workspace(&mut out, g, gi, 0);
+                continue;
+            }
             out.push(Row::Repo { group: gi });
             if !g.collapsed {
                 for wi in 0..g.workspaces.len() {
@@ -279,6 +292,10 @@ fn visible_rows(groups: &[RepoGroup], filter: &str) -> Vec<Row> {
             .collect();
         if repo_hit || !hits.is_empty() {
             heading(&mut out, g.section);
+            if g.one_line() {
+                push_workspace(&mut out, g, gi, 0);
+                continue;
+            }
             out.push(Row::Repo { group: gi });
             for wi in hits {
                 push_workspace(&mut out, g, gi, wi);
@@ -494,6 +511,51 @@ mod tests {
         let mut closed = groups.clone();
         closed[0].workspaces[0].current = false;
         assert!(!rows(&closed, "", true).contains(&Row::BoxEnd { group: 0 }));
+    }
+
+    #[test]
+    fn an_inactive_repo_with_one_checkout_is_one_row() {
+        let repos = repos(&["api", "notes", "web"]);
+        let layout = Layout {
+            repos: &repos,
+            pins: &[],
+            collapsed: &[],
+            float_attention: false,
+        };
+        let stopped = |repo: &str, path: &str| WorkspaceView {
+            status: WsStatus::Stopped,
+            ..ws(repo, path, "main", AgentState::None)
+        };
+        let groups = build(
+            &layout,
+            vec![
+                stopped("/r/api", "/r/api"),
+                stopped("/r/api", "/r/api.wt/x"),
+                stopped("/r/notes", "/r/notes"),
+                ws("/r/web", "/r/web", "main", AgentState::Idle),
+            ],
+        );
+        let notes = groups.iter().position(|g| g.name == "notes").unwrap();
+        let api = groups.iter().position(|g| g.name == "api").unwrap();
+        let shown = rows(&groups, "", false);
+        assert!(!shown.contains(&Row::Repo { group: notes }), "{shown:?}");
+        assert!(shown.contains(&Row::Workspace {
+            group: notes,
+            ws: 0
+        }));
+        assert!(
+            shown.contains(&Row::Repo { group: api }),
+            "two checkouts keep the repo row"
+        );
+        assert!(rows(&groups, "note", false).contains(&Row::Workspace {
+            group: notes,
+            ws: 0
+        }));
+
+        // Open, it keeps its own row (the box needs it).
+        let mut open = groups.clone();
+        open[notes].workspaces[0].current = true;
+        assert!(rows(&open, "", true).contains(&Row::Repo { group: notes }));
     }
 
     #[test]

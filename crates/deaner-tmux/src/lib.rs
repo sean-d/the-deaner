@@ -398,6 +398,16 @@ impl Tmux {
         self.run(&args).map(drop)
     }
 
+    /// The tty of the client used most recently: with a window at the desk and another
+    /// over SSH, the one you're typing in.
+    #[must_use]
+    pub fn latest_client(&self) -> Option<String> {
+        let out = self
+            .run(&["list-clients", "-F", "#{client_activity} #{client_tty}"])
+            .ok()?;
+        latest_of(&out)
+    }
+
     /// `(tty, session)` of each attached client.
     #[must_use]
     pub fn clients(&self) -> Vec<(String, String)> {
@@ -439,5 +449,23 @@ mod tests {
                 window_index: 3
             }
         );
+    }
+}
+
+/// The tty with the newest activity in `list-clients` output (`<activity> <tty>` lines).
+fn latest_of(out: &str) -> Option<String> {
+    out.lines()
+        .filter_map(|l| l.split_once(' '))
+        .max_by_key(|(at, _)| at.parse::<u64>().unwrap_or(0))
+        .map(|(_, tty)| tty.to_string())
+}
+
+#[cfg(test)]
+mod latest_client_tests {
+    #[test]
+    fn the_most_recently_used_client_wins() {
+        let out = "1794427493 /dev/pts/1\n1794428455 /dev/pts/22\n1794428001 /dev/pts/5\n";
+        assert_eq!(super::latest_of(out).as_deref(), Some("/dev/pts/22"));
+        assert_eq!(super::latest_of(""), None);
     }
 }

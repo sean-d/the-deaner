@@ -1,5 +1,6 @@
 ---
 source: crates/deaner-ui/tests/sidebar.rs
+assertion_line: 131
 expression: "render(&mut app, 34, 8)"
 ---
 "                                  "
@@ -8,5 +9,5 @@ expression: "render(&mut app, 34, 8)"
 " or run `deaner add <path>`.      "
 "                                  "
 "                                  "
-"                                  "
-" ? help                           "
+" ? keys                           "
+" q detach | n next | v peek       "

@@ -20,6 +20,7 @@ Commands:
   ls             List workspaces, tabs and agent states
   send           Type a message into another agent's tab and press Enter
   whoami         Print this pane's address, for other agents to `deaner send` to
+  peek           Show the end of a tab's output in a pager (`v` in the sidebar)
   save           Snapshot all workspaces now
   park           Save a workspace and stop its session; open it again to bring it back
   restore        Rebuild workspaces from the latest snapshot
@@ -205,6 +206,22 @@ Options:
 Print this pane's address, for other agents to `deaner send` to
 
 Usage: deaner whoami
+
+Options:
+  -h, --help
+          Print help
+```
+
+## deaner peek
+
+```text
+Show the end of a tab's output in a pager (`v` in the sidebar)
+
+Usage: deaner peek <ADDR>
+
+Arguments:
+  <ADDR>
+          `<session>` or `<session>:<tab>` (see `deaner ls`)
 
 Options:
   -h, --help

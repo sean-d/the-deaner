@@ -14,6 +14,7 @@ pub enum Action {
     Bottom,
     Open,
     NextAttention,
+    Peek,
     ToggleCollapse,
     Filter,
     NewWorktree,
@@ -116,6 +117,12 @@ pub const BINDINGS: &[Binding] = &[
         help: "Next agent that needs you",
     },
     Binding {
+        keys: &[Char('v')],
+        action: Action::Peek,
+        section: "Navigate",
+        help: "Peek at an agent's output",
+    },
+    Binding {
         keys: &[Space],
         action: Action::ToggleCollapse,
         section: "Navigate",
@@ -197,7 +204,7 @@ pub const BINDINGS: &[Binding] = &[
         keys: &[Char('q')],
         action: Action::Quit,
         section: "Other",
-        help: "Quit the sidebar (standalone mode)",
+        help: "Detach: all keeps running, `deaner` comes back (quits when standalone)",
     },
 ];
 
@@ -249,6 +256,7 @@ pub fn tmux_key_label(key: &str) -> String {
 pub const fn search_terms(action: Action) -> &'static str {
     match action {
         Action::Open => "start switch go project repo",
+        Action::Peek => "view look preview output scrollback see read",
         Action::NextAttention => "jump waiting needs attention orange finished done agent claude",
         Action::ToggleCollapse => "fold tree group",
         Action::Filter => "search find",
@@ -266,7 +274,8 @@ pub const fn search_terms(action: Action) -> &'static str {
         Action::PinUp | Action::PinDown => "reorder order favorite",
         Action::Help => "keys shortcuts cheat sheet",
         Action::Down | Action::Up | Action::Top | Action::Bottom => "navigate list",
-        Action::Refresh | Action::Quit => "",
+        Action::Quit => "quit exit leave detach close away shutdown stop",
+        Action::Refresh => "",
     }
 }
 

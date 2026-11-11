@@ -28,6 +28,7 @@ These work while the sidebar has focus.
 | `G` / `End` | Jump to bottom |
 | `Enter` | Open workspace in the terminal (starts or unparks it) |
 | `n` | Next agent that needs you |
+| `v` | Peek at an agent's output |
 | `Space` | Collapse / expand repo |
 | `/` | Filter by repo or branch (Esc clears) |
 
@@ -56,7 +57,7 @@ These work while the sidebar has focus.
 |---|---|
 | `r` | Refresh now |
 | `?` | Show / hide this help |
-| `q` | Quit the sidebar (standalone mode) |
+| `q` | Detach: all keeps running, `deaner` comes back (quits when standalone) |
 
 ### In prompts and pickers
 

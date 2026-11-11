@@ -117,9 +117,10 @@ pub fn open_popup(frame: &Tmux, subcommand: &str) -> Result<()> {
         "env {FRAME_ENV}=1 {} {subcommand}",
         shell_quote(&exe.to_string_lossy())
     );
-    let clients = frame.clients();
+    // On the window you're using, when more than one is attached (desk and SSH).
+    let client = frame.latest_client();
     let mut args = vec!["display-popup", "-E", "-w", POPUP_WIDTH, "-h", POPUP_HEIGHT];
-    if let Some((tty, _)) = clients.first() {
+    if let Some(tty) = &client {
         args.extend(["-c", tty]);
     }
     args.push(&command);
@@ -240,10 +241,19 @@ pub fn term(engine: &Engine) -> Result<()> {
         // purpose: detach the whole frame too. Otherwise the session went away
         // and we reattach to another one.
         if engine.tmux.has_session(&target) {
-            let _ = frame.run(&["detach-client", "-s", &session_target(FRAME_SESSION)]);
+            let _ = detach(&frame);
         }
         std::thread::sleep(Duration::from_millis(150));
     }
+}
+
+/// Detach every client from the frame. Everything keeps running; `deaner` attaches again.
+///
+/// # Errors
+/// When tmux can't be run.
+pub fn detach(frame: &Tmux) -> Result<()> {
+    frame.run(&["detach-client", "-s", &session_target(FRAME_SESSION)])?;
+    Ok(())
 }
 
 /// How the sidebar shows a session in the terminal.

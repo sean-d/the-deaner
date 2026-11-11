@@ -793,3 +793,89 @@ fn agent_titles_show_under_their_workspace_and_the_cursor_skips_them() {
     assert_eq!(app.selected_group().unwrap().name, "shop-api");
     assert_eq!(app.selected_ws().unwrap().branch.as_deref(), Some("main"));
 }
+
+#[test]
+fn q_detaches_in_the_frame_and_quits_standalone() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    assert_eq!(app.handle_key(ch('q')), Some(Command::Detach));
+    assert!(render(&mut app, 40, 12).contains("q detach"));
+    app.standalone = true;
+    assert_eq!(app.handle_key(ch('q')), Some(Command::Quit));
+    assert!(render(&mut app, 40, 12).contains("q quit"));
+}
+
+#[test]
+fn the_footer_n_turns_orange_when_something_needs_you() {
+    use deaner_ui::theme::{ATTENTION, colors::GOLD};
+    let footer_n = |app: &mut App| {
+        let mut term = Terminal::new(TestBackend::new(40, 12)).unwrap();
+        term.draw(|f| draw(f, app)).unwrap();
+        let buf = term.backend().buffer();
+        // The bottom of the two footer rows.
+        let row: String = (0..40).map(|x| buf[(x, 11)].symbol().to_string()).collect();
+        let x = row.find(" next").expect("n next in the footer") - 1;
+        buf[(u16::try_from(row[..x].chars().count()).unwrap(), 11)].fg
+    };
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    assert_eq!(footer_n(&mut app), GOLD);
+    app.set_groups(fixture(AgentState::Awaiting));
+    // Let the "needs you" toast, which sits over the footer, run out first.
+    app.advance(std::time::Duration::from_secs(60));
+    assert_eq!(footer_n(&mut app), ATTENTION);
+}
+
+#[test]
+fn v_peeks_at_the_agent_that_needs_you_first() {
+    let mut groups = fixture(AgentState::Idle);
+    let shop = groups.iter_mut().find(|g| g.name == "shop-api").unwrap();
+    let main = &mut shop.workspaces[0];
+    main.tabs[0].address = "shop-api:nvim".into();
+    main.tabs[0].agent = None;
+    main.tabs.push(TabView {
+        index: 1,
+        name: "claude".into(),
+        state: AgentState::Busy,
+        agent: Some("claude".into()),
+        address: "shop-api:claude".into(),
+        session: None,
+        title: None,
+    });
+    main.tabs.push(TabView {
+        index: 2,
+        name: "codex".into(),
+        state: AgentState::Awaiting,
+        agent: Some("codex".into()),
+        address: "shop-api:codex".into(),
+        session: None,
+        title: None,
+    });
+    let mut app = App::new();
+    app.set_groups(groups.clone());
+    app.handle_key(ch('j')); // shop-api's main
+    assert_eq!(
+        app.handle_key(ch('v')),
+        Some(Command::Peek("shop-api:codex".into())),
+        "the one waiting on you"
+    );
+
+    groups[1].workspaces[0].tabs[2].state = AgentState::Idle;
+    app.set_groups(groups.clone());
+    assert_eq!(
+        app.handle_key(ch('v')),
+        Some(Command::Peek("shop-api:claude".into())),
+        "else the one working"
+    );
+
+    // No agent at all: whatever the session shows.
+    for t in &mut groups[1].workspaces[0].tabs {
+        t.agent = None;
+    }
+    app.set_groups(groups);
+    assert!(matches!(app.handle_key(ch('v')), Some(Command::Peek(s)) if s == "shop-api"));
+
+    // Nothing running: nothing to show.
+    app.handle_key(key(KeyCode::End)); // parked dotfiles
+    assert_eq!(app.handle_key(ch('v')), None);
+}

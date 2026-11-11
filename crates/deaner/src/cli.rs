@@ -78,6 +78,11 @@ pub enum Cmd {
     },
     /// Print this pane's address, for other agents to `deaner send` to
     Whoami,
+    /// Show the end of a tab's output in a pager (`v` in the sidebar)
+    Peek {
+        /// `<session>` or `<session>:<tab>` (see `deaner ls`)
+        addr: String,
+    },
     /// Snapshot all workspaces now
     Save,
     /// Save a workspace and stop its session; open it again to bring it back
@@ -161,6 +166,7 @@ pub fn run(cli: Cli) -> Result<()> {
         None => frame::open(&engine),
         Some(Cmd::Sidebar { standalone }) => sidebar::run(engine, standalone),
         Some(Cmd::Cheatsheet) => cheatsheet::run(&engine),
+        Some(Cmd::Peek { addr }) => crate::peek::run(&engine, &addr),
         Some(Cmd::Browse { dir }) => browse::run(&engine, dir.as_deref()),
         Some(Cmd::Term) => frame::term(&engine),
         Some(Cmd::Add { paths }) => {

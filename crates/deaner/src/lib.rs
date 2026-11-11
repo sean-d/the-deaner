@@ -10,6 +10,7 @@ pub mod engine;
 pub mod frame;
 pub mod hooks;
 pub mod paths;
+pub mod peek;
 pub mod poller;
 pub mod sidebar;
 pub mod titles;

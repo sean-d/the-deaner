@@ -47,6 +47,10 @@ pub enum Command {
     BrowseRepos,
     Refresh,
     Quit,
+    /// Detach from the frame; everything keeps running.
+    Detach,
+    /// Show the end of a tab's output (`<session>:<tab>` or `<session>`) in a popup.
+    Peek(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -443,6 +447,14 @@ impl App {
             Action::Bottom => self.move_by(isize::MAX / 2),
             Action::Open => return self.ws_to_open().cloned().map(Command::Open),
             Action::NextAttention => self.next_attention(),
+            Action::Peek => {
+                let ws = self.ws_to_open()?;
+                if ws.status != WsStatus::Live {
+                    self.toast(Toast::info(format!("{} is not running", ws.name)));
+                    return None;
+                }
+                return Some(Command::Peek(peek_target(ws)));
+            }
             Action::ToggleCollapse => {
                 return self
                     .selected_group()
@@ -513,7 +525,8 @@ impl App {
             // In the frame `?` opens the same popup as Alt-/; there's no popup to use otherwise.
             Action::Help if !self.standalone => return Some(Command::Cheatsheet),
             Action::Help => self.mode = Mode::Help(0),
-            Action::Quit => return self.standalone.then_some(Command::Quit),
+            Action::Quit if self.standalone => return Some(Command::Quit),
+            Action::Quit => return Some(Command::Detach),
         }
         None
     }
@@ -680,6 +693,17 @@ impl App {
     pub fn filter(&self) -> &str {
         &self.filter
     }
+}
+
+/// Which tab `v` shows: the agent waiting on you, else one at work, else any agent, else
+/// whatever tab the workspace has open.
+fn peek_target(ws: &WorkspaceView) -> String {
+    let agents = || ws.tabs.iter().filter(|t| t.agent.is_some());
+    agents()
+        .find(|t| t.state == AgentState::Awaiting)
+        .or_else(|| agents().find(|t| t.state == AgentState::Busy))
+        .or_else(|| agents().next())
+        .map_or_else(|| ws.name.clone(), |t| t.address.clone())
 }
 
 /// Apply one key to a text field using ratcn's editor bindings.

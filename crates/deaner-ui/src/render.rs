@@ -57,7 +57,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
     let area = frame.area();
     let p = palette(app);
     let [list_area, footer] =
-        Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).areas(area);
+        Layout::vertical([Constraint::Min(1), Constraint::Length(2)]).areas(area);
 
     app.list_area = list_area;
     let items: Vec<ListItem<'_>> = app
@@ -190,7 +190,11 @@ fn dialog_block<'a>(p: &Palette, title: &str) -> Block<'a> {
         .title(Span::styled(title.to_string(), p.accent))
 }
 
+/// Two rows at the bottom: key hints, and how many agents are waiting on you or working.
+/// A filter, when there is one, takes the top row.
 fn draw_footer(frame: &mut Frame<'_>, app: &App, p: &Palette, area: Rect) {
+    let [top, bottom] = Layout::vertical([Constraint::Length(1); 2]).areas(area);
+    let [hints, counts] = footer_lines(app, p, area.width);
     match &app.mode {
         Mode::Filter(input) => {
             frame.render_widget(
@@ -198,7 +202,7 @@ fn draw_footer(frame: &mut Frame<'_>, app: &App, p: &Palette, area: Rect) {
                     .themed(&app.theme)
                     .focused(true)
                     .prefix(Span::styled("/", p.accent)),
-                area,
+                top,
             );
         }
         _ if !app.filter.is_empty() => {
@@ -208,15 +212,18 @@ fn draw_footer(frame: &mut Frame<'_>, app: &App, p: &Palette, area: Rect) {
                     Span::raw(app.filter.clone()),
                     Span::styled("  Esc clears", p.muted),
                 ]),
-                area,
+                top,
             );
         }
-        _ => frame.render_widget(status_line(app, p, area.width), area),
+        _ => frame.render_widget(hints, top),
     }
+    frame.render_widget(counts, bottom);
 }
 
-/// Footer: the help hint, and how many agents are waiting on you or working.
-fn status_line<'a>(app: &App, p: &Palette, width: u16) -> Line<'a> {
+/// `? keys` with the counts at the right, over `q detach | n next | v peek`. A hint that
+/// doesn't fit is left out (from the end of its row). The `n` turns orange when
+/// something needs you.
+fn footer_lines<'a>(app: &App, p: &Palette, width: u16) -> [Line<'a>; 2] {
     let all = || app.groups.iter().flat_map(|g| g.workspaces.iter());
     let awaiting = all().filter(|w| w.agent == AgentState::Awaiting).count();
     let busy = all().filter(|w| w.agent == AgentState::Busy).count();
@@ -233,7 +240,38 @@ fn status_line<'a>(app: &App, p: &Palette, width: u16) -> Line<'a> {
             p.busy,
         ));
     }
-    justify(vec![Span::styled(" ? help", p.muted)], right, width)
+    let needs_you = all().any(|w| app.needs_attention(w));
+    let leave = if app.standalone { "quit" } else { "detach" };
+    let row = |hints: &[(&'static str, &'static str)], right_w: usize| -> Vec<Span<'a>> {
+        let mut spans = vec![Span::raw(" ")];
+        let mut used = 1;
+        for (i, &(key, word)) in hints.iter().enumerate() {
+            let sep = if i == 0 { 0 } else { 3 };
+            let w = sep + key.width() + 1 + word.width();
+            if used + w + right_w >= usize::from(width) {
+                break;
+            }
+            used += w;
+            if i > 0 {
+                spans.push(Span::styled(" | ", p.border));
+            }
+            let style = if key == "n" && needs_you {
+                p.attention
+            } else {
+                p.accent
+            };
+            spans.push(Span::styled(key, style.add_modifier(Modifier::BOLD)));
+            spans.push(Span::styled(format!(" {word}"), p.muted));
+        }
+        spans
+    };
+    let right_w: usize = right.iter().map(|s| s.content.width()).sum();
+    let top = row(&[("?", "keys")], right_w);
+    let bottom = row(&[("q", leave), ("n", "next"), ("v", "peek")], 0);
+    [
+        justify(top, right, width),
+        justify(bottom, Vec::new(), width),
+    ]
 }
 
 /// One row, styled. The project shown on the right stays marked while the cursor moves,

@@ -371,7 +371,9 @@ fn lane(cmd: &Command, cfg: &Config) -> Lane {
         | Command::Cheatsheet
         | Command::BrowseRepos
         | Command::Refresh
-        | Command::Quit => Lane::Quick,
+        | Command::Quit
+        | Command::Detach
+        | Command::Peek(_) => Lane::Quick,
     }
 }
 
@@ -541,6 +543,21 @@ fn execute(engine: &Engine, switcher: &Switcher, command: Command) -> Result<Out
         Command::BrowseRepos => {
             if let Switcher::Frame(frame) = switcher {
                 crate::frame::open_popup(frame, "browse")?;
+            }
+            Outcome::Silent
+        }
+        Command::Peek(addr) => {
+            if let Switcher::Frame(frame) = switcher {
+                let quoted = shell_words::quote(&addr).into_owned();
+                crate::frame::open_popup(frame, &format!("peek {quoted}"))?;
+            } else {
+                return Ok(Outcome::Info(format!("deaner peek {addr}")));
+            }
+            Outcome::Silent
+        }
+        Command::Detach => {
+            if let Switcher::Frame(frame) = switcher {
+                crate::frame::detach(frame)?;
             }
             Outcome::Silent
         }

@@ -17,5 +17,5 @@ expression: screen
 "dotfiles                          "
 "  ⎇ main                        ‖ "
 "                                  "
-"                                  "
-" ? help                   ! 1 ⠋ 1 "
+" ? keys                   ! 1 ⠋ 1 "
+" q detach | n next | v peek       "

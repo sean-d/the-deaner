@@ -1,8 +1,9 @@
 //! Sidebar model: repos grouped with their workspaces, in three sections.
 //!
 //! - **Pinned**: the user's order, never moved by activity.
-//! - **Active**: unpinned repos with a running session.
-//! - **Inactive**: unpinned repos that are added but not running.
+//! - **Active**: unpinned repos with an agent running in one of their sessions.
+//! - **Inactive**: unpinned repos with no agent running (sessions with only an
+//!   editor or a shell open still count as inactive).
 
 use crate::agent::AgentState;
 use crate::git::GitStatus;
@@ -123,8 +124,8 @@ fn display_name(path: &Path) -> String {
 
 /// Group workspaces under their repos and order the groups.
 ///
-/// Order: pinned repos exactly as in `pins` (running or not); then active repos,
-/// then inactive ones, each by name (case-insensitive). Active repos with an agent
+/// Order: pinned repos exactly as in `pins` (running or not); then active repos
+/// (an agent is running in one of their workspaces), then inactive ones, each by name (case-insensitive). Active repos with an agent
 /// awaiting input float to the top of their section when `float_attention` is set.
 /// Within a repo the main checkout comes first, worktrees keep their input order.
 #[must_use]
@@ -165,7 +166,7 @@ pub fn build(layout: &Layout<'_>, workspaces: Vec<WorkspaceView>) -> Vec<RepoGro
         g.workspaces.sort_by_key(|w| w.worktree || w.path != g.path);
         g.section = if g.pinned {
             Section::Pinned
-        } else if g.workspaces.iter().any(|w| w.status == WsStatus::Live) {
+        } else if g.workspaces.iter().any(|w| w.agent != AgentState::None) {
             Section::Active
         } else {
             Section::Inactive
@@ -362,9 +363,9 @@ mod tests {
         let groups = build(
             &layout,
             vec![
-                ws("/r/api", "/r/api", "main", AgentState::None),
-                ws("/r/api", "/r/api.wt/sec", "security-bump", AgentState::None),
-                ws("/r/web", "/r/web", "main", AgentState::None),
+                ws("/r/api", "/r/api", "main", AgentState::Idle),
+                ws("/r/api", "/r/api.wt/sec", "security-bump", AgentState::Idle),
+                ws("/r/web", "/r/web", "main", AgentState::Idle),
             ],
         );
         assert_eq!(
@@ -416,7 +417,7 @@ mod tests {
             collapsed: &[],
             float_attention: true,
         };
-        // zed is pinned and stopped; web is running; api and notes are stopped.
+        // zed is pinned and stopped; web has an agent; api and notes are stopped.
         let groups = build(
             &layout,
             vec![
@@ -451,13 +452,13 @@ mod tests {
             [Section::Pinned, Section::Active, Section::Inactive]
         );
 
-        // A worktree running makes its repo active, and starting a pinned repo doesn't move it.
+        // An agent in a worktree makes its repo active, and starting a pinned repo doesn't move it.
         let groups = build(
             &layout,
             vec![
                 ws("/r/zed", "/r/zed", "main", AgentState::Busy),
                 stopped("/r/api"),
-                ws("/r/api", "/r/api.wt/x", "x", AgentState::None),
+                ws("/r/api", "/r/api.wt/x", "x", AgentState::Idle),
             ],
         );
         assert_eq!(names(&groups), ["zed", "api", "notes", "web"]);
@@ -466,5 +467,28 @@ mod tests {
         assert!(rows(&groups, "").contains(&Row::Header {
             section: Section::Pinned
         }));
+    }
+
+    #[test]
+    fn a_session_without_an_agent_is_inactive() {
+        let repos = repos(&["api", "web"]);
+        let layout = Layout {
+            repos: &repos,
+            pins: &[],
+            collapsed: &[],
+            float_attention: true,
+        };
+        // Both are running; only web has an agent. api just has nvim and a shell.
+        let groups = build(
+            &layout,
+            vec![
+                ws("/r/api", "/r/api", "main", AgentState::None),
+                ws("/r/web", "/r/web", "main", AgentState::Idle),
+            ],
+        );
+        assert_eq!(names(&groups), ["web", "api"]);
+        assert_eq!(groups[0].section, Section::Active);
+        assert_eq!(groups[1].section, Section::Inactive);
+        assert_eq!(groups[1].workspaces[0].status, WsStatus::Live);
     }
 }

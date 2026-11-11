@@ -155,13 +155,13 @@ The sidebar has up to three sections. A section's heading only appears when it h
 | Section | What's in it | Order |
 |---|---|---|
 | `PINNED` | Repos you pinned, running or not | **Your** order; activity never moves them |
-| `ACTIVE` | Unpinned repos with a running session (the main checkout or any worktree) | By name |
-| `INACTIVE` | Repos you've added that aren't running, including parked ones | By name |
+| `ACTIVE` | Unpinned repos with an agent running (in the main checkout or any worktree) | By name |
+| `INACTIVE` | Repos you've added with no agent running, including parked ones and ones with only an editor or shell open | By name |
 
 Press `p` on a repo to pin it, `K` to move it up, `J` to move it down.
 
-Starting an unpinned repo moves it from `INACTIVE` to `ACTIVE`, and the cursor stays on it. Parking
-or stopping its last session moves it back. With `float_attention = true` (the default), an active
+Starting an agent in an unpinned repo moves it from `INACTIVE` to `ACTIVE`, and the cursor stays on
+it. Quitting its last agent moves it back, even if an editor or shell is still open there. With `float_attention = true` (the default), an active
 repo with an agent waiting on you floats to the top of `ACTIVE`.
 
 ## Forgot a key?

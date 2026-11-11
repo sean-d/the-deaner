@@ -334,7 +334,7 @@ fn selection_follows_a_repo_into_another_section() {
     app.handle_key(key(KeyCode::End));
     assert_eq!(app.selected_group().unwrap().name, "dotfiles");
 
-    // dotfiles starts running: it moves from INACTIVE to ACTIVE, and the cursor goes with it.
+    // dotfiles starts an agent: it moves from INACTIVE to ACTIVE, and the cursor goes with it.
     let mut groups = fixture(AgentState::Idle);
     let dot = groups.iter_mut().find(|g| g.name == "dotfiles").unwrap();
     dot.workspaces[0].status = WsStatus::Live;

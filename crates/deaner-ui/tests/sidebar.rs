@@ -628,7 +628,10 @@ fn n_steps_through_what_needs_you_waiting_first() {
     app.set_groups(groups);
     app.handle_key(key(KeyCode::End));
     let branch = |app: &App| app.selected_ws().unwrap().branch.clone().unwrap();
-    app.handle_key(ch('n'));
+    assert!(
+        matches!(app.handle_key(ch('n')), Some(Command::Open(w)) if w.name == "deaner"),
+        "n goes there: it opens what it lands on"
+    );
     assert_eq!(
         app.selected_ws().unwrap().name,
         "deaner",
@@ -941,7 +944,11 @@ fn a_row_stays_orange_until_you_go_there() {
     app.set_groups(open_sec_bump(AgentState::Awaiting));
     app.set_groups(fixture(AgentState::Awaiting));
     assert_ne!(cell_at(&mut app, "sec-bump").bg, ATTENTION, "been there");
-    assert_eq!(cell_at(&mut app, "sec-bump").fg, ATTENTION, "still waiting on you");
+    assert_eq!(
+        cell_at(&mut app, "sec-bump").fg,
+        ATTENTION,
+        "still waiting on you"
+    );
 
     // It works, then finishes while you're elsewhere: orange again until you look.
     app.set_groups(fixture(AgentState::Busy));
@@ -956,5 +963,8 @@ fn a_row_stays_orange_until_you_go_there() {
 fn an_agent_already_waiting_at_startup_is_orange_too() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Awaiting));
-    assert_eq!(cell_at(&mut app, "sec-bump").bg, deaner_ui::theme::ATTENTION);
+    assert_eq!(
+        cell_at(&mut app, "sec-bump").bg,
+        deaner_ui::theme::ATTENTION
+    );
 }

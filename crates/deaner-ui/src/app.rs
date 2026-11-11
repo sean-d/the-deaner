@@ -373,7 +373,8 @@ impl App {
 
     /// Step through the rows that need you: agents waiting on you first, then ones
     /// that finished while you weren't looking, each top to bottom, then around again.
-    fn next_attention(&mut self) {
+    /// Returns whether it moved, for `n` to open what it moved to.
+    fn next_attention(&mut self) -> bool {
         let rows_where = |wanted: &dyn Fn(&WorkspaceView) -> bool| -> Vec<usize> {
             (0..self.rows.len())
                 .filter(|&i| self.row_workspaces(self.rows[i]).iter().any(wanted))
@@ -392,7 +393,7 @@ impl App {
                 .position(|&i| Some(i) == cur)
                 .map_or(0, |k| (k + 1) % targets.len());
             self.list.select(Some(targets[next]));
-            return;
+            return true;
         }
         let anywhere = self
             .groups
@@ -405,6 +406,7 @@ impl App {
             "Nothing needs you"
         };
         self.toast(Toast::info(message));
+        false
     }
 
     fn move_by(&mut self, delta: isize) {
@@ -464,7 +466,11 @@ impl App {
             Action::Top => self.move_by(isize::MIN / 2),
             Action::Bottom => self.move_by(isize::MAX / 2),
             Action::Open => return self.ws_to_open().cloned().map(Command::Open),
-            Action::NextAttention => self.next_attention(),
+            Action::NextAttention => {
+                if self.next_attention() {
+                    return self.ws_to_open().cloned().map(Command::Open);
+                }
+            }
             Action::Peek => {
                 let ws = self.ws_to_open()?;
                 if ws.status != WsStatus::Live {

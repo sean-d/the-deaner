@@ -114,7 +114,7 @@ pub const BINDINGS: &[Binding] = &[
         keys: &[Char('n')],
         action: Action::NextAttention,
         section: "Navigate",
-        help: "Next agent that needs you",
+        help: "Go to next agent needing you",
     },
     Binding {
         keys: &[Char('v')],

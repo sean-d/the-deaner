@@ -5,7 +5,7 @@ use crate::icons::Icons;
 use crate::keymap::{BINDINGS, keys_label, sections};
 use crate::theme::colors;
 use deaner_core::pr::{Checks, PrState};
-use deaner_core::sidebar::{RepoGroup, Row, Section, WorkspaceView, WsStatus};
+use deaner_core::sidebar::{RepoGroup, Row, Section, TabView, WorkspaceView, WsStatus};
 use deaner_core::{AgentState, OpenStyle};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -250,6 +250,7 @@ fn row_item<'a>(app: &App, p: &Palette, row: Row, index: usize, width: u16) -> L
     let (in_block, open) = match row {
         Row::Repo { group } => (is_open(group), false),
         Row::Workspace { group, ws } => (is_open(group), app.groups[group].workspaces[ws].current),
+        Row::Agent { group, .. } => (is_open(group), false),
         Row::BoxEnd { .. } => (true, false),
         Row::Header { .. } | Row::Gap { .. } => (false, false),
     };
@@ -267,15 +268,15 @@ fn row_item<'a>(app: &App, p: &Palette, row: Row, index: usize, width: u16) -> L
             line.spans.insert(0, bar());
             line
         }
-        Row::Workspace { .. } if in_block && boxed => {
+        Row::Workspace { .. } | Row::Agent { .. } if in_block && boxed => {
             // The two spaces of indent become the box's left side; its right side closes it.
             let mut line = row_line(app, p, row, width.saturating_sub(1));
             line.spans[0] = Span::styled("│ ", gold);
             line.spans.push(Span::styled("│", gold));
             line
         }
-        Row::Workspace { .. } if in_block => {
-            // Workspace rows start with two spaces of indent: the bar takes the first.
+        Row::Workspace { .. } | Row::Agent { .. } if in_block => {
+            // These rows start with two spaces of indent: the bar takes the first.
             let mut line = row_line(app, p, row, width);
             line.spans[0] = Span::raw(" ");
             line.spans.insert(0, bar());
@@ -290,7 +291,8 @@ fn row_item<'a>(app: &App, p: &Palette, row: Row, index: usize, width: u16) -> L
                 let repo = &app.groups[group].name;
                 line.spans.iter_mut().find(|s| s.content == repo.as_str())
             }
-            _ => line.spans.get_mut(WS_LABEL + 1),
+            Row::Workspace { .. } => line.spans.get_mut(WS_LABEL + 1),
+            _ => None,
         };
         if let Some(name) = name
             && name.style.fg != Some(crate::theme::ATTENTION)
@@ -314,6 +316,29 @@ fn row_item<'a>(app: &App, p: &Palette, row: Row, index: usize, width: u16) -> L
         return ListItem::new(line).style(Style::new().bg(colors::VIEW));
     }
     ListItem::new(line)
+}
+
+/// `    ⠋ Fix the login redirect`: an agent's state and what it's working on, dim, under
+/// its workspace. Starts with two spaces of indent like a workspace row, so the box
+/// or bar can take them.
+fn agent_line<'a>(app: &App, p: &Palette, tab: &TabView, width: u16) -> Line<'a> {
+    let mut glyph =
+        agent_glyph(app, p, tab.state, WsStatus::Live).unwrap_or_else(|| Span::raw(" "));
+    if tab.state == AgentState::Awaiting {
+        glyph.style = p.attention.add_modifier(Modifier::BOLD);
+    }
+    let title = tab.title.clone().unwrap_or_default();
+    justify(
+        vec![
+            Span::raw("  "),
+            Span::raw("  "),
+            glyph,
+            Span::raw(" "),
+            Span::styled(title, p.muted),
+        ],
+        Vec::new(),
+        width,
+    )
 }
 
 /// `╭ deaner ──────╮`: the open project's repo row, as the top of its box.
@@ -341,6 +366,9 @@ fn row_line<'a>(app: &App, p: &Palette, row: Row, width: u16) -> Line<'a> {
         Row::Header { section } => heading_line(app, p, section, width),
         Row::Repo { group } => repo_line(app, p, &app.groups[group], width),
         Row::Workspace { group, ws } => ws_line(app, p, &app.groups[group].workspaces[ws], width),
+        Row::Agent { group, ws, tab } => {
+            agent_line(app, p, &app.groups[group].workspaces[ws].tabs[tab], width)
+        }
         Row::BoxEnd { .. } => Line::raw(""),
     }
 }

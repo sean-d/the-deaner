@@ -191,6 +191,7 @@ fn spawn_refresher(engine: Engine, tx: Sender<Msg>, kick_tx: Sender<()>, kick_rx
         let trees: Poller<Vec<Checkout>> = Poller::new(4);
         let branches: Poller<BranchStatus> = Poller::new(4);
         let fetches: Poller<()> = Poller::new(4);
+        let mut titles = crate::titles::Titles::for_claude();
         let cfg = engine.config.clone();
 
         // Probing for gh can itself hang (it is a network tool); do it off-thread.
@@ -263,6 +264,14 @@ fn spawn_refresher(engine: Engine, tx: Sender<Msg>, kick_tx: Sender<()>, kick_rx
                 if let Some(status) = branches.get(&v.path) {
                     v.pr = status.pr;
                     v.checks = status.checks;
+                }
+
+                for tab in &mut v.tabs {
+                    if tab.agent.as_deref() == Some("claude")
+                        && let Some(id) = &tab.session
+                    {
+                        tab.title = titles.get(id);
+                    }
                 }
 
                 // Worktrees share their repo's remote refs, so this is per repo.

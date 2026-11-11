@@ -945,6 +945,9 @@ fn fill_live(v: &mut WorkspaceView, panes: &[PaneInfo], attached: &[String]) {
                 if t.agent.is_none() {
                     t.agent = p.agent.clone();
                 }
+                if t.session.is_none() {
+                    t.session = p.agent_session.clone();
+                }
             }
             None => tabs.push(TabView {
                 index: p.window_index,
@@ -952,6 +955,8 @@ fn fill_live(v: &mut WorkspaceView, panes: &[PaneInfo], attached: &[String]) {
                 state: p.state,
                 agent: p.agent.clone(),
                 address: p.address(),
+                session: p.agent_session.clone(),
+                title: None,
             }),
         }
     }

@@ -31,6 +31,10 @@ pub struct TabView {
     pub agent: Option<String>,
     /// `<session>:<tab>` address for `deaner send`.
     pub address: String,
+    /// The agent's conversation id, while one is running.
+    pub session: Option<String>,
+    /// What the agent says it's working on (Claude's conversation title).
+    pub title: Option<String>,
 }
 
 /// One workspace (a checkout plus its session, if any).
@@ -108,6 +112,13 @@ pub enum Row {
     Workspace {
         group: usize,
         ws: usize,
+    },
+    /// What an agent in one of a workspace's tabs is working on, under the workspace;
+    /// can't be selected.
+    Agent {
+        group: usize,
+        ws: usize,
+        tab: usize,
     },
     /// Bottom edge of the box around the open project; can't be selected.
     BoxEnd {
@@ -221,7 +232,7 @@ pub fn rows(groups: &[RepoGroup], filter: &str, boxed: bool) -> Vec<Row> {
             .position(|g| g.workspaces.iter().any(|w| w.current))
     {
         let last = out.iter().rposition(
-            |r| matches!(r, Row::Repo { group } | Row::Workspace { group, .. } if *group == open),
+            |r| matches!(r, Row::Repo { group } | Row::Workspace { group, .. } | Row::Agent { group, .. } if *group == open),
         );
         if let Some(i) = last {
             out.insert(i + 1, Row::BoxEnd { group: open });
@@ -248,7 +259,9 @@ fn visible_rows(groups: &[RepoGroup], filter: &str) -> Vec<Row> {
             heading(&mut out, g.section);
             out.push(Row::Repo { group: gi });
             if !g.collapsed {
-                out.extend((0..g.workspaces.len()).map(|wi| Row::Workspace { group: gi, ws: wi }));
+                for wi in 0..g.workspaces.len() {
+                    push_workspace(&mut out, g, gi, wi);
+                }
             }
             continue;
         }
@@ -267,13 +280,27 @@ fn visible_rows(groups: &[RepoGroup], filter: &str) -> Vec<Row> {
         if repo_hit || !hits.is_empty() {
             heading(&mut out, g.section);
             out.push(Row::Repo { group: gi });
-            out.extend(
-                hits.into_iter()
-                    .map(|wi| Row::Workspace { group: gi, ws: wi }),
-            );
+            for wi in hits {
+                push_workspace(&mut out, g, gi, wi);
+            }
         }
     }
     out
+}
+
+/// A workspace row, then a line for each agent tab that has a title.
+fn push_workspace(out: &mut Vec<Row>, g: &RepoGroup, gi: usize, wi: usize) {
+    out.push(Row::Workspace { group: gi, ws: wi });
+    let tabs = &g.workspaces[wi].tabs;
+    out.extend(
+        (0..tabs.len())
+            .filter(|&ti| tabs[ti].title.is_some())
+            .map(|tab| Row::Agent {
+                group: gi,
+                ws: wi,
+                tab,
+            }),
+    );
 }
 
 #[cfg(test)]

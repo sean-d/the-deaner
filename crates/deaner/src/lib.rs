@@ -12,3 +12,4 @@ pub mod hooks;
 pub mod paths;
 pub mod poller;
 pub mod sidebar;
+pub mod titles;

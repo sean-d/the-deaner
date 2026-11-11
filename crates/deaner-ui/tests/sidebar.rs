@@ -30,6 +30,8 @@ fn ws(repo: &str, path: &str, branch: &str, agent: AgentState) -> WorkspaceView 
             state: agent,
             agent: Some("claude".into()),
             address: "x:claude".into(),
+            session: None,
+            title: None,
         }],
         current: false,
     }
@@ -760,4 +762,34 @@ fn the_open_project_can_be_a_box_instead() {
         Some("sec-bump")
     );
     assert_eq!(cell_at(&mut app, "sec-bump").bg, SEL);
+}
+
+#[test]
+fn agent_titles_show_under_their_workspace_and_the_cursor_skips_them() {
+    let mut groups = fixture(AgentState::Awaiting);
+    let shop = groups.iter_mut().find(|g| g.name == "shop-api").unwrap();
+    shop.workspaces[0].tabs[0].title = Some("Readiness probe without Redis".into());
+    shop.workspaces[1].tabs[0].title =
+        Some("Bump every dependency to clear the CVE, then rerun the whole suite".into());
+    let mut app = App::new();
+    app.set_groups(groups);
+    let screen = render(&mut app, 34, 16);
+    insta::assert_snapshot!(screen);
+    assert_eq!(
+        cell_at(&mut app, "Readiness").fg,
+        deaner_ui::theme::colors::DIM
+    );
+
+    // deaner's main, then shop-api's main and sec-bump: never a title line.
+    app.handle_key(ch('j'));
+    assert_eq!(app.selected_ws().unwrap().branch.as_deref(), Some("main"));
+    assert_eq!(app.selected_group().unwrap().name, "shop-api");
+    app.handle_key(ch('j'));
+    assert_eq!(
+        app.selected_ws().unwrap().branch.as_deref(),
+        Some("sec-bump")
+    );
+    app.handle_key(ch('k'));
+    assert_eq!(app.selected_group().unwrap().name, "shop-api");
+    assert_eq!(app.selected_ws().unwrap().branch.as_deref(), Some("main"));
 }

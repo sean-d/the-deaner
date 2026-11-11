@@ -281,7 +281,7 @@ impl App {
             Row::Header { section } | Row::Gap { section } => SelKey::Header(section),
             Row::BoxEnd { group } => SelKey::Header(self.groups[group].section),
             Row::Repo { group } => SelKey::Repo(self.groups[group].path.clone()),
-            Row::Workspace { group, ws } => {
+            Row::Workspace { group, ws } | Row::Agent { group, ws, .. } => {
                 SelKey::Ws(self.groups[group].workspaces[ws].path.clone())
             }
         }
@@ -299,7 +299,7 @@ impl App {
     #[must_use]
     pub fn selected_group(&self) -> Option<&RepoGroup> {
         self.selected_row().and_then(|r| match r {
-            Row::Header { .. } | Row::Gap { .. } | Row::BoxEnd { .. } => None,
+            Row::Header { .. } | Row::Gap { .. } | Row::BoxEnd { .. } | Row::Agent { .. } => None,
             Row::Repo { group } | Row::Workspace { group, .. } => Some(&self.groups[group]),
         })
     }
@@ -308,7 +308,7 @@ impl App {
     #[must_use]
     pub fn selected_ws(&self) -> Option<&WorkspaceView> {
         match self.selected_row()? {
-            Row::Header { .. } | Row::Gap { .. } | Row::BoxEnd { .. } => None,
+            Row::Header { .. } | Row::Gap { .. } | Row::BoxEnd { .. } | Row::Agent { .. } => None,
             Row::Workspace { group, ws } => Some(&self.groups[group].workspaces[ws]),
             Row::Repo { group } => {
                 let g = &self.groups[group];
@@ -341,7 +341,11 @@ impl App {
                 std::slice::from_ref(&self.groups[group].workspaces[ws])
             }
             Row::Repo { group } if self.groups[group].collapsed => &self.groups[group].workspaces,
-            Row::Repo { .. } | Row::Header { .. } | Row::Gap { .. } | Row::BoxEnd { .. } => &[],
+            Row::Repo { .. }
+            | Row::Header { .. }
+            | Row::Gap { .. }
+            | Row::BoxEnd { .. }
+            | Row::Agent { .. } => &[],
         }
     }
 
@@ -530,7 +534,7 @@ impl App {
                     Command::Archive(w),
                 )
             }
-            Row::Header { .. } | Row::Gap { .. } | Row::BoxEnd { .. } => return,
+            Row::Header { .. } | Row::Gap { .. } | Row::BoxEnd { .. } | Row::Agent { .. } => return,
             Row::Repo { group } | Row::Workspace { group, .. } => {
                 let g = &self.groups[group];
                 (
@@ -657,6 +661,7 @@ impl App {
                     Row::Header { .. }
                     | Row::Gap { .. }
                     | Row::BoxEnd { .. }
+                    | Row::Agent { .. }
                     | Row::Repo { .. } => None,
                     Row::Workspace { .. } => self.selected_ws().cloned().map(Command::Open),
                 };

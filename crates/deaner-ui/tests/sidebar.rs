@@ -1010,6 +1010,10 @@ fn ctrl_d_and_ctrl_u_move_half_a_page_and_the_markers_can_be_clicked() {
     };
     // The ▼ line is the last list row: row 5 of 8 (two footer rows below it).
     render(&mut app, 34, 8);
-    assert_eq!(app.handle_mouse(click(5)), None, "clicking ▼ doesn't open anything");
+    assert_eq!(
+        app.handle_mouse(click(5)),
+        None,
+        "clicking ▼ doesn't open anything"
+    );
     assert_ne!(app.selected_row(), start, "it scrolled down");
 }

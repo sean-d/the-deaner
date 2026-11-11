@@ -414,7 +414,9 @@ impl App {
 
     /// Half the rows the list shows, for `Ctrl-d` / `Ctrl-u` and the `▲` / `▼` lines.
     fn half_page(&self) -> isize {
-        isize::try_from(self.list_area.height / 2).unwrap_or(1).max(1)
+        isize::try_from(self.list_area.height / 2)
+            .unwrap_or(1)
+            .max(1)
     }
 
     fn move_by(&mut self, delta: isize) {

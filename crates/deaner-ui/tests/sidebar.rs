@@ -968,3 +968,48 @@ fn an_agent_already_waiting_at_startup_is_orange_too() {
         deaner_ui::theme::ATTENTION
     );
 }
+
+#[test]
+fn a_list_too_long_for_the_screen_says_what_is_above_and_below() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    let top = render(&mut app, 34, 8);
+    insta::assert_snapshot!("scrolled_to_the_top", top);
+    assert!(top.contains("▼ 1 more") && !top.contains('▲'), "{top}");
+
+    app.handle_key(key(KeyCode::End));
+    let bottom = render(&mut app, 34, 8);
+    insta::assert_snapshot!("scrolled_to_the_bottom", bottom);
+    assert!(bottom.contains("▲") && !bottom.contains('▼'), "{bottom}");
+
+    // When it all fits, no marker lines.
+    let all = render(&mut app, 34, 20);
+    assert!(!all.contains("more"), "{all}");
+}
+
+#[test]
+fn ctrl_d_and_ctrl_u_move_half_a_page_and_the_markers_can_be_clicked() {
+    use ratatui::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    let ctrl = |c| KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL);
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    render(&mut app, 34, 8); // a 4-row list: half a page is 2
+    let start = app.selected_row();
+    assert_eq!(app.handle_key(ctrl('d')), None);
+    assert_ne!(app.selected_row(), start, "moved down");
+    app.handle_key(ctrl('u'));
+    assert_eq!(app.selected_row(), start, "and back up");
+    // Plain d and u still do nothing; Ctrl doesn't leak into other keys.
+    assert_eq!(app.handle_key(ctrl('q')), None);
+
+    let click = |row| MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 3,
+        row,
+        modifiers: KeyModifiers::NONE,
+    };
+    // The ▼ line is the last list row: row 5 of 8 (two footer rows below it).
+    render(&mut app, 34, 8);
+    assert_eq!(app.handle_mouse(click(5)), None, "clicking ▼ doesn't open anything");
+    assert_ne!(app.selected_row(), start, "it scrolled down");
+}

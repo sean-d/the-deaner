@@ -98,6 +98,8 @@ pub struct App {
     pub(crate) clock: Duration,
     pub(crate) tick: u64,
     pub(crate) list_area: Rect,
+    /// Rows of the `▲ n more` and `▼ n more` lines, while the list doesn't fit.
+    pub(crate) scroll_marks: Option<(u16, u16)>,
     pub(crate) loaded: bool,
     prev_agents: HashMap<PathBuf, AgentState>,
     /// Workspaces whose agent finished while they weren't on screen.
@@ -133,6 +135,7 @@ impl App {
             clock: Duration::ZERO,
             tick: 0,
             list_area: Rect::default(),
+            scroll_marks: None,
             loaded: false,
             prev_agents: HashMap::new(),
             unseen: HashSet::new(),
@@ -409,6 +412,11 @@ impl App {
         false
     }
 
+    /// Half the rows the list shows, for `Ctrl-d` / `Ctrl-u` and the `▲` / `▼` lines.
+    fn half_page(&self) -> isize {
+        isize::try_from(self.list_area.height / 2).unwrap_or(1).max(1)
+    }
+
     fn move_by(&mut self, delta: isize) {
         if self.rows.is_empty() {
             return;
@@ -465,6 +473,8 @@ impl App {
             Action::Up => self.move_by(-1),
             Action::Top => self.move_by(isize::MIN / 2),
             Action::Bottom => self.move_by(isize::MAX / 2),
+            Action::HalfPageDown => self.move_by(self.half_page()),
+            Action::HalfPageUp => self.move_by(-self.half_page()),
             Action::Open => return self.ws_to_open().cloned().map(Command::Open),
             Action::NextAttention => {
                 if self.next_attention() {
@@ -680,6 +690,14 @@ impl App {
             MouseEventKind::ScrollDown => self.move_by(1),
             MouseEventKind::ScrollUp => self.move_by(-1),
             MouseEventKind::Down(MouseButton::Left) => {
+                // The `▲` / `▼` lines scroll half a page.
+                if let Some((up, down)) = self.scroll_marks
+                    && (ev.row == up || ev.row == down)
+                {
+                    let half = self.half_page();
+                    self.move_by(if ev.row == up { -half } else { half });
+                    return None;
+                }
                 let a = self.list_area;
                 if ev.column < a.x
                     || ev.column >= a.x + a.width

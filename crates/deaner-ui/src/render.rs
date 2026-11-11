@@ -62,6 +62,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
         Layout::vertical([Constraint::Min(1), Constraint::Length(2)]).areas(area);
 
     app.list_area = list_area;
+    app.scroll_marks = None;
     let items: Vec<ListItem<'_>> = app
         .rows
         .iter()
@@ -78,9 +79,42 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
         .wrap(Wrap { trim: false });
         frame.render_widget(hint, list_area);
     } else {
+        // Too many rows for the screen: a line above and below the list says how many
+        // projects are scrolled out of view.
+        let overflow = app.rows.len() > usize::from(list_area.height) && list_area.height >= 3;
+        let inner = if overflow {
+            Rect {
+                y: list_area.y + 1,
+                height: list_area.height - 2,
+                ..list_area
+            }
+        } else {
+            list_area
+        };
+        app.list_area = inner;
+        app.scroll_marks = overflow.then(|| (list_area.y, list_area.y + list_area.height - 1));
         // Rows style themselves: the cursor and the open project look different.
         let list = List::new(items);
-        frame.render_stateful_widget(list, list_area, &mut app.list);
+        frame.render_stateful_widget(list, inner, &mut app.list);
+        if overflow {
+            let start = app.list.offset();
+            let end = (start + usize::from(inner.height)).min(app.rows.len());
+            let (above, below) = scrolled_out(app, start, end);
+            let marker = |arrow: &str, n: usize| {
+                if n == 0 {
+                    Line::raw("")
+                } else {
+                    Line::styled(format!(" {arrow} {n} more"), p.muted)
+                }
+            };
+            let row = |y: u16| Rect {
+                y,
+                height: 1,
+                ..list_area
+            };
+            frame.render_widget(marker("▲", above), row(list_area.y));
+            frame.render_widget(marker("▼", below), row(list_area.y + list_area.height - 1));
+        }
     }
 
     draw_footer(frame, app, &p, footer);
@@ -274,6 +308,28 @@ fn footer_lines<'a>(app: &App, p: &Palette, width: u16) -> [Line<'a>; 2] {
         justify(top, right, width),
         justify(bottom, Vec::new(), width),
     ]
+}
+
+/// How many projects are entirely above and entirely below the rows `start..end` on screen.
+fn scrolled_out(app: &App, start: usize, end: usize) -> (usize, usize) {
+    let group = |r: &Row| match *r {
+        Row::Repo { group }
+        | Row::Workspace { group, .. }
+        | Row::Agent { group, .. }
+        | Row::BoxEnd { group } => Some(group),
+        Row::Header { .. } | Row::Gap { .. } => None,
+    };
+    let shown: std::collections::HashSet<usize> =
+        app.rows[start..end].iter().filter_map(group).collect();
+    let count = |rows: &[Row]| {
+        let hidden: std::collections::HashSet<usize> = rows
+            .iter()
+            .filter_map(group)
+            .filter(|g| !shown.contains(g))
+            .collect();
+        hidden.len()
+    };
+    (count(&app.rows[..start]), count(&app.rows[end..]))
 }
 
 /// One row, styled. The project shown on the right stays marked while the cursor moves,

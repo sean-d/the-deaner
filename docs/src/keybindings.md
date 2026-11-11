@@ -26,6 +26,8 @@ These work while the sidebar has focus.
 | `k` / `↑` | Move up |
 | `g` / `Home` | Jump to top |
 | `G` / `End` | Jump to bottom |
+| `Ctrl-d` | Half a page down |
+| `Ctrl-u` | Half a page up |
 | `Enter` | Open workspace in the terminal (starts or unparks it) |
 | `n` | Go to next agent needing you |
 | `v` | Peek at an agent's output |

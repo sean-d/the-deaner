@@ -12,6 +12,8 @@ pub enum Action {
     Up,
     Top,
     Bottom,
+    HalfPageDown,
+    HalfPageUp,
     Open,
     NextAttention,
     Peek,
@@ -35,6 +37,8 @@ pub enum Action {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Key {
     Char(char),
+    /// The letter with Ctrl held.
+    Ctrl(char),
     Enter,
     Space,
     Up,
@@ -47,6 +51,7 @@ impl Key {
     fn label(self) -> String {
         match self {
             Self::Char(c) => c.to_string(),
+            Self::Ctrl(c) => format!("Ctrl-{c}"),
             Self::Enter => "Enter".into(),
             Self::Space => "Space".into(),
             Self::Up => "↑".into(),
@@ -56,8 +61,14 @@ impl Key {
         }
     }
 
-    fn matches(self, code: KeyCode) -> bool {
-        match (self, code) {
+    fn matches(self, key: &KeyEvent) -> bool {
+        if key.modifiers.contains(KeyModifiers::ALT) {
+            return false;
+        }
+        let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+        match (self, key.code) {
+            (Self::Ctrl(a), KeyCode::Char(b)) => ctrl && a == b,
+            _ if ctrl => false,
             (Self::Char(a), KeyCode::Char(b)) => a == b,
             (Self::Enter, KeyCode::Enter)
             | (Self::Space, KeyCode::Char(' '))
@@ -77,7 +88,7 @@ pub struct Binding {
     pub help: &'static str,
 }
 
-use Key::{Char, Down as KDown, End, Enter, Home, Space, Up as KUp};
+use Key::{Char, Ctrl, Down as KDown, End, Enter, Home, Space, Up as KUp};
 
 pub const BINDINGS: &[Binding] = &[
     Binding {
@@ -103,6 +114,18 @@ pub const BINDINGS: &[Binding] = &[
         action: Action::Bottom,
         section: "Navigate",
         help: "Jump to bottom",
+    },
+    Binding {
+        keys: &[Ctrl('d')],
+        action: Action::HalfPageDown,
+        section: "Navigate",
+        help: "Half a page down",
+    },
+    Binding {
+        keys: &[Ctrl('u')],
+        action: Action::HalfPageUp,
+        section: "Navigate",
+        help: "Half a page up",
     },
     Binding {
         keys: &[Enter],
@@ -211,15 +234,9 @@ pub const BINDINGS: &[Binding] = &[
 /// The action bound to a key press, if any. Ctrl/Alt chords are never sidebar actions.
 #[must_use]
 pub fn action_for(key: &KeyEvent) -> Option<Action> {
-    if key
-        .modifiers
-        .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
-    {
-        return None;
-    }
     BINDINGS
         .iter()
-        .find(|b| b.keys.iter().any(|k| k.matches(key.code)))
+        .find(|b| b.keys.iter().any(|k| k.matches(key)))
         .map(|b| b.action)
 }
 
@@ -274,6 +291,7 @@ pub const fn search_terms(action: Action) -> &'static str {
         Action::PinUp | Action::PinDown => "reorder order favorite",
         Action::Help => "keys shortcuts cheat sheet",
         Action::Down | Action::Up | Action::Top | Action::Bottom => "navigate list",
+        Action::HalfPageDown | Action::HalfPageUp => "scroll page more list navigate",
         Action::Quit => "quit exit leave detach close away shutdown stop",
         Action::Refresh => "",
     }

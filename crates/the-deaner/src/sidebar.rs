@@ -373,7 +373,8 @@ fn lane(cmd: &Command, cfg: &Config) -> Lane {
         | Command::Refresh
         | Command::Quit
         | Command::Detach
-        | Command::Peek(_) => Lane::Quick,
+        | Command::Peek(_)
+        | Command::Toast => Lane::Quick,
     }
 }
 
@@ -533,6 +534,12 @@ fn execute(engine: &Engine, switcher: &Switcher, command: Command) -> Result<Out
                 text.push_str(&format!(", skipped {}", report.skipped.len()));
             }
             Outcome::Ok(text)
+        }
+        Command::Toast => {
+            if let Switcher::Frame(frame) = switcher {
+                crate::frame::open_popup(frame, "toast")?;
+            }
+            Outcome::Silent
         }
         Command::Cheatsheet => {
             if let Switcher::Frame(frame) = switcher {

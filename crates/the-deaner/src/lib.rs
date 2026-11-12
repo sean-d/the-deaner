@@ -14,3 +14,4 @@ pub mod peek;
 pub mod poller;
 pub mod sidebar;
 pub mod titles;
+pub mod toast;

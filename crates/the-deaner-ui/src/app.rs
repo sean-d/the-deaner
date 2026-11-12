@@ -49,6 +49,8 @@ pub enum Command {
     Quit,
     /// Detach from the frame; everything keeps running.
     Detach,
+    /// Bread goes in, toast comes out.
+    Toast,
     /// Show the end of a tab's output (`<session>:<tab>` or `<session>`) in a popup.
     Peek(String),
 }
@@ -557,6 +559,7 @@ impl App {
                 };
             }
             Action::Save => return Some(Command::Save),
+            Action::Toast => return Some(Command::Toast),
             Action::Refresh => return Some(Command::Refresh),
             // In the frame `?` opens the same popup as Alt-/; there's no popup to use otherwise.
             Action::Help if !self.standalone => return Some(Command::Cheatsheet),

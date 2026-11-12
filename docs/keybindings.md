@@ -59,6 +59,7 @@ These work while the sidebar has focus.
 |---|---|
 | `r` | Refresh now |
 | `?` | Show / hide this help |
+| `b` | Make toast |
 | `q` | Detach: all keeps running, `the-deaner` comes back (quits when standalone) |
 
 ### In prompts and pickers

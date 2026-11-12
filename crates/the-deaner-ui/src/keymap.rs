@@ -31,6 +31,7 @@ pub enum Action {
     Refresh,
     Help,
     Quit,
+    Toast,
 }
 
 /// A key as written in the table.
@@ -224,6 +225,12 @@ pub const BINDINGS: &[Binding] = &[
         help: "Show / hide this help",
     },
     Binding {
+        keys: &[Char('b')],
+        action: Action::Toast,
+        section: "Other",
+        help: "Make toast",
+    },
+    Binding {
         keys: &[Char('q')],
         action: Action::Quit,
         section: "Other",
@@ -294,6 +301,7 @@ pub const fn search_terms(action: Action) -> &'static str {
         Action::HalfPageDown | Action::HalfPageUp => "scroll page more list navigate",
         Action::Quit => "quit exit leave detach close away shutdown stop",
         Action::Refresh => "",
+        Action::Toast => "bread toaster fun easter egg",
     }
 }
 

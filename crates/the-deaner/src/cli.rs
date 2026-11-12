@@ -123,6 +123,9 @@ pub enum Cmd {
     },
     /// Open the searchable shortcut cheat sheet (Alt-/ inside the-deaner)
     Cheatsheet,
+    /// Make toast (`b` in the sidebar)
+    #[command(hide = true)]
+    Toast,
     /// Show keybindings
     Keys {
         /// Print the generated docs page
@@ -166,6 +169,7 @@ pub fn run(cli: Cli) -> Result<()> {
         None => frame::open(&engine),
         Some(Cmd::Sidebar { standalone }) => sidebar::run(engine, standalone),
         Some(Cmd::Cheatsheet) => cheatsheet::run(&engine),
+        Some(Cmd::Toast) => crate::toast::run(),
         Some(Cmd::Peek { addr }) => crate::peek::run(&engine, &addr),
         Some(Cmd::Browse { dir }) => browse::run(&engine, dir.as_deref()),
         Some(Cmd::Term) => frame::term(&engine),

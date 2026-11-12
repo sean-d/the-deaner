@@ -303,7 +303,10 @@ fn footer_lines<'a>(app: &App, p: &Palette, width: u16) -> [Line<'a>; 2] {
     };
     let right_w: usize = right.iter().map(|s| s.content.width()).sum();
     let top = row(&[("?", "keys")], right_w);
-    let bottom = row(&[("q", leave), ("p", "pin"), ("n", "next"), ("v", "peek")], 0);
+    let bottom = row(
+        &[("q", leave), ("p", "pin"), ("n", "next"), ("v", "peek")],
+        0,
+    );
     [
         justify(top, right, width),
         justify(bottom, Vec::new(), width),

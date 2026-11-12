@@ -10,4 +10,4 @@ expression: top
 "╭ shop-api ────────────── ⠋1 ✻1 ─╮"
 " ▼ 1 more                         "
 " ? keys                       ⠋ 1 "
-" q detach | n next | v peek       "
+" q detach | p pin | n next        "

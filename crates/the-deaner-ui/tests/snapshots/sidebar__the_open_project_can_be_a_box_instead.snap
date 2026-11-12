@@ -16,4 +16,4 @@ expression: screen
 "                                  "
 "                                  "
 " ? keys                       ⠋ 1 "
-" q detach | n next | v peek       "
+" q detach | p pin | n next        "

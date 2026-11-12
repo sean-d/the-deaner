@@ -256,7 +256,7 @@ fn draw_footer(frame: &mut Frame<'_>, app: &App, p: &Palette, area: Rect) {
     frame.render_widget(counts, bottom);
 }
 
-/// `? keys` with the counts at the right, over `q detach | n next | v peek`. A hint that
+/// `? keys` with the counts at the right, over `q detach | p pin | n next | v peek`. A hint that
 /// doesn't fit is left out (from the end of its row). The `n` turns orange when
 /// something needs you.
 fn footer_lines<'a>(app: &App, p: &Palette, width: u16) -> [Line<'a>; 2] {
@@ -303,7 +303,7 @@ fn footer_lines<'a>(app: &App, p: &Palette, width: u16) -> [Line<'a>; 2] {
     };
     let right_w: usize = right.iter().map(|s| s.content.width()).sum();
     let top = row(&[("?", "keys")], right_w);
-    let bottom = row(&[("q", leave), ("n", "next"), ("v", "peek")], 0);
+    let bottom = row(&[("q", leave), ("p", "pin"), ("n", "next"), ("v", "peek")], 0);
     [
         justify(top, right, width),
         justify(bottom, Vec::new(), width),

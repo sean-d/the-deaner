@@ -102,7 +102,9 @@ fn is_ours(hook: &Value) -> bool {
         .is_some_and(|c| c.contains(MARKER) && c.contains("deaner"))
 }
 
-/// Whether a Claude settings file already has the-deaner's hooks.
+/// Whether a Claude settings file already has the-deaner's hooks. Hooks from before the
+/// rename (`deaner hook claude …`) don't count: they call a binary the-deaner doesn't read,
+/// so the startup offer should replace them.
 #[must_use]
 pub fn installed(path: &Path) -> bool {
     let Ok(text) = std::fs::read_to_string(path) else {
@@ -119,7 +121,9 @@ pub fn installed(path: &Path) -> bool {
         .flatten()
         .filter_map(|group| group.get("hooks").and_then(Value::as_array))
         .flatten()
-        .any(is_ours)
+        .filter(|hook| is_ours(hook))
+        .filter_map(|hook| hook.get("command").and_then(Value::as_str))
+        .any(|c| c.contains("the-deaner hook claude "))
 }
 
 /// Whether to offer the hooks on startup: Claude is set up here (its folder exists), the
@@ -282,6 +286,22 @@ mod tests {
         install(&settings, "/usr/bin/the-deaner", false).unwrap();
         assert!(installed(&settings));
         assert!(!should_offer(&settings, false), "already in");
+
+        // Upgrading from deaner: the old hooks are offered for replacement, then replaced.
+        install(&settings, "/usr/bin/the-deaner", true).unwrap();
+        install(&settings, "/home/me/.cargo/bin/deaner", false).unwrap();
+        assert!(
+            !installed(&settings),
+            "old deaner hooks aren't ours to keep"
+        );
+        assert!(should_offer(&settings, false));
+        install(&settings, "/usr/bin/the-deaner", false).unwrap();
+        assert!(installed(&settings));
+        let text = std::fs::read_to_string(&settings).unwrap();
+        assert!(
+            !text.contains(".cargo/bin/deaner hook"),
+            "replaced, not added: {text}"
+        );
     }
 
     #[test]

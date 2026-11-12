@@ -42,8 +42,20 @@ You need **tmux 3.3 or newer** and **git**. **gh** (the GitHub CLI, logged in) i
 request and CI status. A [Nerd Font](https://www.nerdfonts.com/) makes the icons look right; plain
 Unicode icons are available too (`icons = "unicode"`).
 
-Packages for Arch-based distros (CachyOS, EndeavourOS, Omarchy) and Homebrew are on the way. Until
-then, build from source with a stable Rust toolchain:
+**macOS (Apple Silicon):**
+
+```sh
+brew install sean-d/tap/the-deaner
+```
+
+**Arch, CachyOS, EndeavourOS, Omarchy:** grab the package from the
+[latest release](https://github.com/sean-d/the-deaner/releases/latest) and install it with pacman:
+
+```sh
+sudo pacman -U the-deaner-*-x86_64.pkg.tar.zst
+```
+
+**Anywhere else, or from source** (needs a stable Rust toolchain):
 
 ```sh
 cargo install --locked --git https://github.com/sean-d/the-deaner the-deaner

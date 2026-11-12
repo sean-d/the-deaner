@@ -8,6 +8,21 @@
 
 ## Install
 
+macOS (Apple Silicon), with Homebrew:
+
+```sh
+brew install sean-d/tap/the-deaner
+```
+
+Arch-based distros (CachyOS, EndeavourOS, Omarchy): download `the-deaner-<version>-1-x86_64.pkg.tar.zst`
+from the [latest release](https://github.com/sean-d/the-deaner/releases/latest), then:
+
+```sh
+sudo pacman -U the-deaner-*-x86_64.pkg.tar.zst
+```
+
+The release page also has plain `.tar.gz` binaries for Linux x86_64 and ARM, and macOS.
+
 From source (needs a Rust toolchain, stable):
 
 ```sh
@@ -22,7 +37,6 @@ cargo install --locked --path crates/the-deaner
 
 `--locked` builds with the exact dependency versions in `Cargo.lock`, the ones CI tested.
 
-Packages for Arch-based distros and Homebrew are on the way.
 
 ## First run
 
@@ -124,9 +138,11 @@ set -as terminal-features ",*:extkeys"
 
 ## Updating
 
-```sh
-cargo install --locked --force --git https://github.com/sean-d/the-deaner the-deaner
-```
+| Installed with | Update with |
+|---|---|
+| Homebrew | `brew upgrade the-deaner` |
+| pacman | download the new package, `sudo pacman -U` it |
+| cargo | `cargo install --locked --force --git https://github.com/sean-d/the-deaner the-deaner` |
 
 Running sessions are not affected. The sidebar picks up the new binary the next time it restarts
 (or run `the-deaner shutdown`, then `the-deaner`).

@@ -83,3 +83,36 @@ jobs:
             the-deaner-*.tar.gz*
             the-deaner-*.pkg.tar.zst*
           generate_release_notes: true
+
+  # Point the Homebrew tap at this release: brew install sean-d/tap/the-deaner.
+  # HOMEBREW_TAP_TOKEN is a fine-grained token that can write to sean-d/homebrew-tap only.
+  homebrew:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: aarch64-apple-darwin
+      - name: Fill in the formula
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          sum=$(cut -d' ' -f1 "the-deaner-${GITHUB_REF_NAME}-aarch64-apple-darwin.tar.gz.sha256")
+          sed -e "s/@VERSION@/${version}/g" -e "s/@SHA256@/${sum}/" \
+            -e '/^# Template:/,/^# github.com/d' packaging/homebrew/the-deaner.rb > the-deaner.rb
+          cat the-deaner.rb
+      - uses: actions/checkout@v7
+        with:
+          repository: sean-d/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+      - name: Push it to the tap
+        run: |
+          mkdir -p tap/Formula
+          cp the-deaner.rb tap/Formula/the-deaner.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/the-deaner.rb
+          git commit -m "the-deaner ${GITHUB_REF_NAME}"
+          git push

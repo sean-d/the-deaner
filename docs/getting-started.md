@@ -88,6 +88,20 @@ prefix or a key an app you use needs.
 If a frame key does nothing, check which program is catching it: the window manager, then the
 terminal, then tmux.
 
+## Mouse: links and copying
+
+tmux has the mouse inside the-deaner, so a few clicks need a modifier to reach your terminal instead
+(these are Ghostty's; most terminals use Shift the same way):
+
+| To | Do |
+|---|---|
+| Open a link in your browser | `Ctrl+Shift+click` it (`Cmd+Shift+click` on macOS) |
+| Copy text | Drag to select and let go: it's copied. `Shift+drag` uses the terminal's own selection instead |
+| Copy a word | Double-click it |
+
+Plain clicks go to the-deaner: click a workspace in the sidebar to open it, drag the border to
+resize the sidebar, scroll with the wheel.
+
 ## Omarchy / Hyprland
 
 Bind a key to open the-deaner in your terminal, for example in `~/.config/hypr/bindings.conf`:

@@ -1,0 +1,27 @@
+# Built by .github/workflows/release.yml from the release's Linux x86_64 binary;
+# pkgver and the checksum are filled in there.
+pkgname=the-deaner
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="A tmux-backed command center for running coding agents side by side"
+arch=('x86_64')
+url="https://github.com/sean-d/the-deaner"
+license=('MIT')
+depends=('tmux' 'git' 'glibc' 'gcc-libs')
+optdepends=(
+    'github-cli: pull request and CI status in the sidebar'
+    'less: scrolling in peek'
+    'ttf-nerd-fonts-symbols: icons (or set icons = "unicode")'
+)
+install=the-deaner.install
+# Just the package: no separate -debug package.
+options=('!debug')
+source=("the-deaner-v${pkgver}-x86_64-unknown-linux-gnu.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "the-deaner-v${pkgver}-x86_64-unknown-linux-gnu"
+    install -Dm755 the-deaner "$pkgdir/usr/bin/the-deaner"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

@@ -40,8 +40,38 @@ jobs:
           name: ${{ matrix.target }}
           path: the-deaner-*.tar.gz*
 
-  release:
+  # An Arch package (CachyOS, EndeavourOS, Omarchy) from the Linux x86_64 binary above:
+  # `sudo pacman -U the-deaner-<version>-1-x86_64.pkg.tar.zst`.
+  arch:
     needs: build
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: x86_64-unknown-linux-gnu
+      - name: makepkg
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          tarball="the-deaner-${GITHUB_REF_NAME}-x86_64-unknown-linux-gnu.tar.gz"
+          mkdir /tmp/pkg
+          cp packaging/arch/PKGBUILD packaging/arch/the-deaner.install "$tarball" /tmp/pkg/
+          sum=$(sha256sum "$tarball" | cut -d' ' -f1)
+          sed -i -e "s/^pkgver=.*/pkgver=${version}/" -e "s/^sha256sums=.*/sha256sums=('${sum}')/" /tmp/pkg/PKGBUILD
+          # makepkg won't run as root. Dependencies are checked when you install, not here.
+          useradd -m builder
+          chown -R builder /tmp/pkg
+          su builder -c "cd /tmp/pkg && makepkg --nodeps --noconfirm"
+          cp /tmp/pkg/*.pkg.tar.zst .
+          for f in *.pkg.tar.zst; do sha256sum "$f" > "$f.sha256"; done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: arch
+          path: the-deaner-*.pkg.tar.zst*
+
+  release:
+    needs: [build, arch]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v8
@@ -49,5 +79,7 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v3
         with:
-          files: the-deaner-*.tar.gz*
+          files: |
+            the-deaner-*.tar.gz*
+            the-deaner-*.pkg.tar.zst*
           generate_release_notes: true

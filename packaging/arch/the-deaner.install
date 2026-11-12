@@ -1,0 +1,7 @@
+post_install() {
+    echo "Run 'the-deaner' to start. The first time, it offers to add its Claude Code hooks."
+}
+
+post_upgrade() {
+    echo "Running sessions keep going. 'the-deaner shutdown', then 'the-deaner', picks up the new version."
+}

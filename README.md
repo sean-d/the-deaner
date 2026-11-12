@@ -10,27 +10,7 @@ the-deaner is a command center for running coding agents (Claude Code, codex, ai
 side by side in the terminal. It's a sidebar that knows every repo, worktree and agent you have
 going, next to a terminal that is just your own tmux. Linux first, macOS too.
 
-```text
-┌ sidebar ────────────────────────┬ terminal ──────────────────────────────┐
-│ ● ACTIVE 2 ─────────────────────│                                        │
-│╭ shop-api ──────────── !1 ⠋1 ─╮ │  the open project, in plain tmux:      │
-││ ⎇ main           ✎ 3 +1 -0 ⠋ │ │  your own config, one session per      │
-││   ⠋ Readiness probe for the… │ │  workspace, one window per tab         │
-││ ⇄ sec-bump           #42 ✓ ! │ │                                        │
-││   ! Bump deps for the CVE    │ │  nvim │ claude │ shell                 │
-│╰──────────────────────────────╯ │                                        │
-│the-deaner                       │                                        │
-│  ⎇ main                       ✻ │                                        │
-│    ✻ Sidebar section spacing    │                                        │
-│                                 │                                        │
-│ ○ INACTIVE 2 ───────────────────│                                        │
-│› dotfiles  ⎇ main             ‖ │                                        │
-│› notes  ⎇ main                  │                                        │
-│                                 │                                        │
-│ ? keys                  ! 1 ⠋ 1 │                                        │
-│ q detach | n next | v peek      │                                        │
-└─────────────────────────────────┴────────────────────────────────────────┘
-```
+![the-deaner: a sidebar of projects, worktrees and agents next to a terminal](docs/images/sidebar.png)
 
 ## What it does
 
@@ -136,11 +116,27 @@ Press `q` in the sidebar to detach before you disconnect, or just close the wind
 
 ## How it works
 
-Two tmux servers. The *frame* (`the-deaner-frame`) holds the sidebar and the terminal pane. The
-*workspaces* (`the-deaner`) hold one session per workspace, with your own tmux config. The terminal
-pane is a tmux client attached to whichever workspace you've opened. Agent status comes from Claude
-Code hooks, which tag each pane; titles come from Claude's transcripts. More in
-[architecture](docs/architecture.md).
+```mermaid
+flowchart LR
+    you["Your terminal<br/>(here, or over SSH)"] --> frame
+    subgraph frame["the-deaner-frame · tmux"]
+        sidebar["sidebar"]
+        pane["terminal pane<br/>(a tmux client)"]
+    end
+    pane -- "shows the workspace you opened" --> work
+    subgraph work["the-deaner · tmux, with your own config"]
+        api["shop-api<br/>nvim · claude · shell"]
+        sec["shop-api/sec-bump<br/>nvim · claude · shell"]
+        web["shop-web<br/>nvim · claude · shell"]
+    end
+    hooks["Claude Code hooks"] -- "working · waiting · idle" --> work
+    sidebar -. "reads panes, git, gh,<br/>Claude transcripts" .-> work
+```
+
+Two tmux servers. The *frame* holds the sidebar and a terminal pane; the *workspaces* server holds one
+session per workspace, with your own tmux config, and the terminal pane is a client attached to
+whichever one you've opened. Claude Code hooks tag each agent's pane with its status, and the sidebar
+reads that along with git, `gh` and Claude's transcripts. More in [architecture](docs/architecture.md).
 
 ## Documentation
 

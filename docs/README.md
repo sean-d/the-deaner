@@ -1,6 +1,6 @@
 # the-deaner docs
 
-[Introduction](introduction.md)
+Start with the [main README](../README.md) for what the-deaner is and how to install it.
 
 - [Getting started](getting-started.md)
 - [Workflows](workflows.md)

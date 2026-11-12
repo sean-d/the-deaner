@@ -14,22 +14,22 @@ From source (needs a Rust toolchain, stable):
 cargo install --locked --git https://github.com/sean-d/the-deaner the-deaner
 ```
 
-From a local checkout (works from any directory):
+From a local checkout:
 
 ```sh
-cargo install --locked --path ~/dev/the-deaner/crates/the-deaner
+cargo install --locked --path crates/the-deaner
 ```
 
 `--locked` builds with the exact dependency versions in `Cargo.lock`, the ones CI tested.
 
-Or grab a binary from the GitHub releases page and put it on your `PATH`.
+Packages for Arch-based distros and Homebrew are on the way.
 
 ## First run
 
 ```sh
-the-deaner add ~/dev/shop-api ~/dev/the-deaner   # optional: or browse for them with `a` in the sidebar
-the-deaner install-hooks                     # optional: agent status for claude
-the-deaner                                   # open the frame
+the-deaner add ~/dev/shop-api ~/dev/notes   # optional: or browse for them with `a` in the sidebar
+the-deaner install-hooks                    # optional: agent status for claude
+the-deaner                                  # open the frame
 ```
 
 `the-deaner` opens a full-window frame: the sidebar on the left, a terminal on the right.

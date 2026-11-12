@@ -174,6 +174,8 @@ is read from your tmux config, so it shows your real keys, including anything yo
 |---|---|
 | Hide the sidebar | `Alt-e` |
 | Move between the sidebar and the terminal | `Alt-s` |
+| Go to the next agent that needs you | `n` in the sidebar |
+| Leave, with everything still running | `q` in the sidebar |
 | New tab in this project | `t` in the sidebar, or `prefix c` in the terminal |
 | Next / previous tab | `prefix n` / `prefix p` |
 | Go to a tab by number | `prefix 1`-`9` |
@@ -203,12 +205,27 @@ that started it. A session running in one does get listed. Clean up leftovers wi
 | Check | CI: green check passing, yellow clock running, red X failing. It comes from an open PR, otherwise from the branch's latest commit on GitHub, so `main` shows one with no PR at all. Repos without CI show nothing. Running projects update every minute (`pr_poll_seconds`), others every 5. |
 | Agent | Spinner: working. Bell: waiting on you. `✻`: idle. `◐`: compacting. Pause: parked. |
 
-The project shown on the right has a solid highlight. **Orange means it needs you:** an agent is waiting,
-or finished while you were looking at something else. The agent symbol, the repo and branch names, and a dot
-on the section heading all turn orange, so you can spot it even with the repo scrolled out of view. It clears
-when you open the project, and the symbol goes back to its normal color.
+The project shown on the right sits in a thin gold box with its name in the top border
+(`open_project = "block"` gives a dark gold block with a bar down its edge instead). The cursor is a navy
+row and moves between workspaces only; a project's name row is a stop only when the project is collapsed.
 
-`Space` collapses a repo down to one line, and an arrow marks the ones that are collapsed.
+Under each workspace, a dim line per agent says what it's working on: the name you gave it with
+`/rename`, else Claude's own title for the conversation, else your last prompt (`› …`) or the last message
+another claude sent it (`⇄ name: …`). A project running two or more agents counts them on its name row,
+or in its box's top border: `!1 ⠋2 ✻1` is one waiting on you, two working, one idle.
+
+**Orange means it needs you.** When an agent starts waiting on you, or finishes while you're looking at
+something else, its row gets an orange background and keeps it until you open that workspace, so several
+at once read like a to-do list. The bell stays until you actually answer. The repo name and a dot on the
+section heading turn orange too, and the footer's `n` turns orange: press it to go to the next one.
+
+`Space` collapses a repo down to one line, and an arrow marks the ones that are collapsed. In INACTIVE, a
+project with only its main checkout takes a single row (`› name  branch`). When the list is longer than the
+sidebar, `▲ 3 more` / `▼ 5 more` say how many projects are out of view; click one to scroll, or use
+`Ctrl-d` / `Ctrl-u`.
+
+`v` opens a popup with the end of an agent's output (the one waiting on you first), without leaving what
+you're looking at; scroll up for more, `q` closes it. From a shell: `the-deaner peek shop-api:claude`.
 
 Press `Alt-/` and scroll down, or search for "icons", for the same legend. Icons use a Nerd Font; set `icons = "unicode"` in
 `config.toml` for plain symbols. The tab bar and terminal colors come from your tmux config and terminal.
@@ -276,3 +293,17 @@ the-deaner restore --from ~/.local/state/the-deaner/snapshots/snapshot-179300000
 
 `Alt-e` (think "explorer") hides the sidebar (the terminal takes the full window) and shows it again. Drag the
 border to resize it. The width is remembered across restarts.
+
+## Working from another machine
+
+the-deaner runs on its own tmux servers, and a terminal window is only a view onto them. So you can
+leave your desk, SSH in from a laptop and pick up where you were:
+
+```sh
+ssh you@your-box
+the-deaner
+```
+
+Detach with `q` in the sidebar (or close the window) and everything keeps running. Popups such as
+peek and the cheat sheet open on whichever window you used last. If your desk window is still
+attached, both show the same frame at the size of the one you used last; detach the desk first.

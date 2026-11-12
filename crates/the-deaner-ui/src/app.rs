@@ -51,6 +51,10 @@ pub enum Command {
     Detach,
     /// Bread goes in, toast comes out.
     Toast,
+    /// Add the-deaner's hooks to Claude's settings.
+    InstallHooks,
+    /// Don't offer the hooks again.
+    DeclineHooks,
     /// Show the end of a tab's output (`<session>:<tab>` or `<session>`) in a popup.
     Peek(String),
 }
@@ -76,6 +80,8 @@ pub enum Mode {
     Confirm {
         message: String,
         command: Box<Command>,
+        /// Sent on "no", if anything.
+        on_no: Option<Box<Command>>,
     },
     /// Help overlay, scrolled down by this many lines.
     Help(u16),
@@ -298,7 +304,23 @@ impl App {
         self.mode = Mode::Confirm {
             message: message.into(),
             command: Box::new(command),
+            on_no: None,
         };
+    }
+
+    /// Like [`App::confirm`], with a command for "no" too.
+    pub fn confirm_or(&mut self, message: impl Into<String>, yes: Command, no: Command) {
+        self.mode = Mode::Confirm {
+            message: message.into(),
+            command: Box::new(yes),
+            on_no: Some(Box::new(no)),
+        };
+    }
+
+    /// Whether a dialog or prompt is open.
+    #[must_use]
+    pub fn is_asking(&self) -> bool {
+        !matches!(self.mode, Mode::Normal)
     }
 
     // ---- selection -----------------------------------------------------
@@ -455,11 +477,19 @@ impl App {
             Mode::Filter(input) => self.filter_key(key, input),
             Mode::Prompt { kind, input } => self.prompt_key(key, kind, input),
             Mode::Picker { ws, choices, index } => self.picker_key(key, ws, choices, index),
-            Mode::Confirm { message, command } => match key.code {
+            Mode::Confirm {
+                message,
+                command,
+                on_no,
+            } => match key.code {
                 KeyCode::Char('y' | 'Y') | KeyCode::Enter => Some(*command),
-                KeyCode::Char('n' | 'N') | KeyCode::Esc => None,
+                KeyCode::Char('n' | 'N') | KeyCode::Esc => on_no.map(|c| *c),
                 _ => {
-                    self.mode = Mode::Confirm { message, command };
+                    self.mode = Mode::Confirm {
+                        message,
+                        command,
+                        on_no,
+                    };
                     None
                 }
             },
@@ -556,6 +586,7 @@ impl App {
                         ws.name
                     ),
                     command: Box::new(Command::Park(ws)),
+                    on_no: None,
                 };
             }
             Action::Save => return Some(Command::Save),
@@ -598,6 +629,7 @@ impl App {
         self.mode = Mode::Confirm {
             message,
             command: Box::new(command),
+            on_no: None,
         };
     }
 

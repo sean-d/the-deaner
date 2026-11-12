@@ -8,6 +8,9 @@ agents that support them:
 
 ## Claude Code
 
+The first time the sidebar starts, if Claude Code is installed but the hooks aren't, it asks whether
+to add them. `n` means it won't ask again. To add them yourself:
+
 ```sh
 the-deaner install-hooks
 ```

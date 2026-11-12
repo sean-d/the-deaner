@@ -102,6 +102,33 @@ fn is_ours(hook: &Value) -> bool {
         .is_some_and(|c| c.contains(MARKER) && c.contains("deaner"))
 }
 
+/// Whether a Claude settings file already has the-deaner's hooks.
+#[must_use]
+pub fn installed(path: &Path) -> bool {
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return false;
+    };
+    let Ok(root) = serde_json::from_str::<Value>(&text) else {
+        return false;
+    };
+    root.get("hooks")
+        .and_then(Value::as_object)
+        .into_iter()
+        .flat_map(|events| events.values())
+        .filter_map(Value::as_array)
+        .flatten()
+        .filter_map(|group| group.get("hooks").and_then(Value::as_array))
+        .flatten()
+        .any(is_ours)
+}
+
+/// Whether to offer the hooks on startup: Claude is set up here (its folder exists), the
+/// hooks aren't in, and the user hasn't said no before.
+#[must_use]
+pub fn should_offer(settings: &Path, declined: bool) -> bool {
+    !declined && settings.parent().is_some_and(Path::is_dir) && !installed(settings)
+}
+
 /// Remove the-deaner's entries from a settings document. Returns how many were removed.
 fn strip(root: &mut Value) -> usize {
     let mut removed = 0;
@@ -236,6 +263,25 @@ mod tests {
             once["hooks"]["PreToolUse"][0]["hooks"][0]["command"],
             "the-deaner hook claude pre-tool"
         );
+    }
+
+    #[test]
+    fn offered_only_when_claude_is_here_without_our_hooks_and_not_declined() {
+        let dir = tempfile::tempdir().unwrap();
+        let claude = dir.path().join(".claude");
+        let settings = claude.join("settings.json");
+        assert!(!should_offer(&settings, false), "no Claude here");
+
+        std::fs::create_dir_all(&claude).unwrap();
+        assert!(should_offer(&settings, false), "Claude, no settings yet");
+        assert!(!should_offer(&settings, true), "said no before");
+
+        std::fs::write(&settings, r#"{"model":"opus"}"#).unwrap();
+        assert!(should_offer(&settings, false));
+
+        install(&settings, "/usr/bin/the-deaner", false).unwrap();
+        assert!(installed(&settings));
+        assert!(!should_offer(&settings, false), "already in");
     }
 
     #[test]

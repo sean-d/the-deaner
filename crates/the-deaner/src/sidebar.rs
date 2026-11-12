@@ -79,6 +79,7 @@ pub fn run(engine: Engine, standalone: bool) -> Result<()> {
     let choices_engine = engine.clone();
     app.tab_choices = Box::new(move |repo| choices_engine.tab_choices(repo));
     offer_restore(&engine, &mut app);
+    offer_hooks(&engine, &mut app);
 
     let mut terminal = ratatui::init();
     let _ = execute!(std::io::stdout(), EnableMouseCapture);
@@ -113,6 +114,23 @@ fn offer_restore(engine: &Engine, app: &mut App) {
         ),
         Command::Restore,
     );
+}
+
+/// Claude is here but can't tell us what it's doing yet: offer the hooks, once. A restore
+/// offer goes first; this waits for the next start.
+fn offer_hooks(engine: &Engine, app: &mut App) {
+    if app.is_asking() {
+        return;
+    }
+    let settings = crate::hooks::claude_settings_path();
+    if crate::hooks::should_offer(&settings, engine.state().hooks_declined) {
+        app.confirm_or(
+            "Install hooks so the-deaner can see what each claude is doing? \
+             (Adds them to ~/.claude/settings.json; your own hooks stay.)",
+            Command::InstallHooks,
+            Command::DeclineHooks,
+        );
+    }
 }
 
 fn ago(secs: u64) -> String {
@@ -374,7 +392,9 @@ fn lane(cmd: &Command, cfg: &Config) -> Lane {
         | Command::Quit
         | Command::Detach
         | Command::Peek(_)
-        | Command::Toast => Lane::Quick,
+        | Command::Toast
+        | Command::InstallHooks
+        | Command::DeclineHooks => Lane::Quick,
     }
 }
 
@@ -534,6 +554,22 @@ fn execute(engine: &Engine, switcher: &Switcher, command: Command) -> Result<Out
                 text.push_str(&format!(", skipped {}", report.skipped.len()));
             }
             Outcome::Ok(text)
+        }
+        Command::InstallHooks => {
+            let exe = std::env::current_exe()?;
+            crate::hooks::install(
+                &crate::hooks::claude_settings_path(),
+                &exe.to_string_lossy(),
+                false,
+            )?;
+            Outcome::Ok(
+                "Claude hooks installed. Claudes already running pick them up when restarted."
+                    .into(),
+            )
+        }
+        Command::DeclineHooks => {
+            engine.update_state(|s| s.hooks_declined = true)?;
+            Outcome::Info("Not asking again. `the-deaner install-hooks` adds them any time.".into())
         }
         Command::Toast => {
             if let Switcher::Frame(frame) = switcher {

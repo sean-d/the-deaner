@@ -1033,3 +1033,29 @@ fn ctrl_d_and_ctrl_u_move_half_a_page_and_the_markers_can_be_clicked() {
     );
     assert_ne!(app.selected_row(), start, "it scrolled down");
 }
+
+#[test]
+fn a_question_can_send_one_command_for_yes_and_another_for_no() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    app.confirm_or(
+        "Install hooks?",
+        Command::InstallHooks,
+        Command::DeclineHooks,
+    );
+    assert!(app.is_asking());
+    assert_eq!(app.handle_key(ch('x')), None, "other keys wait");
+    assert_eq!(app.handle_key(ch('n')), Some(Command::DeclineHooks));
+    assert!(!app.is_asking());
+
+    app.confirm_or(
+        "Install hooks?",
+        Command::InstallHooks,
+        Command::DeclineHooks,
+    );
+    assert_eq!(app.handle_key(ch('y')), Some(Command::InstallHooks));
+
+    // A plain confirm still sends nothing on no.
+    app.confirm("Park?", Command::Save);
+    assert_eq!(app.handle_key(key(KeyCode::Esc)), None);
+}

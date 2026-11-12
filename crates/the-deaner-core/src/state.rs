@@ -26,6 +26,8 @@ pub struct State {
     pub sidebar_width: Option<u16>,
     /// Session the terminal pane showed last, reattached first.
     pub last_session: Option<String>,
+    /// Said no to installing Claude's hooks on startup; don't ask again.
+    pub hooks_declined: bool,
 }
 
 impl State {

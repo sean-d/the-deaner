@@ -47,11 +47,12 @@ then, build from source with a stable Rust toolchain:
 
 ```sh
 cargo install --locked --git https://github.com/sean-d/the-deaner the-deaner
-the-deaner install-hooks     # lets the sidebar see what each claude is doing
 ```
 
-`install-hooks` adds the-deaner's status hooks to `~/.claude/settings.json` and leaves your own
-hooks alone. `the-deaner install-hooks --uninstall` takes them out again.
+The first time you run it, the-deaner offers to add its status hooks to Claude Code
+(`~/.claude/settings.json`, leaving your own hooks alone), so the sidebar can see what each claude is
+doing. Say no and it won't ask again; `the-deaner install-hooks` adds them any time, and
+`the-deaner install-hooks --uninstall` takes them out.
 
 ## First run
 

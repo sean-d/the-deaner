@@ -28,11 +28,12 @@ Packages for Arch-based distros and Homebrew are on the way.
 
 ```sh
 the-deaner add ~/dev/shop-api ~/dev/notes   # optional: or browse for them with `a` in the sidebar
-the-deaner install-hooks                    # optional: agent status for claude
 the-deaner                                  # open the frame
 ```
 
-`the-deaner` opens a full-window frame: the sidebar on the left, a terminal on the right.
+`the-deaner` opens a full-window frame: the sidebar on the left, a terminal on the right. The first
+time, if Claude Code is installed, it offers to add its status hooks (`y`), so the sidebar can show
+what each claude is doing. Say `n` and it won't ask again; `the-deaner install-hooks` does it later.
 
 1. Move to a repo with `j`/`k` and press `Enter`. the-deaner starts a tmux session for it with your
    default tabs (`nvim`, `claude` and a `shell`) and shows it on the right.

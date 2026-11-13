@@ -1,7 +1,6 @@
 //! Drawing the sidebar.
 
 use crate::app::{App, Mode, PromptKind};
-use crate::icons::Icons;
 use crate::keymap::{BINDINGS, keys_label, sections};
 use crate::theme::colors;
 use ratatui::Frame;
@@ -62,7 +61,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
     frame.buffer_mut().set_style(full, crate::theme::base());
     let area = frame.area();
     let p = palette(app);
-    let footer_rows = if app.update.is_some() { 4 } else { 3 };
+    let footer_rows = 3 + u16::from(app.update.is_some()) + u16::from(app.version.is_some());
     let [list_area, footer] =
         Layout::vertical([Constraint::Min(1), Constraint::Length(footer_rows)]).areas(area);
 
@@ -126,7 +125,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
 
     match &app.mode {
         Mode::Normal | Mode::Filter(_) => {}
-        Mode::Help(scroll) => draw_help(frame, &p, app.icons, area, *scroll),
+        Mode::Help(scroll) => draw_help(frame, &p, app, area, *scroll),
         Mode::Prompt { kind, input } => {
             let (title, placeholder) = match kind {
                 PromptKind::NewWorktree { repo_name, .. } => {
@@ -242,10 +241,19 @@ fn draw_footer(frame: &mut Frame<'_>, app: &App, p: &Palette, area: Rect) {
             frame.render_widget(
                 Line::from(vec![
                     Span::styled(format!(" ↑ {version}"), p.good.add_modifier(Modifier::BOLD)),
-                    Span::styled(" · the-deaner upgrade", p.muted),
+                    Span::styled(" upgrade available", p.muted),
                 ]),
                 news,
             );
+            rest
+        }
+        None => area,
+    };
+    let area = match &app.version {
+        Some(version) => {
+            let [rest, ver] =
+                Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(area);
+            frame.render_widget(Line::styled(format!(" v{version}"), p.muted), ver);
             rest
         }
         None => area,
@@ -832,7 +840,8 @@ fn justify<'a>(left: Vec<Span<'a>>, right: Vec<Span<'a>>, width: u16) -> Line<'a
     Line::from(spans)
 }
 
-fn draw_help(frame: &mut Frame<'_>, p: &Palette, icons: &Icons, area: Rect, scroll: u16) {
+fn draw_help(frame: &mut Frame<'_>, p: &Palette, app: &App, area: Rect, scroll: u16) {
+    let icons = app.icons;
     let mut lines: Vec<Line<'_>> = Vec::new();
     for section in sections() {
         if !lines.is_empty() {
@@ -885,7 +894,11 @@ fn draw_help(frame: &mut Frame<'_>, p: &Palette, icons: &Icons, area: Rect, scro
     }
     lines.push(Line::raw(""));
     lines.push(Line::styled("j/k scroll · any other key closes", p.muted));
-    let block = dialog_block(p, " Keys ");
+    let mut block = dialog_block(p, " Keys ");
+    if let Some(version) = &app.version {
+        block = block
+            .title_top(Line::styled(format!(" the-deaner {version} "), p.muted).right_aligned());
+    }
     frame.render_widget(Clear, area);
     frame.render_widget(
         Paragraph::new(lines)

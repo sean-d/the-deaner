@@ -37,8 +37,8 @@ going, next to a terminal that is just your own tmux. Linux first, macOS too.
 - **Done for the day.** `the-deaner shutdown` saves everything and stops it. Tomorrow, `the-deaner`
   offers to restore it all, and each claude picks up its own conversation. If the machine goes
   down without a shutdown, the autosave from the last five minutes is what comes back.
-- **Stays current.** When a new release is out, the sidebar says so (`↑ 0.2.0 · the-deaner
-  upgrade`). `the-deaner upgrade` installs it with pacman or Homebrew and comes back on the new
+- **Stays current.** When a new release is out, the sidebar says so (`↑ 0.2.0 upgrade
+  available`). `the-deaner upgrade` installs it with pacman or Homebrew and comes back on the new
   version, offering to restore everything, all in the same window.
 - **Take it with you.** Detach with `q`, SSH in from your laptop, run `the-deaner`, and you're looking
   at the same running setup.
@@ -83,10 +83,11 @@ Once a day the sidebar asks GitHub whether there's a newer release. If there is,
 above the footer until you install it:
 
 ```text
- ↑ 0.2.0 · the-deaner upgrade
+ ↑ 0.2.0 upgrade available
  ? keys
  a add | x remove
  q detach | p pin | n next
+ v0.1.9
 ```
 
 Run `the-deaner upgrade`, from a the-deaner tab or any terminal:

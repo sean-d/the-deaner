@@ -144,13 +144,15 @@ Once a day the sidebar asks GitHub for the latest release (through `gh`, or `cur
 logged in). When it's newer than the version you're running, a line appears above the footer:
 
 ```text
- ↑ 0.2.0 · the-deaner upgrade
+ ↑ 0.2.0 upgrade available
  ? keys
  a add | x remove
  q detach | p pin | n next
+ v0.1.9
 ```
 
-It stays until you're running that version. The answer is kept in
+The dim line at the very bottom is the version this sidebar is running (the cheat sheet, `?` or
+`Alt-/`, shows it in its corner too). It stays until you're running that version. The answer is kept in
 `~/.local/state/the-deaner/update.toml`, so restarting doesn't ask GitHub again; if GitHub can't be
 reached, it tries again in an hour. To check right now:
 

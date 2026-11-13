@@ -35,7 +35,8 @@ pub fn run(engine: &Engine) -> Result<()> {
         &engine.config.keys,
         &terminal_shortcuts(engine),
         icons,
-    ));
+    ))
+    .with_version(crate::upgrade::CURRENT);
     let mut terminal = ratatui::init();
     let result = (|| -> Result<()> {
         loop {

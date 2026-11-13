@@ -87,6 +87,7 @@ pub fn run(engine: Engine, standalone: bool) -> Result<()> {
     app.standalone = standalone || !in_frame();
     app.icons = the_deaner_ui::icons::for_style(engine.config.icons);
     app.open_style = engine.config.open_project;
+    app.version = Some(crate::upgrade::CURRENT.to_string());
     let choices_engine = engine.clone();
     app.tab_choices = Box::new(move |repo| choices_engine.tab_choices(repo));
     offer_restore(&engine, &mut app);

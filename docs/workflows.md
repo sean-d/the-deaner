@@ -286,7 +286,7 @@ Claude writes its transcript continuously, so "save anyway" loses at most the tu
 
 ## A new version is out
 
-When the sidebar shows `↑ 0.2.0 · the-deaner upgrade` at the bottom, run `the-deaner upgrade` in any
+When the sidebar shows `↑ 0.2.0 upgrade available` at the bottom, run `the-deaner upgrade` in any
 tab. It installs the release (with pacman or Homebrew), saves everything, restarts in the same
 window, and offers to restore it all, with each claude picking up its own conversation, the same as
 the start of the day. If an agent is still working it asks first, as `shutdown` does. Details in

@@ -827,6 +827,22 @@ fn agent_titles_show_under_their_workspace_and_the_cursor_skips_them() {
 }
 
 #[test]
+fn the_running_version_sits_under_the_footer_and_in_the_keys_overlay() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    assert!(!render(&mut app, 40, 13).contains("v9.8.7"));
+    app.version = Some("9.8.7".into());
+    let screen = render(&mut app, 40, 13);
+    let lines: Vec<&str> = screen.lines().collect();
+    assert!(lines.last().unwrap().contains(" v9.8.7 "), "{screen}");
+    assert!(lines[lines.len() - 2].contains("q detach"), "{screen}");
+    app.standalone = true; // inside the frame, ? opens the cheat sheet (its own test)
+    app.handle_key(ch('?'));
+    let help = render(&mut app, 40, 30);
+    assert!(help.contains("the-deaner 9.8.7"), "{help}");
+}
+
+#[test]
 fn a_new_version_gets_a_line_above_the_footer() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Idle));
@@ -837,7 +853,7 @@ fn a_new_version_gets_a_line_above_the_footer() {
     let lines: Vec<&str> = after.lines().collect();
     let news = lines
         .iter()
-        .position(|l| l.contains("↑ 0.1.4 · the-deaner upgrade"));
+        .position(|l| l.contains("↑ 0.1.4 upgrade available"));
     let keys = lines.iter().position(|l| l.contains("? keys"));
     assert!(
         matches!((news, keys), (Some(n), Some(k)) if n + 1 == k),

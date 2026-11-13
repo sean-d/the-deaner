@@ -124,6 +124,9 @@ pub struct App {
     pub tab_choices: TabChoices,
     /// A newer the-deaner is out: shown above the footer until you upgrade.
     pub update: Option<String>,
+    /// The running version, shown dim under the footer and in the keys overlay. Left
+    /// out in tests, so snapshots don't change with every release.
+    pub version: Option<String>,
 }
 
 impl Default for App {
@@ -156,6 +159,7 @@ impl App {
             standalone: false,
             tab_choices: Box::new(|_| vec![TabSpec::new("shell", None)]),
             update: None,
+            version: None,
         }
     }
 

@@ -153,3 +153,15 @@ fn popup_only_uses_the_palette() {
     term.draw(|f| s.draw(f)).unwrap();
     assert_palette(term.backend().buffer(), "popup with no results");
 }
+
+#[test]
+fn shows_the_running_version_in_the_corner() {
+    assert!(!render(&mut sheet(), 20).contains("v9.8.7"));
+    let mut s = sheet().with_version("9.8.7");
+    let screen = render(&mut s, 20);
+    let last = screen.lines().last().unwrap();
+    assert!(
+        last.contains("Esc closes") && last.contains("v9.8.7"),
+        "{screen}"
+    );
+}

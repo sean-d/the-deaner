@@ -146,6 +146,8 @@ pub struct Cheatsheet {
     query: InputState,
     scroll: u16,
     theme: Theme,
+    /// The running version, shown dim at the bottom right (left out in tests).
+    version: Option<String>,
 }
 
 impl Cheatsheet {
@@ -156,7 +158,15 @@ impl Cheatsheet {
             query: InputState::default(),
             scroll: 0,
             theme: crate::theme::the_deaner(),
+            version: None,
         }
+    }
+
+    /// Show the running version at the bottom right.
+    #[must_use]
+    pub fn with_version(mut self, version: impl Into<String>) -> Self {
+        self.version = Some(version.into());
+        self
     }
 
     /// Entries matching what has been typed: those with the most words in common.
@@ -263,5 +273,11 @@ impl Cheatsheet {
             Line::styled(" type to search · ↑↓ scroll · Esc closes", muted),
             hint,
         );
+        if let Some(version) = &self.version {
+            frame.render_widget(
+                Line::styled(format!("v{version} "), muted).right_aligned(),
+                hint,
+            );
+        }
     }
 }

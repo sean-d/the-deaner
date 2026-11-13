@@ -119,7 +119,7 @@ ignored until it changes again.
 recognizes the install from the binary's path: a path inside Homebrew's `Cellar`, or one that
 `pacman -Qqo` says belongs to the `the-deaner` package. It installs, runs the new binary's
 `--version` to make sure it changed, and only then restarts. The sidebar's daily check is one
-thread that reads the cached answer in `update.toml` every hour and asks GitHub only when the
+thread that reads the cached answer in `update.toml` every 5 seconds and asks GitHub only when the
 answer is a day old. `last_version` in `state.toml` is how the sidebar knows to say "Updated to …"
 once.
 

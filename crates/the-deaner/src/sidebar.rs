@@ -274,18 +274,26 @@ fn event_loop(
 }
 
 /// Ask GitHub about new versions at most once a day (the answer is kept in the state
-/// folder, so restarts don't ask again), and look at that answer every hour.
+/// folder, so restarts don't ask again), and look at that answer every few seconds, so
+/// `the-deaner upgrade --check` in a tab shows up here right away.
 fn spawn_update_check(paths: crate::paths::Paths, tx: Sender<Msg>) {
     std::thread::spawn(move || {
+        let mut shown: Option<Option<String>> = None;
         loop {
             let newer = crate::upgrade::check_daily(&paths);
-            if tx.send(Msg::Update(newer)).is_err() {
-                return;
+            if shown.as_ref() != Some(&newer) {
+                if tx.send(Msg::Update(newer.clone())).is_err() {
+                    return;
+                }
+                shown = Some(newer);
             }
-            std::thread::sleep(Duration::from_secs(60 * 60));
+            std::thread::sleep(UPDATE_LOOK);
         }
     });
 }
+
+/// How often the sidebar re-reads the saved answer about new versions (a tiny file).
+const UPDATE_LOOK: Duration = Duration::from_secs(5);
 
 // ---- refresher -------------------------------------------------------------
 

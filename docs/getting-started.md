@@ -160,7 +160,7 @@ the-deaner 0.2.0 is out (you have 0.1.5): https://github.com/sean-d/the-deaner/r
 Run `the-deaner upgrade` to install it.
 ```
 
-This also saves the answer, so the sidebar shows the line within the hour. To turn the daily check
+This also saves the answer, and the sidebar shows the line within a few seconds. To turn the daily check
 off, set `update_check = false` in `~/.config/the-deaner/config.toml`. Nothing is ever installed by
 itself.
 

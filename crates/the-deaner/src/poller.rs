@@ -57,6 +57,21 @@ impl<T: Clone + Send + 'static> Poller<T> {
         self.lock().get(key).and_then(|e| e.value.clone())
     }
 
+    /// Treat `key`'s last result as stale, so the next `request` runs right away. The
+    /// value stays until a new one arrives.
+    pub fn expire(&self, key: &Path) {
+        if let Some(entry) = self.lock().get_mut(key) {
+            entry.checked = None;
+        }
+    }
+
+    /// [`Poller::expire`] for every key.
+    pub fn expire_all(&self) {
+        for entry in self.lock().values_mut() {
+            entry.checked = None;
+        }
+    }
+
     /// Whether a job for `key` is running.
     #[must_use]
     pub fn is_running(&self, key: &Path) -> bool {

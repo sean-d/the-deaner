@@ -57,7 +57,7 @@ These work while the sidebar has focus.
 
 | Key | Action |
 |---|---|
-| `r` | Refresh now |
+| `r` | Refresh now, GitHub included |
 | `?` | Show / hide this help |
 | `b` | Make toast |
 | `q` | Detach: all keeps running, `the-deaner` comes back (quits when standalone) |

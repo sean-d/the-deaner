@@ -109,6 +109,9 @@ pub struct Config {
     /// How often to ask `gh` about pull requests and CI for running projects. Others are
     /// asked 5x less often. 0 disables both.
     pub pr_poll_seconds: u64,
+    /// How often to ask instead while a project's CI is running or right after a push from
+    /// it. 0 turns that off.
+    pub pr_fast_seconds: u64,
     /// How often to `git fetch` repos with a running session, so ahead/behind stays
     /// current. 0 disables background fetching.
     pub fetch_seconds: u64,
@@ -136,6 +139,7 @@ impl Default for Config {
             float_attention: true,
             git_poll_seconds: 3,
             pr_poll_seconds: 60,
+            pr_fast_seconds: 5,
             fetch_seconds: 60,
             worktree_dir: "{repo_parent}/{repo}.worktrees/{branch}".into(),
             shells: ["zsh", "bash", "fish", "sh", "dash", "nu", "elvish", "xonsh"]

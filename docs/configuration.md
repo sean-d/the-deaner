@@ -33,6 +33,11 @@ git_poll_seconds = 3
 # How often to ask `gh` about pull requests and CI for running projects; others are asked 5x less
 # often. 0 turns both off.
 pr_poll_seconds = 60
+# How often to ask instead while that matters: while a project's CI is running (up to 20 minutes),
+# and for 3 minutes after you push from it. 0 turns this off. Opening a project, or `r`, asks right
+# away. GitHub allows 5,000 API calls an hour, shared with everything else using `gh`, so this only
+# ever applies to the project(s) where something is about to change.
+pr_fast_seconds = 5
 # How often to `git fetch` repos with a running session, so the behind count stays current.
 # Never prompts, doesn't touch your checkout, and only updates remote-tracking branches.
 # 0 turns it off; the minimum otherwise is 30.

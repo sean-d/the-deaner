@@ -216,7 +216,7 @@ pub const BINDINGS: &[Binding] = &[
         keys: &[Char('r')],
         action: Action::Refresh,
         section: "Other",
-        help: "Refresh now",
+        help: "Refresh now, GitHub included",
     },
     Binding {
         keys: &[Char('?')],

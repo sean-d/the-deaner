@@ -18,7 +18,7 @@ use anyhow::Result;
 use ratatui::crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event};
 use ratatui::crossterm::execute;
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -189,6 +189,7 @@ fn event_loop(
         match command {
             Some(Command::Quit) => return Ok(()),
             Some(Command::Refresh) => {
+                ASK_GITHUB_NOW.store(true, Ordering::Relaxed);
                 let _ = kick.send(());
             }
             Some(c) => executor.submit(c),
@@ -198,6 +199,10 @@ fn event_loop(
 }
 
 // ---- refresher -------------------------------------------------------------
+
+/// `r` sets this: the refresher asks GitHub about every project on its next round, instead of
+/// waiting out the interval.
+static ASK_GITHUB_NOW: AtomicBool = AtomicBool::new(false);
 
 const GH_UNKNOWN: u8 = 0;
 const GH_YES: u8 = 1;
@@ -210,6 +215,8 @@ fn spawn_refresher(engine: Engine, tx: Sender<Msg>, kick_tx: Sender<()>, kick_rx
         let branches: Poller<BranchStatus> = Poller::new(4);
         let fetches: Poller<()> = Poller::new(4);
         let mut titles = crate::titles::Titles::for_claude();
+        let mut heat = crate::heat::Heat::default();
+        let mut last_open: Option<std::path::PathBuf> = None;
         let cfg = engine.config.clone();
 
         // Probing for gh can itself hang (it is a network tool); do it off-thread.
@@ -236,6 +243,9 @@ fn spawn_refresher(engine: Engine, tx: Sender<Msg>, kick_tx: Sender<()>, kick_rx
         let autosave = Duration::from_secs(cfg.autosave_minutes * 60);
 
         loop {
+            if ASK_GITHUB_NOW.swap(false, Ordering::Relaxed) {
+                branches.expire_all();
+            }
             let mut views = engine.workspaces_with(&|repo| {
                 let r = repo.clone();
                 trees.request(
@@ -268,20 +278,40 @@ fn spawn_refresher(engine: Engine, tx: Sender<Msg>, kick_tx: Sender<()>, kick_rx
                     v.branch = v.git.as_ref().and_then(|g| g.branch.clone());
                 }
 
-                // Projects that aren't running get their badges too, just less often.
+                // Opening a project asks GitHub about it right away.
+                if v.current && last_open.as_ref() != Some(&v.path) {
+                    branches.expire(&v.path);
+                    last_open = Some(v.path.clone());
+                }
+                // What GitHub said last time decides how soon to ask again.
+                if let Some(status) = branches.get(&v.path) {
+                    v.pr = status.pr;
+                    v.checks = status.checks;
+                }
+                let hot = cfg.pr_fast_seconds > 0
+                    && heat.observe(
+                        &v.path,
+                        v.git
+                            .as_ref()
+                            .and_then(|g| g.upstream.is_some().then_some(g.ahead)),
+                        v.checks == the_deaner_core::Checks::Pending,
+                        Instant::now(),
+                    );
+                // Projects that aren't running get their badges too, just less often; a hot one
+                // (CI running, or just pushed) every few seconds. See `heat`.
                 if let (Some(branch), GH_YES) = (v.branch.clone(), gh.load(Ordering::Relaxed)) {
                     let path = v.path.clone();
-                    let every = cfg.pr_poll_seconds.max(30) * if live { 1 } else { 5 };
+                    let every = if hot {
+                        cfg.pr_fast_seconds.max(2)
+                    } else {
+                        cfg.pr_poll_seconds.max(30) * if live { 1 } else { 5 }
+                    };
                     branches.request(
                         &v.path,
                         Duration::from_secs(every),
                         move || the_deaner_git::branch_status(&path, &branch),
                         kicker(&kick_tx),
                     );
-                }
-                if let Some(status) = branches.get(&v.path) {
-                    v.pr = status.pr;
-                    v.checks = status.checks;
                 }
 
                 for tab in &mut v.tabs {

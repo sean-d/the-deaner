@@ -202,7 +202,7 @@ that started it. A session running in one does get listed. Clean up leftovers wi
 | Pencil and number | Changed files |
 | `+1 -0` | Commits ahead of and behind the upstream. Hidden when both are 0. the-deaner fetches running repos in the background every minute (`fetch_seconds`), so this tracks GitHub to within about a minute. Repos without a running session aren't fetched. |
 | `#259` | The branch's open PR, or its last merged one. |
-| Check | CI: green check passing, yellow clock running, red X failing. It comes from an open PR, otherwise from the branch's latest commit on GitHub, so `main` shows one with no PR at all. Repos without CI show nothing. Running projects update every minute (`pr_poll_seconds`), others every 5. |
+| Check | CI: green check passing, yellow clock running, red X failing. It comes from an open PR, otherwise from the branch's latest commit on GitHub, so `main` shows one with no PR at all. Repos without CI show nothing. Running projects update every minute (`pr_poll_seconds`), others every 5. While a project's CI is running, and for 3 minutes after you push from it, it updates every 5 seconds (`pr_fast_seconds`); opening a project or pressing `r` updates right away. |
 | Agent | Spinner: working. Bell: waiting on you. `✻`: idle. `◐`: compacting. Pause: parked. |
 
 The project shown on the right sits in a thin gold box with its name in the top border

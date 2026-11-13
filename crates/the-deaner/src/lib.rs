@@ -8,6 +8,7 @@ pub mod cheatsheet;
 pub mod cli;
 pub mod engine;
 pub mod frame;
+pub mod heat;
 pub mod hooks;
 pub mod paths;
 pub mod peek;

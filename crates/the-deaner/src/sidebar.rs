@@ -165,10 +165,16 @@ fn event_loop(
         last = now;
         terminal.draw(|f| the_deaner_ui::draw(f, app))?;
 
+        // Once a resize has settled, keep the width only if you dragged the border; a
+        // window or tiling resize isn't a width you chose.
         if let Some((w, at)) = pending_width
             && at.elapsed() > Duration::from_secs(1)
         {
-            let _ = engine.update_state(|s| s.sidebar_width = Some(w));
+            if crate::frame::take_dragged(&crate::frame::frame_tmux(engine)) {
+                let _ = engine.update_state(|s| s.sidebar_width = Some(w));
+            } else {
+                crate::frame::keep_sidebar_width(engine);
+            }
             pending_width = None;
         }
 

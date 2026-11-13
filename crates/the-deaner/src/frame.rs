@@ -88,7 +88,9 @@ bind -n MouseDown1Pane select-pane -t = \; send-keys -M
 bind -n MouseDrag1Pane send-keys -M
 bind -n MouseUp1Pane send-keys -M
 bind -n MouseDragEnd1Pane send-keys -M
-bind -n MouseDrag1Border resize-pane -M
+# Dragging the border marks the resize as yours, so the sidebar saves its new width.
+# Window and tiling resizes don't, so they never overwrite the width you chose.
+bind -n MouseDrag1Border set -g @the_deaner_dragged 1 \; resize-pane -M
 bind -n WheelUpPane send-keys -M
 bind -n WheelDownPane send-keys -M
 bind -n MouseDown3Pane send-keys -M
@@ -149,11 +151,7 @@ pub fn open(engine: &Engine) -> Result<()> {
         ]);
     } else {
         let (cols, rows) = ratatui::crossterm::terminal::size().unwrap_or((160, 48));
-        let state = engine.state();
-        let width = state
-            .sidebar_width
-            .unwrap_or(engine.config.sidebar_width)
-            .clamp(16, cols.saturating_sub(20).max(16));
+        let width = sidebar_width_for(engine, cols);
         let env = format!("{FRAME_ENV}=1");
         // Loops keep the panes alive if a process exits or crashes.
         let sidebar = format!("while :; do {exe} sidebar; sleep 1; done");
@@ -254,6 +252,63 @@ pub fn term(engine: &Engine) -> Result<()> {
 pub fn detach(frame: &Tmux) -> Result<()> {
     frame.run(&["detach-client", "-s", &session_target(FRAME_SESSION)])?;
     Ok(())
+}
+
+/// The sidebar width for a window `cols` wide: the width you dragged it to, else the
+/// configured one, leaving the terminal at least 20 columns.
+#[must_use]
+pub fn sidebar_width_for(engine: &Engine, cols: u16) -> u16 {
+    engine
+        .state()
+        .sidebar_width
+        .unwrap_or(engine.config.sidebar_width)
+        .clamp(16, cols.saturating_sub(20).max(16))
+}
+
+/// Put the sidebar back to your width after a window resize (tmux takes the space out of
+/// the left pane, so a shrinking window crushes the sidebar). Run from the sidebar's own
+/// pane; leaves it alone while the sidebar is hidden.
+pub fn keep_sidebar_width(engine: &Engine) {
+    let Ok(pane) = std::env::var("TMUX_PANE") else {
+        return;
+    };
+    let frame = frame_tmux(engine);
+    let Ok(out) = frame.run(&[
+        "display",
+        "-p",
+        "-t",
+        &pane,
+        "#{window_width} #{pane_width} #{window_zoomed_flag}",
+    ]) else {
+        return;
+    };
+    let mut fields = out
+        .split_whitespace()
+        .map(|f| f.parse::<u16>().unwrap_or(0));
+    let (Some(window), Some(now), Some(zoomed)) = (fields.next(), fields.next(), fields.next())
+    else {
+        return;
+    };
+    let want = sidebar_width_for(engine, window);
+    if zoomed == 0 && now != want {
+        let _ = frame.run(&["resize-pane", "-t", &pane, "-x", &want.to_string()]);
+    }
+}
+
+/// Set by the frame while you drag the sidebar's border (see the frame config).
+pub const OPT_DRAGGED: &str = "@the_deaner_dragged";
+
+/// Whether the sidebar's last resize came from you dragging its border. Clears the mark, so
+/// the next resize has to earn it again.
+#[must_use]
+pub fn take_dragged(frame: &Tmux) -> bool {
+    let dragged = frame
+        .run(&["show", "-gv", OPT_DRAGGED])
+        .is_ok_and(|v| v.trim() == "1");
+    if dragged {
+        let _ = frame.run(&["set", "-gu", OPT_DRAGGED]);
+    }
+    dragged
 }
 
 /// How the sidebar shows a session in the terminal.

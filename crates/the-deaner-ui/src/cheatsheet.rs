@@ -100,8 +100,8 @@ pub fn entries(frame: &FrameKeys, tmux: &[TmuxShortcut], icons: &Icons) -> Vec<E
             (icons.checks_failing, "CI failing"),
             (icons.checks_pending, "CI running"),
             (
-                "Orange",
-                "An agent needs you, or finished while you were elsewhere",
+                "▌ name",
+                "Orange bar, cyan name: an agent needs you, or finished while you were away",
             ),
             ("Highlight", "The project shown on the right"),
             ("⠋", "Agent working"),

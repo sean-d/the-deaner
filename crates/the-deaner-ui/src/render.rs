@@ -27,6 +27,9 @@ struct Palette {
     branch: Style,
     merged: Style,
     attention: Style,
+    /// Names of a project that needs you: bold cyan, so they can't pass for the open
+    /// project's gold. The bar, bell and counts stay orange.
+    flagged: Style,
     border: Style,
 }
 
@@ -48,6 +51,7 @@ fn palette(_app: &App) -> Palette {
         branch: Style::new().fg(colors::BLUE),
         merged: Style::new().fg(colors::VIOLET),
         attention: Style::new().fg(colors::ATTENTION),
+        flagged: Style::new().fg(colors::CYAN).add_modifier(Modifier::BOLD),
         border: Style::new().fg(colors::LINE),
     }
 }
@@ -394,7 +398,7 @@ fn row_item<'a>(app: &App, p: &Palette, row: Row, index: usize, width: u16) -> L
             _ => None,
         };
         if let Some(name) = name
-            && name.style.fg != Some(crate::theme::ATTENTION)
+            && name.style.fg != Some(colors::CYAN)
         {
             name.style = name.style.fg(colors::GOLD);
         }
@@ -402,7 +406,7 @@ fn row_item<'a>(app: &App, p: &Palette, row: Row, index: usize, width: u16) -> L
     if open {
         let at = if boxed { WS_LABEL } else { WS_LABEL + 1 };
         if let Some(name) = line.spans.get_mut(at) {
-            if name.style.fg != Some(crate::theme::ATTENTION) {
+            if name.style.fg != Some(colors::CYAN) {
                 name.style = name.style.fg(colors::GOLD);
             }
             name.style = name.style.add_modifier(Modifier::BOLD);
@@ -486,7 +490,7 @@ fn agent_line<'a>(app: &App, p: &Palette, tab: &TabView, width: u16) -> Line<'a>
 fn box_top<'a>(app: &App, p: &Palette, g: &RepoGroup, width: u16) -> Line<'a> {
     let gold = Style::new().fg(colors::GOLD);
     let attention = g.workspaces.iter().any(|w| app.needs_attention(w));
-    let name_style = if attention { p.attention } else { gold };
+    let name_style = if attention { p.flagged } else { gold };
     let mut spans = vec![Span::styled("╭ ", gold)];
     if g.collapsed && app.filter.is_empty() {
         spans.push(Span::styled(format!("{} ", app.icons.collapsed), p.muted));
@@ -607,7 +611,7 @@ fn repo_line<'a>(app: &App, p: &Palette, g: &RepoGroup, width: u16) -> Line<'a> 
     }
     let attention = g.workspaces.iter().any(|w| app.needs_attention(w));
     let name_style = match g.section {
-        _ if attention => p.attention,
+        _ if attention => p.flagged,
         Section::Inactive => p.muted,
         Section::Pinned | Section::Active => Style::new(),
     };
@@ -694,13 +698,13 @@ fn ws_line<'a>(
 ) -> Line<'a> {
     let attention = app.needs_attention(w);
     let label_style = match w.status {
-        _ if attention => p.attention.add_modifier(Modifier::BOLD),
+        _ if attention => p.flagged,
         WsStatus::Live => Style::new(),
         WsStatus::Parked | WsStatus::Stopped => p.muted,
     };
     let lead = match repo {
         Some(name) => {
-            let style = if attention { p.attention } else { p.muted };
+            let style = if attention { p.flagged } else { p.muted };
             vec![
                 Span::styled(INACTIVE_MARK, p.muted),
                 Span::styled(name.to_string(), style.add_modifier(Modifier::BOLD)),
@@ -837,7 +841,11 @@ fn draw_help(frame: &mut Frame<'_>, p: &Palette, icons: &Icons, area: Rect, scro
         (icons.checks_passing, p.good, "CI passing"),
         (icons.checks_failing, p.bad, "CI failing"),
         (icons.checks_pending, p.warn, "CI running"),
-        ("Orange", p.attention, "Needs you, or finished elsewhere"),
+        (
+            "▌ name",
+            p.attention,
+            "Orange bar, cyan name: needs you, or finished elsewhere",
+        ),
         (SPINNER[0], p.busy, "Agent working"),
         (
             "!1 ⠋2",

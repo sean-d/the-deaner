@@ -551,13 +551,13 @@ fn needing_attention_turns_orange_until_you_look_then_the_symbol_is_green() {
     assert_ne!(cell_at(&mut app, "shop-api").fg, ATTENTION);
     assert_eq!(symbol_at(&mut app, "sec-bump").fg, colors::BUSY, "working");
 
-    // Waiting on you: the repo name orange, the row on an orange background.
+    // Waiting on you: the names bold cyan, an orange bar on the row.
     app.set_groups(fixture(AgentState::Awaiting));
-    assert_eq!(cell_at(&mut app, "shop-api").fg, ATTENTION);
+    assert_eq!(cell_at(&mut app, "shop-api").fg, colors::CYAN);
     assert!(flagged(&mut app, "sec-bump"));
     assert_ne!(
         cell_at(&mut app, "the-deaner").fg,
-        ATTENTION,
+        colors::CYAN,
         "only that repo"
     );
 
@@ -566,7 +566,7 @@ fn needing_attention_turns_orange_until_you_look_then_the_symbol_is_green() {
     assert_ne!(cell_at(&mut app, "shop-api").fg, ATTENTION);
     app.set_groups(fixture(AgentState::Idle));
     app.set_groups(fixture(AgentState::Idle));
-    assert_eq!(cell_at(&mut app, "shop-api").fg, ATTENTION);
+    assert_eq!(cell_at(&mut app, "shop-api").fg, colors::CYAN);
     assert!(flagged(&mut app, "sec-bump"), "until you look");
 
     // Open it: the row gets the normal highlight.
@@ -584,7 +584,7 @@ fn needing_attention_turns_orange_until_you_look_then_the_symbol_is_green() {
 
     // Move away again: it's been seen, so the symbol is green and the name is normal.
     app.set_groups(with_sec_bump_open(false));
-    assert_ne!(cell_at(&mut app, "sec-bump").fg, ATTENTION);
+    assert_ne!(cell_at(&mut app, "sec-bump").fg, colors::CYAN);
     assert_eq!(symbol_at(&mut app, "sec-bump").fg, colors::GREEN);
 }
 
@@ -980,8 +980,8 @@ fn a_row_stays_orange_until_you_go_there() {
     assert!(!flagged(&mut app, "sec-bump"), "been there");
     assert_eq!(
         cell_at(&mut app, "sec-bump").fg,
-        ATTENTION,
-        "still waiting on you"
+        the_deaner_ui::theme::colors::CYAN,
+        "still waiting on you: the name stays cyan"
     );
 
     // It works, then finishes while you're elsewhere: orange again until you look.

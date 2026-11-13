@@ -169,12 +169,6 @@ played by Paul Spence, whose answer to everything is *just give'r*: keep going. 
 the-deaner keeps your agents going so you can too. It's a tribute; the project has no connection to
 the film or its makers.
 
-## Thanks
-
-- [Supacode](https://github.com/supabitapp/supacode), the macOS app the-deaner started out replacing.
-- [party-hud](https://github.com/mangow314/party-hud), a tmux plugin with lots of good ideas: the
-  footer key hints, jumping to the next agent that needs you, peeking, agent counts.
-
 ## License
 
 MIT

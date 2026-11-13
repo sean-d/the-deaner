@@ -28,6 +28,8 @@ pub struct State {
     pub last_session: Option<String>,
     /// Said no to installing Claude's hooks on startup; don't ask again.
     pub hooks_declined: bool,
+    /// The version that last ran the sidebar, to say "Updated to …" once after an upgrade.
+    pub last_version: Option<String>,
 }
 
 impl State {

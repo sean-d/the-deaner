@@ -91,6 +91,7 @@ pub fn run(engine: Engine, standalone: bool) -> Result<()> {
     app.tab_choices = Box::new(move |repo| choices_engine.tab_choices(repo));
     offer_restore(&engine, &mut app);
     offer_hooks(&engine, &mut app);
+    announce_upgrade(&engine, &mut app);
 
     let mut terminal = ratatui::init();
     let _ = execute!(std::io::stdout(), EnableMouseCapture);
@@ -125,6 +126,23 @@ fn offer_restore(engine: &Engine, app: &mut App) {
         ),
         Command::Restore,
     );
+}
+
+/// Once after an upgrade: say which version you're on now, so a restart that picked up
+/// the new binary is visible without `the-deaner --version`.
+fn announce_upgrade(engine: &Engine, app: &mut App) {
+    use crate::upgrade::{CURRENT, just_upgraded};
+    let state = engine.state();
+    if state.last_version.as_deref() == Some(CURRENT) {
+        return;
+    }
+    if just_upgraded(state.last_version.as_deref(), !state.repos.is_empty()) {
+        app.toast(
+            Toast::success(format!("Updated to the-deaner {CURRENT}"))
+                .duration(Duration::from_secs(12)),
+        );
+    }
+    let _ = engine.update_state(|s| s.last_version = Some(CURRENT.into()));
 }
 
 /// Claude is here but can't tell us what it's doing yet: offer the hooks, once. A restore

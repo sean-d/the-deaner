@@ -191,6 +191,17 @@ pub fn check_daily(paths: &Paths) -> Option<String> {
     cache.latest.filter(|v| is_newer(v, CURRENT))
 }
 
+/// Whether to say "Updated to <CURRENT>" on this start, given the version that ran last.
+/// Nothing saved means either a brand-new install (no projects yet: nothing to announce)
+/// or an upgrade from before versions were saved (0.1.4).
+#[must_use]
+pub fn just_upgraded(last: Option<&str>, has_projects: bool) -> bool {
+    match last {
+        Some(v) => is_newer(CURRENT, v),
+        None => has_projects,
+    }
+}
+
 // ---- installing --------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -354,7 +365,12 @@ pub fn run(engine: &Engine, check_only: bool, yes: bool) -> Result<()> {
     }
     match how {
         Install::Pacman => install_pacman(engine, &release)?,
-        Install::Homebrew => interactive("brew", &["upgrade", "the-deaner"])?,
+        Install::Homebrew => {
+            // `brew upgrade` refreshes taps at most once a day by itself, so it may not
+            // know about a release from an hour ago yet.
+            interactive("brew", &["update"])?;
+            interactive("brew", &["upgrade", "the-deaner"])?;
+        }
         Install::Other => unreachable!(),
     }
 
@@ -408,6 +424,21 @@ mod tests {
         let none = Release::parse(r#"{"tag_name":"v0.1.4","assets":[]}"#).unwrap();
         assert!(none.arch_package().is_none());
         assert!(Release::parse("{}").is_err());
+    }
+
+    #[test]
+    fn says_updated_only_after_an_upgrade() {
+        assert!(just_upgraded(Some("0.0.1"), true));
+        assert!(!just_upgraded(Some(CURRENT), true));
+        assert!(
+            !just_upgraded(Some("999.0.0"), true),
+            "a downgrade isn't news"
+        );
+        assert!(
+            just_upgraded(None, true),
+            "from 0.1.4, which saved no version"
+        );
+        assert!(!just_upgraded(None, false), "a brand-new install");
     }
 
     #[test]

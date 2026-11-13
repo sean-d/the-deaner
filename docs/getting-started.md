@@ -144,5 +144,6 @@ set -as terminal-features ",*:extkeys"
 | pacman | download the new package, `sudo pacman -U` it |
 | cargo | `cargo install --locked --force --git https://github.com/sean-d/the-deaner the-deaner` |
 
-Running sessions are not affected. The sidebar picks up the new binary the next time it restarts
-(or run `the-deaner shutdown`, then `the-deaner`).
+Running sessions are not affected. To switch to the new version, run `the-deaner restart`, from a
+the-deaner tab or any other terminal: it saves your workspaces, stops, and comes back in the same
+window, offering to restore them.

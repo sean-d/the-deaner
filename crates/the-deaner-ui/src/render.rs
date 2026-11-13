@@ -62,8 +62,9 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
     frame.buffer_mut().set_style(full, crate::theme::base());
     let area = frame.area();
     let p = palette(app);
+    let footer_rows = if app.update.is_some() { 3 } else { 2 };
     let [list_area, footer] =
-        Layout::vertical([Constraint::Min(1), Constraint::Length(2)]).areas(area);
+        Layout::vertical([Constraint::Min(1), Constraint::Length(footer_rows)]).areas(area);
 
     app.list_area = list_area;
     app.scroll_marks = None;
@@ -231,8 +232,24 @@ fn dialog_block<'a>(p: &Palette, title: &str) -> Block<'a> {
 }
 
 /// Two rows at the bottom: key hints, and how many agents are waiting on you or working.
-/// A filter, when there is one, takes the top row.
+/// A filter, when there is one, takes the top row. A new version, when there is one, gets
+/// a row above them.
 fn draw_footer(frame: &mut Frame<'_>, app: &App, p: &Palette, area: Rect) {
+    let area = match &app.update {
+        Some(version) => {
+            let [news, rest] =
+                Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(area);
+            frame.render_widget(
+                Line::from(vec![
+                    Span::styled(format!(" ↑ {version}"), p.good.add_modifier(Modifier::BOLD)),
+                    Span::styled(" · the-deaner upgrade", p.muted),
+                ]),
+                news,
+            );
+            rest
+        }
+        None => area,
+    };
     let [top, bottom] = Layout::vertical([Constraint::Length(1); 2]).areas(area);
     let [hints, counts] = footer_lines(app, p, area.width);
     match &app.mode {

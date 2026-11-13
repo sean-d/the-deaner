@@ -50,8 +50,16 @@ impl Outcome {
 #[derive(Debug)]
 enum Msg {
     Groups(Vec<RepoGroup>),
-    Progress { id: String, text: String },
-    Done { id: String, outcome: Outcome },
+    Progress {
+        id: String,
+        text: String,
+    },
+    Done {
+        id: String,
+        outcome: Outcome,
+    },
+    /// A newer the-deaner is out (or not, any more).
+    Update(Option<String>),
 }
 
 /// Run the sidebar until quit (standalone) or forever (inside the frame).
@@ -63,6 +71,9 @@ pub fn run(engine: Engine, standalone: bool) -> Result<()> {
     let (kick_tx, kick_rx) = mpsc::channel::<()>();
 
     spawn_refresher(engine.clone(), msg_tx.clone(), kick_tx.clone(), kick_rx);
+    if engine.config.update_check {
+        spawn_update_check(engine.paths.clone(), msg_tx.clone());
+    }
     let switcher = Arc::new(Switcher::detect(&engine));
     let runner_engine = engine.clone();
     let executor = Executor::new(
@@ -158,6 +169,7 @@ fn event_loop(
                 Msg::Groups(g) => app.set_groups(g),
                 Msg::Progress { id, text } => app.progress(&id, text),
                 Msg::Done { id, outcome } => app.finish(&id, outcome.toast()),
+                Msg::Update(v) => app.update = v,
             }
         }
         let now = Instant::now();
@@ -202,6 +214,20 @@ fn event_loop(
             None => {}
         }
     }
+}
+
+/// Ask GitHub about new versions at most once a day (the answer is kept in the state
+/// folder, so restarts don't ask again), and look at that answer every hour.
+fn spawn_update_check(paths: crate::paths::Paths, tx: Sender<Msg>) {
+    std::thread::spawn(move || {
+        loop {
+            let newer = crate::upgrade::check_daily(&paths);
+            if tx.send(Msg::Update(newer)).is_err() {
+                return;
+            }
+            std::thread::sleep(Duration::from_secs(60 * 60));
+        }
+    });
 }
 
 // ---- refresher -------------------------------------------------------------
@@ -697,7 +723,7 @@ mod tests {
         loop {
             match rx.recv_timeout(Duration::from_secs(5)).expect("a message") {
                 Msg::Done { outcome, .. } => return outcome,
-                Msg::Progress { .. } | Msg::Groups(_) => {}
+                Msg::Progress { .. } | Msg::Groups(_) | Msg::Update(_) => {}
             }
         }
     }

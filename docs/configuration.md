@@ -43,6 +43,10 @@ pr_fast_seconds = 5
 # 0 turns it off; the minimum otherwise is 30.
 fetch_seconds = 60
 
+# Once a day, ask GitHub whether a newer the-deaner is out, and show `↑ <version>` at the bottom
+# of the sidebar. It never installs anything by itself: run `the-deaner upgrade` for that.
+update_check = true
+
 # Where `w` / `the-deaner new` put worktrees. {repo_parent}, {repo} and {branch} are substituted.
 worktree_dir = "{repo_parent}/{repo}.worktrees/{branch}"
 

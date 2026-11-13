@@ -827,6 +827,26 @@ fn agent_titles_show_under_their_workspace_and_the_cursor_skips_them() {
 }
 
 #[test]
+fn a_new_version_gets_a_line_above_the_footer() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    let before = render(&mut app, 40, 12);
+    assert!(!before.contains("upgrade"));
+    app.update = Some("0.1.4".into());
+    let after = render(&mut app, 40, 12);
+    let lines: Vec<&str> = after.lines().collect();
+    let news = lines
+        .iter()
+        .position(|l| l.contains("↑ 0.1.4 · the-deaner upgrade"));
+    let keys = lines.iter().position(|l| l.contains("? keys"));
+    assert!(
+        matches!((news, keys), (Some(n), Some(k)) if n + 1 == k),
+        "{after}"
+    );
+    assert!(after.contains("q detach"));
+}
+
+#[test]
 fn q_detaches_in_the_frame_and_quits_standalone() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Idle));

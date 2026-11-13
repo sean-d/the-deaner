@@ -15,7 +15,8 @@
 use crate::engine::Engine;
 use anyhow::{Context, Result};
 use std::io::Write;
-use std::time::Duration;
+use std::path::PathBuf;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use the_deaner_core::config::FrameKeys;
 use the_deaner_tmux::{Tmux, session_target};
 
@@ -114,7 +115,7 @@ fn shell_quote(s: &str) -> String {
 /// # Errors
 /// When the-deaner's own path can't be found or tmux can't start.
 pub fn open_popup(frame: &Tmux, subcommand: &str) -> Result<()> {
-    let exe = std::env::current_exe().context("locating the the-deaner binary")?;
+    let exe = exe_path()?;
     let command = format!(
         "env {FRAME_ENV}=1 {} {subcommand}",
         shell_quote(&exe.to_string_lossy())
@@ -135,7 +136,7 @@ pub fn open_popup(frame: &Tmux, subcommand: &str) -> Result<()> {
 /// # Errors
 /// When tmux cannot be started.
 pub fn open(engine: &Engine) -> Result<()> {
-    let exe = std::env::current_exe().context("locating the the-deaner binary")?;
+    let exe = exe_path()?;
     let exe = shell_quote(&exe.to_string_lossy());
     crate::paths::write_atomic(
         &engine.paths.frame_conf(),
@@ -187,15 +188,93 @@ pub fn open(engine: &Engine) -> Result<()> {
         };
         let _ = frame.select_pane(focus);
     }
+    let attached_at = now_ms();
     let status = frame
         .command()
         .args(["attach-session", "-t", &session_target(FRAME_SESSION)])
         .status()
         .context("attaching to the the-deaner frame")?;
+    if restart_requested_since(&engine.paths.restart_marker(), attached_at) {
+        return relaunch(engine);
+    }
     if !status.success() {
         anyhow::bail!("tmux attach failed");
     }
     Ok(())
+}
+
+/// This binary's path as it is on disk now. On Linux, a binary replaced while it runs
+/// (`pacman -U`) reads as `/usr/bin/the-deaner (deleted)`; the new one is at the plain path.
+///
+/// # Errors
+/// When the OS can't say where the binary is.
+pub fn exe_path() -> Result<PathBuf> {
+    let exe = std::env::current_exe().context("locating the the-deaner binary")?;
+    Ok(strip_deleted(exe))
+}
+
+fn strip_deleted(exe: PathBuf) -> PathBuf {
+    match exe.to_str().and_then(|s| s.strip_suffix(" (deleted)")) {
+        Some(s) => PathBuf::from(s),
+        None => exe,
+    }
+}
+
+fn now_ms() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis())
+}
+
+/// Ask frame clients to start the-deaner again once it stops. Each client checks the
+/// time against when it attached, so one restart brings back every window (desk and
+/// SSH), and an old marker never brings back a window you closed on purpose.
+///
+/// # Errors
+/// When the state folder can't be written.
+pub fn request_restart(engine: &Engine) -> Result<()> {
+    crate::paths::write_atomic(&engine.paths.restart_marker(), &now_ms().to_string())
+        .context("writing the restart marker")
+}
+
+fn restart_requested_since(marker: &std::path::Path, since_ms: u128) -> bool {
+    std::fs::read_to_string(marker)
+        .ok()
+        .and_then(|s| s.trim().parse::<u128>().ok())
+        .is_some_and(|at| at >= since_ms)
+}
+
+/// Whether this process runs inside a pane of the workspace server, so stopping it ends
+/// this process too.
+#[must_use]
+pub fn inside_workspaces(engine: &Engine) -> bool {
+    let (Ok(tmux), Some(name)) = (std::env::var("TMUX"), engine.tmux.socket_name()) else {
+        return false;
+    };
+    let socket = tmux.split(',').next().unwrap_or_default();
+    std::path::Path::new(socket)
+        .file_name()
+        .is_some_and(|f| f == name)
+}
+
+/// Start the-deaner again in this terminal, from the binary now on disk (a new version
+/// after an upgrade). Waits for the old servers to go first: a sidebar that still sees
+/// the old workspaces wouldn't offer to restore them.
+///
+/// # Errors
+/// Only when the new process can't be started.
+pub fn relaunch(engine: &Engine) -> Result<()> {
+    use std::os::unix::process::CommandExt;
+    let frame = frame_tmux(engine);
+    for _ in 0..100 {
+        if !engine.tmux.is_running() && !frame.is_running() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let exe = exe_path()?;
+    let err = std::process::Command::new(&exe).exec();
+    Err(err).with_context(|| format!("starting {} again", exe.display()))
 }
 
 /// `the-deaner term`: keep a tmux client for the workspace server attached in the terminal pane.
@@ -390,5 +469,30 @@ mod tests {
         assert!(conf.contains("bind -n C-Space select-pane -t :.+"));
         assert!(conf.contains("bind -n M-b select-pane -t :.1"));
         assert!(conf.contains("set -g prefix None"));
+    }
+
+    #[test]
+    fn only_a_restart_asked_after_attaching_counts() {
+        let dir = tempfile::tempdir().unwrap();
+        let marker = dir.path().join("restart");
+        assert!(!restart_requested_since(&marker, 1_000));
+        std::fs::write(&marker, "2000").unwrap();
+        assert!(restart_requested_since(&marker, 1_000));
+        assert!(restart_requested_since(&marker, 2_000));
+        assert!(!restart_requested_since(&marker, 2_001));
+        std::fs::write(&marker, "garbage").unwrap();
+        assert!(!restart_requested_since(&marker, 0));
+    }
+
+    #[test]
+    fn a_replaced_binary_resolves_to_the_new_one() {
+        assert_eq!(
+            strip_deleted(PathBuf::from("/usr/bin/the-deaner (deleted)")),
+            PathBuf::from("/usr/bin/the-deaner")
+        );
+        assert_eq!(
+            strip_deleted(PathBuf::from("/opt/homebrew/bin/the-deaner")),
+            PathBuf::from("/opt/homebrew/bin/the-deaner")
+        );
     }
 }

@@ -16,3 +16,4 @@ pub mod poller;
 pub mod sidebar;
 pub mod titles;
 pub mod toast;
+pub mod upgrade;

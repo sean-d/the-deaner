@@ -99,6 +99,21 @@ pub enum Cmd {
         #[arg(long)]
         force: bool,
     },
+    /// Save everything, stop, and start again (picks up a newly installed version)
+    Restart {
+        /// Don't ask about agents that are still working
+        #[arg(long)]
+        force: bool,
+    },
+    /// Install the newest release from GitHub (pacman or Homebrew), then restart into it
+    Upgrade {
+        /// Only say whether there's a newer version
+        #[arg(long)]
+        check: bool,
+        /// Don't ask before installing
+        #[arg(long, short)]
+        yes: bool,
+    },
     /// Install the-deaner's status hooks into an agent's settings
     InstallHooks {
         #[arg(default_value = "claude")]
@@ -289,7 +304,9 @@ pub fn run(cli: Cli) -> Result<()> {
             }
             Ok(())
         }
-        Some(Cmd::Shutdown { force }) => shutdown(&engine, force),
+        Some(Cmd::Shutdown { force }) => shutdown(&engine, force, false),
+        Some(Cmd::Restart { force }) => shutdown(&engine, force, true),
+        Some(Cmd::Upgrade { check, yes }) => crate::upgrade::run(&engine, check, yes),
         Some(Cmd::InstallHooks {
             agent,
             uninstall,
@@ -373,7 +390,11 @@ fn ls(engine: &Engine, json: bool) -> Result<()> {
     Ok(())
 }
 
-fn shutdown(engine: &Engine, force: bool) -> Result<()> {
+/// Save and stop everything; with `restart`, start again from the binary now on disk.
+///
+/// # Errors
+/// When the terminal can't be read, or the new version can't be started.
+pub(crate) fn shutdown(engine: &Engine, force: bool, restart: bool) -> Result<()> {
     let mut active = engine.active_agents();
     if !force && !active.is_empty() {
         println!("Agents still active:");
@@ -420,11 +441,27 @@ fn shutdown(engine: &Engine, force: bool) -> Result<()> {
         ),
         None => println!("nothing running; keeping the last snapshot"),
     }
-    println!("stopping the-deaner. Run `the-deaner` to pick up where you left off.");
+    let frame_tmux = frame::frame_tmux(engine);
+    // Who brings it back: open windows start again by themselves (see `frame::open`);
+    // otherwise this terminal does, unless it's a workspace tab that's about to close.
+    let windows = !frame_tmux.clients().is_empty();
+    let here = restart && !windows && !frame::inside_workspaces(engine);
+    if restart {
+        frame::request_restart(engine)?;
+    }
+    if restart && windows {
+        println!("restarting the-deaner in its window(s)");
+    } else if !here {
+        println!("stopping the-deaner. Run `the-deaner` to pick up where you left off.");
+    }
     // The frame goes first: this command may be running inside a workspace tab, and
     // stopping the workspace server ends this process along with that tab.
-    frame::frame_tmux(engine).kill_server();
+    frame_tmux.kill_server();
     engine.tmux.kill_server();
+    if here {
+        println!("restarting the-deaner");
+        return frame::relaunch(engine);
+    }
     Ok(())
 }
 

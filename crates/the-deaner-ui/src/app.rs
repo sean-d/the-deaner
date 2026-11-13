@@ -122,6 +122,8 @@ pub struct App {
     pub standalone: bool,
     /// Choices for "new tab", given a repo path.
     pub tab_choices: TabChoices,
+    /// A newer the-deaner is out: shown above the footer until you upgrade.
+    pub update: Option<String>,
 }
 
 impl Default for App {
@@ -153,6 +155,7 @@ impl App {
             open_style: the_deaner_core::OpenStyle::default(),
             standalone: false,
             tab_choices: Box::new(|_| vec![TabSpec::new("shell", None)]),
+            update: None,
         }
     }
 

@@ -89,6 +89,13 @@ impl Paths {
     pub fn frame_conf(&self) -> PathBuf {
         self.state_dir.join("frame.tmux.conf")
     }
+
+    /// Written by `the-deaner restart` just before it stops everything; holds the time
+    /// (unix ms) it asked. Frame clients attached before then start the-deaner again.
+    #[must_use]
+    pub fn restart_marker(&self) -> PathBuf {
+        self.state_dir.join("restart")
+    }
 }
 
 /// Write `contents` to `path` atomically (temp file + rename), creating parent dirs.

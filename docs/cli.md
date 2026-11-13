@@ -25,6 +25,8 @@ Commands:
   park           Save a workspace and stop its session; open it again to bring it back
   restore        Rebuild workspaces from the latest snapshot
   shutdown       Done for the day: save everything, then stop all sessions
+  restart        Save everything, stop, and start again (picks up a newly installed version)
+  upgrade        Install the newest release from GitHub (pacman or Homebrew), then restart into it
   install-hooks  Install the-deaner's status hooks into an agent's settings
   browse         Browse folders to pick a project, add it, and open it (`a` in the sidebar)
   cheatsheet     Open the searchable shortcut cheat sheet (Alt-/ inside the-deaner)
@@ -281,6 +283,39 @@ Usage: the-deaner shutdown [OPTIONS]
 Options:
       --force
           Don't ask about agents that are still working
+
+  -h, --help
+          Print help
+```
+
+## the-deaner restart
+
+```text
+Save everything, stop, and start again (picks up a newly installed version)
+
+Usage: the-deaner restart [OPTIONS]
+
+Options:
+      --force
+          Don't ask about agents that are still working
+
+  -h, --help
+          Print help
+```
+
+## the-deaner upgrade
+
+```text
+Install the newest release from GitHub (pacman or Homebrew), then restart into it
+
+Usage: the-deaner upgrade [OPTIONS]
+
+Options:
+      --check
+          Only say whether there's a newer version
+
+  -y, --yes
+          Don't ask before installing
 
   -h, --help
           Print help

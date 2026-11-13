@@ -115,6 +115,9 @@ pub struct Config {
     /// How often to `git fetch` repos with a running session, so ahead/behind stays
     /// current. 0 disables background fetching.
     pub fetch_seconds: u64,
+    /// Ask GitHub once a day whether a newer the-deaner is out, and say so in the sidebar.
+    /// It never installs anything; that's `the-deaner upgrade`.
+    pub update_check: bool,
     /// Where new worktrees go. `{repo_parent}`, `{repo}` and `{branch}` are substituted.
     pub worktree_dir: String,
     /// Process names that count as "just a shell" (nothing to restore).
@@ -141,6 +144,7 @@ impl Default for Config {
             pr_poll_seconds: 60,
             pr_fast_seconds: 5,
             fetch_seconds: 60,
+            update_check: true,
             worktree_dir: "{repo_parent}/{repo}.worktrees/{branch}".into(),
             shells: ["zsh", "bash", "fish", "sh", "dash", "nu", "elvish", "xonsh"]
                 .map(String::from)

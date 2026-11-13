@@ -3,5 +3,5 @@ post_install() {
 }
 
 post_upgrade() {
-    echo "Running sessions keep going. 'the-deaner shutdown', then 'the-deaner', picks up the new version."
+    echo "Running sessions keep going. 'the-deaner restart' picks up the new version."
 }

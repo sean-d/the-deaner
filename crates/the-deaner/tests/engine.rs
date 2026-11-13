@@ -49,7 +49,7 @@ fn fixture() -> Fixture {
     std::fs::write(
         &agent,
         format!(
-            "#!/bin/sh\necho \"start $*\" >> '{}'\nexec sleep 300\n",
+            "#!/bin/sh\necho \"start $*\" >> '{}'\nexec tail -f /dev/null\n",
             agent_log.display()
         ),
     )
@@ -568,4 +568,47 @@ fn a_deleted_project_leaves_the_sidebar_and_cannot_start() {
     assert!(names().contains(&"throwaway".to_string()));
     f.srv.tmux.kill_session(&name).unwrap();
     assert_eq!(names(), ["api"]);
+}
+
+#[test]
+fn an_agent_killed_hard_stops_counting_once_a_shell_is_back() {
+    let f = fixture();
+    let e = &f.engine;
+    e.add_repo(&f.repo.display().to_string()).unwrap();
+    let main = e.ensure_session(&e.workspaces()[0]).unwrap();
+    wait_for("agent start", || log(&f).contains("start"));
+
+    // The shell tab still says "claude, busy", as a claude killed with -9 leaves it: its
+    // SessionEnd hook never ran, and the shell is back in the foreground.
+    let shell = e
+        .managed_panes()
+        .into_iter()
+        .find(|p| p.session == main && p.window_name == "shell")
+        .expect("shell pane")
+        .pane_id;
+    let payload = HookPayload::parse(r#"{"session_id":"gone"}"#);
+    hooks::handle(
+        &f.srv.tmux,
+        Some(&shell),
+        "claude",
+        HookEvent::SessionStart,
+        &payload,
+    );
+    hooks::handle(
+        &f.srv.tmux,
+        Some(&shell),
+        "claude",
+        HookEvent::Busy,
+        &payload,
+    );
+
+    let live = e.find("api").unwrap();
+    assert_eq!(live.agent, AgentState::None, "{:?}", live.tabs);
+    let shell_tab = live.tabs.iter().find(|t| t.name == "shell").unwrap();
+    assert!(shell_tab.agent.is_none(), "{:?}", live.tabs);
+
+    // The real (fake) agent in the agent tab still counts.
+    let agent = agent_pane(&f, &main);
+    hooks::handle(&f.srv.tmux, Some(&agent), "fake", HookEvent::Busy, &payload);
+    assert_eq!(e.find("api").unwrap().agent, AgentState::Busy);
 }

@@ -173,7 +173,20 @@ impl Engine {
         checkouts: &dyn Fn(&RepoEntry) -> Vec<Checkout>,
     ) -> Vec<WorkspaceView> {
         let state = self.state();
-        let panes = self.managed_panes();
+        // For the sidebar only: an agent killed hard still has its status on the pane.
+        // Snapshots keep it, so a restore can still resume that conversation.
+        let panes: Vec<PaneInfo> = self
+            .managed_panes()
+            .into_iter()
+            .map(|mut p| {
+                if agent_gone(&p, &self.config.shells) {
+                    p.state = AgentState::None;
+                    p.agent = None;
+                    p.agent_session = None;
+                }
+                p
+            })
+            .collect();
         let parked = self.parked();
         let attached: Vec<String> = self.tmux.clients().into_iter().map(|(_, s)| s).collect();
 
@@ -917,6 +930,14 @@ fn same_path(a: &Path, b: &Path) -> bool {
             .ok()
             .zip(b.canonicalize().ok())
             .is_some_and(|(x, y)| x == y)
+}
+
+/// An agent's status stays on its pane until its `SessionEnd` hook clears it. If the agent
+/// was killed hard (`kill -9`, a crash) that never runs; once a plain shell is back in the
+/// foreground, the agent is gone whatever the pane says.
+#[must_use]
+pub fn agent_gone(pane: &PaneInfo, shells: &[String]) -> bool {
+    pane.agent.is_some() && shells.contains(&pane.current_command)
 }
 
 /// Fill live-session fields from panes.

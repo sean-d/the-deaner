@@ -1,10 +1,16 @@
 # the-deaner
 
-<!-- Image goes here once there's one we're allowed to use (see "The name" below). -->
+<p align="center">
+  <img src="docs/images/deaner.jpg" alt="Deaner, arms crossed, horns up" width="260">
+</p>
 
-> ### *Just give'r.*
-> Run a dozen coding agents across your repos without losing track of any of them.
-> Shut it all down at night, bring it all back in the morning, and keep going.
+<p align="center">
+  <b><i>Turn up the good, turn down the suck.</i></b><br>
+  <b><i>Just give'r.</i></b>
+</p>
+
+Run a dozen coding agents across your repos without losing track of any of them. Shut it all down
+at night, bring it all back in the morning, and keep going.
 
 the-deaner is a command center for running coding agents (Claude Code, codex, aider, anything)
 side by side in the terminal. It's a sidebar that knows every repo, worktree and agent you have
@@ -165,9 +171,15 @@ reads that along with git, `gh` and Claude's transcripts. More in [architecture]
 ## The name
 
 Named for Dean "Deaner" Murdoch of [*FUBAR*](https://en.wikipedia.org/wiki/FUBAR_(film)) (2002),
-played by Paul Spence, whose answer to everything is *just give'r*: keep going. That's the job here.
-the-deaner keeps your agents going so you can too. It's a tribute; the project has no connection to
-the film or its makers.
+played by Paul Spence. Deaner lives by two mottos: *just give'r*, and this one.
+
+**Turn up the good, turn down the suck.** Deaner treats life like a stereo: happiness and misery
+are knobs, and you set them. Running agents the usual way has the suck knob cranked: a pile of
+tmux panes, terminal tabs and windows, a claude somewhere waiting on you that you won't notice for
+twenty minutes, and no idea which one finished. the-deaner turns that down: one sidebar, every
+project and every agent, what each one is doing, and what needs you, in orange.
+
+It's a tribute; the project has no connection to the film or its makers.
 
 ## License
 

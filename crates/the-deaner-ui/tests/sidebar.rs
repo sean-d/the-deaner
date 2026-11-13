@@ -451,6 +451,29 @@ fn a_browses_inside_the_frame_and_prompts_outside_it() {
     assert!(matches!(app.mode(), Mode::Prompt { .. }));
 }
 
+/// Whether the row containing `needle` has the orange "needs you" bar near its left edge,
+/// and no orange fill.
+fn flagged(app: &mut App, needle: &str) -> bool {
+    use the_deaner_ui::theme::ATTENTION;
+    let mut term = Terminal::new(TestBackend::new(34, 40)).unwrap();
+    term.draw(|f| draw(f, app)).unwrap();
+    let buf = term.backend().buffer();
+    let width = usize::from(buf.area.width);
+    for row in buf.content.chunks(width) {
+        let text: String = row.iter().map(ratatui::buffer::Cell::symbol).collect();
+        if text.contains(needle) {
+            assert!(
+                row.iter().all(|c| c.bg != ATTENTION),
+                "no orange fill: {text}"
+            );
+            return row[..3]
+                .iter()
+                .any(|c| c.symbol() == "▌" && c.fg == ATTENTION);
+        }
+    }
+    panic!("{needle} not on screen");
+}
+
 fn cell_at(app: &mut App, needle: &str) -> ratatui::buffer::Cell {
     // Tall enough that toasts stacked at the bottom don't cover the rows being checked.
     let mut term = Terminal::new(TestBackend::new(34, 40)).unwrap();
@@ -531,8 +554,7 @@ fn needing_attention_turns_orange_until_you_look_then_the_symbol_is_green() {
     // Waiting on you: the repo name orange, the row on an orange background.
     app.set_groups(fixture(AgentState::Awaiting));
     assert_eq!(cell_at(&mut app, "shop-api").fg, ATTENTION);
-    assert_eq!(cell_at(&mut app, "sec-bump").bg, ATTENTION);
-    assert_eq!(symbol_at(&mut app, "sec-bump").bg, ATTENTION);
+    assert!(flagged(&mut app, "sec-bump"));
     assert_ne!(
         cell_at(&mut app, "the-deaner").fg,
         ATTENTION,
@@ -545,11 +567,7 @@ fn needing_attention_turns_orange_until_you_look_then_the_symbol_is_green() {
     app.set_groups(fixture(AgentState::Idle));
     app.set_groups(fixture(AgentState::Idle));
     assert_eq!(cell_at(&mut app, "shop-api").fg, ATTENTION);
-    assert_eq!(
-        cell_at(&mut app, "sec-bump").bg,
-        ATTENTION,
-        "until you look"
-    );
+    assert!(flagged(&mut app, "sec-bump"), "until you look");
 
     // Open it: the row gets the normal highlight.
     let with_sec_bump_open = |open: bool| {
@@ -933,12 +951,12 @@ fn a_row_stays_orange_until_you_go_there() {
     use the_deaner_ui::theme::ATTENTION;
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Busy));
-    assert_ne!(cell_at(&mut app, "sec-bump").bg, ATTENTION, "nothing yet");
+    assert!(!flagged(&mut app, "sec-bump"), "nothing yet");
 
     // sec-bump starts waiting on you: orange, and it stays.
     app.set_groups(fixture(AgentState::Awaiting));
     for _ in 0..5 {
-        assert_eq!(cell_at(&mut app, "sec-bump").bg, ATTENTION);
+        assert!(flagged(&mut app, "sec-bump"));
         app.advance(Duration::from_secs(10));
         app.set_groups(fixture(AgentState::Awaiting));
     }
@@ -959,7 +977,7 @@ fn a_row_stays_orange_until_you_go_there() {
     };
     app.set_groups(open_sec_bump(AgentState::Awaiting));
     app.set_groups(fixture(AgentState::Awaiting));
-    assert_ne!(cell_at(&mut app, "sec-bump").bg, ATTENTION, "been there");
+    assert!(!flagged(&mut app, "sec-bump"), "been there");
     assert_eq!(
         cell_at(&mut app, "sec-bump").fg,
         ATTENTION,
@@ -969,20 +987,17 @@ fn a_row_stays_orange_until_you_go_there() {
     // It works, then finishes while you're elsewhere: orange again until you look.
     app.set_groups(fixture(AgentState::Busy));
     app.set_groups(fixture(AgentState::Idle));
-    assert_eq!(cell_at(&mut app, "sec-bump").bg, ATTENTION);
+    assert!(flagged(&mut app, "sec-bump"));
     app.set_groups(open_sec_bump(AgentState::Idle));
     app.set_groups(fixture(AgentState::Idle));
-    assert_ne!(cell_at(&mut app, "sec-bump").bg, ATTENTION);
+    assert!(!flagged(&mut app, "sec-bump"));
 }
 
 #[test]
 fn an_agent_already_waiting_at_startup_is_orange_too() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Awaiting));
-    assert_eq!(
-        cell_at(&mut app, "sec-bump").bg,
-        the_deaner_ui::theme::ATTENTION
-    );
+    assert!(flagged(&mut app, "sec-bump"));
 }
 
 #[test]

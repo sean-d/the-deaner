@@ -408,10 +408,13 @@ fn row_item<'a>(app: &App, p: &Palette, row: Row, index: usize, width: u16) -> L
             name.style = name.style.add_modifier(Modifier::BOLD);
         }
     }
-    // Orange until you've been there: an agent started waiting on you or finished while
-    // you were elsewhere. On a collapsed repo, its row.
+    // An orange bar down the left edge until you've been there: an agent started waiting on
+    // you or finished while you were elsewhere. On the workspace and its agent lines; on a
+    // collapsed repo, its row. A bar rather than a fill, so it doesn't read as "you are here".
     let unvisited = match row {
-        Row::Workspace { group, ws } => app.unvisited(&app.groups[group].workspaces[ws]),
+        Row::Workspace { group, ws } | Row::Agent { group, ws, .. } => {
+            app.unvisited(&app.groups[group].workspaces[ws])
+        }
         Row::Repo { group } if app.groups[group].collapsed => app.groups[group]
             .workspaces
             .iter()
@@ -419,10 +422,33 @@ fn row_item<'a>(app: &App, p: &Palette, row: Row, index: usize, width: u16) -> L
         _ => false,
     };
     if unvisited {
-        for span in &mut line.spans {
-            span.style = span.style.fg(colors::INK).add_modifier(Modifier::BOLD);
+        let flag = || Span::styled("▌", Style::new().fg(colors::ATTENTION));
+        match row {
+            // Inside the box: just inside its left border, which stays.
+            Row::Workspace { .. } | Row::Agent { .. } if in_block && boxed => {
+                line.spans[0] = Span::styled("│", gold);
+                line.spans.insert(1, flag());
+            }
+            // In the gold block: its bar turns orange.
+            Row::Workspace { .. } | Row::Agent { .. } if in_block => {
+                line.spans[0].style = Style::new().fg(colors::ATTENTION);
+            }
+            // Otherwise the first column: the indent, or an inactive row's `›`.
+            Row::Workspace { .. } | Row::Agent { .. } => {
+                line.spans[0] = flag();
+                line.spans.insert(1, Span::raw(" "));
+            }
+            Row::Repo { .. } if !in_block => {
+                if line.spans[0].content == INACTIVE_MARK {
+                    line.spans[0] = flag();
+                    line.spans.insert(1, Span::raw(" "));
+                } else {
+                    line = row_line(app, p, row, width.saturating_sub(1));
+                    line.spans.insert(0, flag());
+                }
+            }
+            _ => {}
         }
-        return ListItem::new(line).style(Style::new().bg(colors::ATTENTION));
     }
     if selected {
         return ListItem::new(line).style(SELECTED);

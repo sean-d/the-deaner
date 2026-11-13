@@ -1,6 +1,6 @@
 ---
 source: crates/the-deaner-ui/tests/sidebar.rs
-assertion_line: 791
+assertion_line: 809
 expression: screen
 ---
 "★ PINNED 2 ● ──────────────────── "
@@ -9,8 +9,8 @@ expression: screen
 "╭ shop-api ────────────── !1 ⠋1 ─╮"
 "│ ⎇ main             ✎ 3 +1 -0 ⠋ │"
 "│   ⠋ Readiness probe without R… │"
-"│ ⇄ sec-bump             #42 ✓ ! │"
-"│   ! Bump every dependency to … │"
+"│▌⇄ sec-bump             #42 ✓ ! │"
+"│▌  ! Bump every dependency to … │"
 "╰────────────────────────────────╯"
 "                                  "
 "○ INACTIVE 1 ──────────────────── "

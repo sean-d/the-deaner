@@ -108,6 +108,13 @@ On Linux, a binary replaced while it runs (as `pacman -U` does) reports its path
 relaunch and the sidebar's popups), so it runs the new file at the same path. On macOS, Homebrew's
 `/opt/homebrew/bin/the-deaner` is a symlink that moves to the new version.
 
+The sidebar also watches its own binary: every 2 seconds it `stat`s the path it started from
+(following Homebrew's symlink). When the file changes and then stays unchanged for 2 seconds, and the
+new file's `--version` runs, the sidebar waits until no action is running and no prompt, picker or
+filter is open, restores the terminal and `exec`s the new binary with the same arguments, in the same
+pane. Everything it shows comes from tmux, so nothing is lost. A new binary that doesn't run is
+ignored until it changes again.
+
 `the-deaner upgrade` reads `repos/sean-d/the-deaner/releases/latest`, compares versions, and
 recognizes the install from the binary's path: a path inside Homebrew's `Cellar`, or one that
 `pacman -Qqo` says belongs to the `the-deaner` package. It installs, runs the new binary's

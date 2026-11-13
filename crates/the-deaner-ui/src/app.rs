@@ -256,6 +256,13 @@ impl App {
         w.agent == AgentState::Awaiting || self.unseen.contains(&w.path)
     }
 
+    /// No prompt, picker, confirmation or filter in progress: nothing typed would be lost
+    /// if the sidebar restarted now.
+    #[must_use]
+    pub fn is_idle(&self) -> bool {
+        matches!(self.mode, Mode::Normal)
+    }
+
     /// Advance the animation/toast clock.
     pub fn advance(&mut self, dt: Duration) {
         self.clock += dt;

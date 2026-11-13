@@ -185,10 +185,15 @@ back by itself on the new version, offers to restore your workspaces (`y`), and 
 the-deaner 0.2.0" once. If anything fails before that (no network, wrong password, a bad checksum),
 nothing has been stopped. `-y` skips the "Install and restart?" question; pacman still asks its own.
 
-### Restarting by hand
+### Installing some other way
 
-Installed a new version yourself (`brew upgrade`, `pacman -U`, `cargo install`)? Running sessions keep
-going on the old one until you restart:
+Installed a new version yourself (`brew upgrade`, `pacman -U`, `cargo install`)? The sidebar notices
+its binary changed and switches to the new one by itself within a few seconds, once nothing is in
+progress (no prompt, picker or filter open, no open or restore running). Your sessions aren't touched,
+and it says "Updated to …". Popups such as `a` and `Alt-/` start fresh each time, so they're always the
+new version.
+
+To restart everything instead (the frame and the terminal pane too):
 
 ```sh
 the-deaner restart

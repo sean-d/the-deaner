@@ -14,7 +14,7 @@
 use crate::engine::{Checkout, Engine, checkouts, now_unix};
 use crate::frame::{Switcher, in_frame};
 use crate::poller::Poller;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use ratatui::crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event};
 use ratatui::crossterm::execute;
 use std::collections::HashSet;
@@ -95,7 +95,7 @@ pub fn run(engine: Engine, standalone: bool) -> Result<()> {
 
     let mut terminal = ratatui::init();
     let _ = execute!(std::io::stdout(), EnableMouseCapture);
-    let result = event_loop(
+    let exit = event_loop(
         &engine,
         &mut terminal,
         &mut app,
@@ -105,8 +105,30 @@ pub fn run(engine: Engine, standalone: bool) -> Result<()> {
     );
     let _ = execute!(std::io::stdout(), DisableMouseCapture);
     ratatui::restore();
-    result
+    match exit? {
+        Exit::Quit => Ok(()),
+        Exit::NewBinary => {
+            // Same pane, same arguments, the binary now on disk. Sessions are in tmux, so
+            // nothing is lost; the new sidebar says "Updated to …".
+            use std::os::unix::process::CommandExt;
+            let exe = crate::frame::exe_path()?;
+            let err = std::process::Command::new(&exe)
+                .args(std::env::args_os().skip(1))
+                .exec();
+            Err(err).with_context(|| format!("starting {} again", exe.display()))
+        }
+    }
 }
+
+/// Why the sidebar's loop ended.
+enum Exit {
+    Quit,
+    /// A new version was installed: start again on it.
+    NewBinary,
+}
+
+/// How often the sidebar looks at its binary on disk.
+const BINARY_CHECK: Duration = Duration::from_secs(2);
 
 fn offer_restore(engine: &Engine, app: &mut App) {
     if !engine.managed_panes().is_empty() {
@@ -178,8 +200,12 @@ fn event_loop(
     msgs: &Receiver<Msg>,
     executor: &Executor,
     kick: &Sender<()>,
-) -> Result<()> {
+) -> Result<Exit> {
     let mut last = Instant::now();
+    let mut binary = crate::frame::exe_path()
+        .ok()
+        .map(crate::upgrade::BinaryWatch::new);
+    let mut binary_checked = Instant::now();
     let mut pending_width: Option<(u16, Instant)> = None;
     loop {
         while let Ok(msg) = msgs.try_recv() {
@@ -208,6 +234,19 @@ fn event_loop(
             pending_width = None;
         }
 
+        // A new version installed by any route: switch to it once nothing is in progress.
+        if binary_checked.elapsed() >= BINARY_CHECK {
+            binary_checked = Instant::now();
+            if app.is_idle()
+                && executor.idle()
+                && binary
+                    .as_mut()
+                    .is_some_and(crate::upgrade::BinaryWatch::new_binary_ready)
+            {
+                return Ok(Exit::NewBinary);
+            }
+        }
+
         if !event::poll(Duration::from_millis(120))? {
             continue;
         }
@@ -223,7 +262,7 @@ fn event_loop(
             _ => None,
         };
         match command {
-            Some(Command::Quit) => return Ok(()),
+            Some(Command::Quit) => return Ok(Exit::Quit),
             Some(Command::Refresh) => {
                 ASK_GITHUB_NOW.store(true, Ordering::Relaxed);
                 let _ = kick.send(());
@@ -513,6 +552,11 @@ impl Executor {
     }
 
     /// Queue a command. Never blocks.
+    /// No slow action (open, restore, archive, ...) is running.
+    fn idle(&self) -> bool {
+        self.busy.lock().is_ok_and(|b| b.is_empty())
+    }
+
     fn submit(&self, cmd: Command) {
         let (key, name, progress) = match lane(&cmd, &self.cfg) {
             Lane::Quick => {

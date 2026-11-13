@@ -202,6 +202,80 @@ pub fn just_upgraded(last: Option<&str>, has_projects: bool) -> bool {
     }
 }
 
+// ---- a new binary on disk ------------------------------------------------------
+
+/// What identifies the file at a path: device, inode, size, modification time. A package
+/// manager replacing the binary changes it; nothing else does.
+type Stamp = (u64, u64, u64, i64, i64);
+
+fn stamp(path: &Path) -> Option<Stamp> {
+    use std::os::unix::fs::MetadataExt;
+    // Follows symlinks, so Homebrew's /opt/homebrew/bin link reads as the version it points at.
+    let m = std::fs::metadata(path).ok()?;
+    Some((m.dev(), m.ino(), m.size(), m.mtime(), m.mtime_nsec()))
+}
+
+/// Notices when the binary this process started from has been replaced (an install by
+/// any route: `the-deaner upgrade`, `brew upgrade`, `pacman -U`, `cargo install`), so the
+/// sidebar can start again on it without a restart of everything.
+pub struct BinaryWatch {
+    path: PathBuf,
+    started: Option<Stamp>,
+    /// A changed stamp, and when it was first seen: an install may still be writing.
+    settling: Option<(Stamp, std::time::Instant)>,
+}
+
+/// How long a new binary must stay unchanged before it's trusted.
+const SETTLE: Duration = Duration::from_secs(2);
+
+impl BinaryWatch {
+    #[must_use]
+    pub fn new(path: PathBuf) -> Self {
+        let started = stamp(&path);
+        Self {
+            path,
+            started,
+            settling: None,
+        }
+    }
+
+    /// Whether a new binary is in place, finished, and runs. Cheap until something
+    /// changes: one `stat`.
+    pub fn new_binary_ready(&mut self) -> bool {
+        let Some(started) = self.started else {
+            return false;
+        };
+        let now = stamp(&self.path);
+        match (now, self.settling) {
+            (Some(s), _) if s == started => {
+                self.settling = None;
+                false
+            }
+            (Some(s), Some((seen, since))) if s == seen && since.elapsed() >= SETTLE => {
+                // Make sure it actually runs before switching to it.
+                let ok = output_with_timeout(
+                    Command::new(&self.path).arg("--version"),
+                    Duration::from_secs(5),
+                )
+                .is_ok_and(|o| o.status.success());
+                if !ok {
+                    // Try again after the next change, not on every tick.
+                    self.started = Some(s);
+                    self.settling = None;
+                }
+                ok
+            }
+            (Some(s), Some((seen, _))) if s == seen => false,
+            (Some(s), _) => {
+                self.settling = Some((s, std::time::Instant::now()));
+                false
+            }
+            // Missing for a moment while it's being replaced.
+            (None, _) => false,
+        }
+    }
+}
+
 // ---- installing --------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -439,6 +513,39 @@ mod tests {
             "from 0.1.4, which saved no version"
         );
         assert!(!just_upgraded(None, false), "a brand-new install");
+    }
+
+    #[test]
+    fn a_replaced_binary_is_noticed_once_it_settles_and_runs() {
+        let dir = tempfile::tempdir().unwrap();
+        let bin = dir.path().join("the-deaner");
+        let write = |body: &str| {
+            // Replace the file the way installers do: a new file, then a rename over it.
+            let tmp = dir.path().join("new");
+            std::fs::write(&tmp, format!("#!/bin/sh\n{body}\n")).unwrap();
+            std::process::Command::new("chmod")
+                .args(["+x"])
+                .arg(&tmp)
+                .status()
+                .unwrap();
+            std::fs::rename(&tmp, &bin).unwrap();
+        };
+        write("echo the-deaner 0.1.0");
+        let mut watch = BinaryWatch::new(bin.clone());
+        assert!(!watch.new_binary_ready(), "nothing changed");
+
+        write("echo the-deaner 0.2.0");
+        assert!(!watch.new_binary_ready(), "just changed: let it settle");
+        std::thread::sleep(SETTLE + Duration::from_millis(100));
+        assert!(watch.new_binary_ready(), "settled and runs");
+
+        // One that doesn't run is not switched to, and isn't retried until it changes.
+        let mut watch = BinaryWatch::new(bin.clone());
+        write("exit 1");
+        assert!(!watch.new_binary_ready());
+        std::thread::sleep(SETTLE + Duration::from_millis(100));
+        assert!(!watch.new_binary_ready(), "doesn't run");
+        assert!(!watch.new_binary_ready(), "and isn't tried again");
     }
 
     #[test]

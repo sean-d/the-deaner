@@ -172,8 +172,14 @@ fn full_day_create_status_save_restore_park_archive() {
     );
 
     std::fs::write(&f.agent_log, "").unwrap();
+    // You were last on the worktree: it comes back first (and is what you see), even
+    // though the snapshot lists the repo first.
+    assert_eq!(e.latest_snapshot().unwrap().workspaces[0].name, "api");
+    e.update_state(|s| s.last_session = Some("api/sec/bump".into()))
+        .unwrap();
     let report = e.restore(&e.latest_snapshot().unwrap()).unwrap();
     assert_eq!(report.restored.len(), 2, "skipped: {:?}", report.skipped);
+    assert_eq!(report.restored[0], "api/sec/bump");
     wait_for("agent resume", || log(&f).contains("--resume conv-1"));
     // the worktree's agent had no conversation id, so it starts fresh
     wait_for("fresh agent", || {

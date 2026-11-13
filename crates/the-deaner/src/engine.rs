@@ -618,7 +618,13 @@ impl Engine {
             .into_iter()
             .filter_map(|p| p.workspace_path)
             .collect();
-        for ws in &snap.workspaces {
+        // The workspace you were last looking at goes first, so it's the first session the
+        // terminal pane can attach to and the one the sidebar shows when the restore ends.
+        // Otherwise you'd land on whichever project happens to be first in the snapshot.
+        let last = self.state().last_session;
+        let mut order: Vec<&WorkspaceSnap> = snap.workspaces.iter().collect();
+        order.sort_by_key(|ws| Some(&ws.name) != last.as_ref());
+        for ws in order {
             if live.contains(&ws.path) {
                 report
                     .skipped

@@ -128,7 +128,11 @@ once.
 A snapshot is TOML listing each workspace's windows (name, layout string) and panes (cwd, launch
 command, agent, conversation id, whether something other than the login shell was in the
 foreground). Restore rebuilds sessions, splits, layouts and active selections, then types into
-each pane what `restore_command` decides:
+each pane what `restore_command` decides (below). The workspace in `last_session` (`state.toml`, the
+one the terminal showed last) is rebuilt first, so the terminal pane attaches to it as soon as it
+exists and the sidebar shows it when the restore ends; the rest follow in snapshot order.
+
+What each pane gets:
 
 1. Agent with a conversation that exists: its `resume` template, e.g. `claude --resume <id>`.
 2. Any other agent: its command, started fresh. (Claude assigns an id at startup but only writes a

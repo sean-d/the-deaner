@@ -100,14 +100,32 @@ pub enum Cmd {
         force: bool,
     },
     /// Save everything, stop, and start again (picks up a newly installed version)
+    ///
+    /// Asks about busy agents like `shutdown` does, saves a snapshot, and stops both tmux
+    /// servers. Every window that had the-deaner open starts it again by itself, from the
+    /// binary now on disk, and offers to restore your workspaces. Works from a the-deaner
+    /// tab or from any other terminal; with no window open, it starts in this terminal.
+    #[command(verbatim_doc_comment)]
     Restart {
         /// Don't ask about agents that are still working
         #[arg(long)]
         force: bool,
     },
     /// Install the newest release from GitHub (pacman or Homebrew), then restart into it
+    ///
+    /// Asks GitHub for the latest release (through `gh`, or `curl` without a login). If it's
+    /// newer than this one, asks before installing it the way this copy was installed:
+    ///
+    ///   pacman    downloads the package and its .sha256, checks it, runs `sudo pacman -U`
+    ///   Homebrew  runs `brew update`, then `brew upgrade the-deaner`
+    ///   cargo     prints the command to rebuild; nothing is installed
+    ///
+    /// Once the new binary reports the new version, it restarts into it (see `restart`).
+    /// Nothing stops until then. The sidebar checks once a day and shows `↑ <version>` at
+    /// the bottom when there's something to install (`update_check` in config.toml).
+    #[command(verbatim_doc_comment)]
     Upgrade {
-        /// Only say whether there's a newer version
+        /// Only say whether there's a newer version; install nothing
         #[arg(long)]
         check: bool,
         /// Don't ask before installing

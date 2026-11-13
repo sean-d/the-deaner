@@ -37,6 +37,9 @@ going, next to a terminal that is just your own tmux. Linux first, macOS too.
 - **Done for the day.** `the-deaner shutdown` saves everything and stops it. Tomorrow, `the-deaner`
   offers to restore it all, and each claude picks up its own conversation. If the machine goes
   down without a shutdown, the autosave from the last five minutes is what comes back.
+- **Stays current.** When a new release is out, the sidebar says so (`↑ 0.2.0 · the-deaner
+  upgrade`). `the-deaner upgrade` installs it with pacman or Homebrew and comes back on the new
+  version, offering to restore everything, all in the same window.
 - **Take it with you.** Detach with `q`, SSH in from your laptop, run `the-deaner`, and you're looking
   at the same running setup.
 - **Agents can talk to each other.** `the-deaner send shop-web:claude "…"` types into another agent's
@@ -67,10 +70,40 @@ sudo pacman -U the-deaner-*-x86_64.pkg.tar.zst
 cargo install --locked --git https://github.com/sean-d/the-deaner the-deaner
 ```
 
+After that, `the-deaner upgrade` keeps it up to date (see [Updating](#updating)).
+
 The first time you run it, the-deaner offers to add its status hooks to Claude Code
 (`~/.claude/settings.json`, leaving your own hooks alone), so the sidebar can see what each claude is
 doing. Say no and it won't ask again; `the-deaner install-hooks` adds them any time, and
 `the-deaner install-hooks --uninstall` takes them out.
+
+## Updating
+
+Once a day the sidebar asks GitHub whether there's a newer release. If there is, a line appears
+above the footer until you install it:
+
+```text
+ ↑ 0.2.0 · the-deaner upgrade
+ ? keys
+ a add | x remove
+ q detach | p pin | n next
+```
+
+Run `the-deaner upgrade`, from a the-deaner tab or any terminal:
+
+```text
+$ the-deaner upgrade
+the-deaner 0.2.0 is out (you have 0.1.5): https://github.com/sean-d/the-deaner/releases/tag/v0.2.0
+Install 0.2.0 and restart? [Y/n]
+```
+
+It installs the release the way you installed the-deaner: on Arch, the package from the release
+(checksum checked) with `sudo pacman -U`; on macOS, `brew update` and `brew upgrade`. Then it saves
+your workspaces, restarts in the same window, offers to restore them, and says "Updated to
+the-deaner 0.2.0". Nothing is ever installed without you running it. `the-deaner upgrade --check`
+only reports, `update_check = false` in the config turns the daily check off, and `the-deaner
+restart` picks up a version you installed some other way. More in
+[getting started](docs/getting-started.md#updating).
 
 ## First run
 
@@ -120,6 +153,7 @@ cheat sheet. These are tmux key names in `~/.config/the-deaner/config.toml`, so 
 | `✎ 3`, `+1 -2` | Changed files; commits ahead of and behind the upstream |
 | `#42 ✓` | The branch's pull request and its CI: `✓` passing, `✗` failing, `…` running |
 | `▲ 3 more` / `▼ 3 more` | Projects scrolled out of view; click to scroll |
+| `↑ 0.2.0` | A newer the-deaner is out; `the-deaner upgrade` installs it |
 
 ## Working from somewhere else
 

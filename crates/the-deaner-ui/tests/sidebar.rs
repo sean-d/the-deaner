@@ -114,7 +114,7 @@ fn type_str(app: &mut App, s: &str) {
 fn renders_pinned_groups_and_status() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Awaiting));
-    insta::assert_snapshot!(render(&mut app, 34, 12));
+    insta::assert_snapshot!(render(&mut app, 34, 13));
 }
 
 #[test]
@@ -127,7 +127,7 @@ fn help_overlay() {
     app.handle_key(ch('j'));
     assert!(matches!(app.mode(), Mode::Help(1)), "j scrolls help");
     app.handle_key(ch('k'));
-    insta::assert_snapshot!(render(&mut app, 40, 30));
+    insta::assert_snapshot!(render(&mut app, 40, 31));
     app.handle_key(ch('x'));
     assert!(matches!(app.mode(), Mode::Normal), "any key closes help");
 }
@@ -136,7 +136,7 @@ fn help_overlay() {
 fn empty_state_hint() {
     let mut app = App::new();
     app.set_groups(vec![]);
-    insta::assert_snapshot!(render(&mut app, 34, 8));
+    insta::assert_snapshot!(render(&mut app, 34, 9));
 }
 
 #[test]
@@ -174,7 +174,7 @@ fn awaiting_transition_raises_toast() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Busy));
     app.set_groups(fixture(AgentState::Awaiting));
-    let screen = render(&mut app, 34, 12);
+    let screen = render(&mut app, 34, 13);
     assert!(screen.contains("sec-bump needs"), "{screen}");
 }
 
@@ -187,7 +187,7 @@ fn new_worktree_prompt_emits_command() {
     app.handle_key(ch('w'));
     assert!(matches!(app.mode(), Mode::Prompt { .. }));
     type_str(&mut app, "sec/fix");
-    insta::assert_snapshot!(render(&mut app, 34, 12));
+    insta::assert_snapshot!(render(&mut app, 34, 13));
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
         Some(Command::NewWorktree {
@@ -205,7 +205,7 @@ fn filter_narrows_rows_and_esc_clears() {
     type_str(&mut app, "sec");
     app.handle_key(key(KeyCode::Enter));
     assert_eq!(app.filter(), "sec");
-    let screen = render(&mut app, 34, 8);
+    let screen = render(&mut app, 34, 9);
     assert!(
         screen.contains("sec-bump") && !screen.contains("dotfiles"),
         "{screen}"
@@ -251,7 +251,7 @@ fn new_tab_picker() {
     app.set_groups(fixture(AgentState::Idle));
     app.handle_key(ch('t'));
     app.handle_key(ch('j'));
-    insta::assert_snapshot!(render(&mut app, 34, 12));
+    insta::assert_snapshot!(render(&mut app, 34, 13));
     match app.handle_key(key(KeyCode::Enter)) {
         Some(Command::NewTab { tab, ws }) => {
             assert_eq!(tab.name, "nvim");
@@ -321,7 +321,7 @@ fn clicking_a_heading_does_nothing() {
     use ratatui::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Idle));
-    render(&mut app, 34, 12); // records where the list is
+    render(&mut app, 34, 13); // records where the list is
     let click = |row| MouseEvent {
         kind: MouseEventKind::Down(MouseButton::Left),
         column: 3,
@@ -351,7 +351,7 @@ fn selection_follows_a_repo_into_another_section() {
     dot.section = the_deaner_core::sidebar::Section::Active;
     app.set_groups(groups);
     assert_eq!(app.selected_group().unwrap().name, "dotfiles");
-    let screen = render(&mut app, 34, 12);
+    let screen = render(&mut app, 34, 13);
     assert!(screen.contains("ACTIVE"), "{screen}");
 }
 
@@ -360,7 +360,7 @@ fn nerd_icons_show_git_state() {
     let mut app = App::new();
     app.icons = &the_deaner_ui::icons::NERD;
     app.set_groups(fixture(AgentState::Idle));
-    let screen = render(&mut app, 34, 12);
+    let screen = render(&mut app, 34, 13);
     let nerd = &the_deaner_ui::icons::NERD;
     for glyph in [
         nerd.branch,
@@ -386,7 +386,7 @@ fn detached_checkouts_show_a_short_commit_id() {
     });
     let mut app = App::new();
     app.set_groups(groups);
-    let screen = render(&mut app, 34, 12);
+    let screen = render(&mut app, 34, 13);
     assert!(
         screen.contains("5b32e4f") && !screen.contains("5b32e4f0"),
         "{screen}"
@@ -592,13 +592,13 @@ fn needing_attention_turns_orange_until_you_look_then_the_symbol_is_green() {
 fn the_arrow_only_appears_on_a_collapsed_repo() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Idle));
-    let screen = render(&mut app, 34, 12);
+    let screen = render(&mut app, 34, 13);
     assert!(!screen.contains('▾') && !screen.contains('▸'), "{screen}");
 
     let mut groups = fixture(AgentState::Idle);
     groups[0].collapsed = true;
     app.set_groups(groups);
-    let screen = render(&mut app, 34, 12);
+    let screen = render(&mut app, 34, 13);
     assert!(screen.contains("▸ the-deaner"), "{screen}");
 }
 
@@ -606,21 +606,21 @@ fn the_arrow_only_appears_on_a_collapsed_repo() {
 fn passing_ci_shows_a_check_next_to_the_pr_number() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Idle));
-    assert!(render(&mut app, 34, 12).contains("#42 ✓"));
+    assert!(render(&mut app, 34, 13).contains("#42 ✓"));
 
     for (checks, glyph) in [(Checks::Failing, "#42 ✗"), (Checks::Pending, "#42 …")] {
         let mut groups = fixture(AgentState::Idle);
         let shop = groups.iter_mut().find(|g| g.name == "shop-api").unwrap();
         shop.workspaces[1].checks = checks;
         app.set_groups(groups);
-        assert!(render(&mut app, 34, 12).contains(glyph));
+        assert!(render(&mut app, 34, 13).contains(glyph));
     }
     let mut groups = fixture(AgentState::Idle);
     let shop = groups.iter_mut().find(|g| g.name == "shop-api").unwrap();
     shop.workspaces[1].checks = Checks::None;
     shop.workspaces[1].pr.as_mut().unwrap().state = PrState::Merged;
     app.set_groups(groups);
-    let screen = render(&mut app, 34, 12);
+    let screen = render(&mut app, 34, 13);
     assert!(screen.contains("#42") && !screen.contains('✓'), "{screen}");
 
     // A branch with no PR still shows its CI: commits pushed straight to main.
@@ -628,7 +628,7 @@ fn passing_ci_shows_a_check_next_to_the_pr_number() {
     let deaner = groups.iter_mut().find(|g| g.name == "the-deaner").unwrap();
     deaner.workspaces[0].checks = Checks::Passing;
     app.set_groups(groups);
-    let screen = render(&mut app, 34, 12);
+    let screen = render(&mut app, 34, 13);
     let row = screen.lines().nth(2).unwrap();
     assert!(row.contains('✓') && !row.contains('#'), "{screen}");
 }
@@ -710,7 +710,7 @@ fn the_open_project_is_one_solid_block() {
         Color::Reset,
         "everything else"
     );
-    let screen = render(&mut app, 34, 12);
+    let screen = render(&mut app, 34, 13);
     assert!(
         screen.contains("▌ ⎇ main"),
         "a bar marks the open workspace: {screen}"
@@ -771,7 +771,7 @@ fn the_open_project_can_be_a_box_instead() {
     let mut app = App::new();
     app.open_style = the_deaner_core::OpenStyle::Box;
     app.set_groups(fixture(AgentState::Idle));
-    let screen = render(&mut app, 34, 14);
+    let screen = render(&mut app, 34, 15);
     insta::assert_snapshot!(screen);
     // No fill, a gold frame, and the bottom edge can't be selected.
     assert_eq!(
@@ -805,7 +805,7 @@ fn agent_titles_show_under_their_workspace_and_the_cursor_skips_them() {
         Some("Bump every dependency to clear the CVE, then rerun the whole suite".into());
     let mut app = App::new();
     app.set_groups(groups);
-    let screen = render(&mut app, 34, 16);
+    let screen = render(&mut app, 34, 17);
     insta::assert_snapshot!(screen);
     assert_eq!(
         cell_at(&mut app, "Readiness").fg,
@@ -830,10 +830,10 @@ fn agent_titles_show_under_their_workspace_and_the_cursor_skips_them() {
 fn a_new_version_gets_a_line_above_the_footer() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Idle));
-    let before = render(&mut app, 40, 12);
+    let before = render(&mut app, 40, 13);
     assert!(!before.contains("upgrade"));
     app.update = Some("0.1.4".into());
-    let after = render(&mut app, 40, 12);
+    let after = render(&mut app, 40, 13);
     let lines: Vec<&str> = after.lines().collect();
     let news = lines
         .iter()
@@ -851,10 +851,10 @@ fn q_detaches_in_the_frame_and_quits_standalone() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Idle));
     assert_eq!(app.handle_key(ch('q')), Some(Command::Detach));
-    assert!(render(&mut app, 40, 12).contains("q detach"));
+    assert!(render(&mut app, 40, 13).contains("q detach"));
     app.standalone = true;
     assert_eq!(app.handle_key(ch('q')), Some(Command::Quit));
-    assert!(render(&mut app, 40, 12).contains("q quit"));
+    assert!(render(&mut app, 40, 13).contains("q quit"));
 }
 
 #[test]
@@ -864,7 +864,7 @@ fn the_footer_n_turns_orange_when_something_needs_you() {
         let mut term = Terminal::new(TestBackend::new(40, 12)).unwrap();
         term.draw(|f| draw(f, app)).unwrap();
         let buf = term.backend().buffer();
-        // The bottom of the two footer rows.
+        // The bottom footer row.
         let row: String = (0..40).map(|x| buf[(x, 11)].symbol().to_string()).collect();
         let x = row.find(" next").expect("n next in the footer") - 1;
         buf[(u16::try_from(row[..x].chars().count()).unwrap(), 11)].fg
@@ -942,7 +942,7 @@ fn a_project_with_several_agents_counts_them_on_its_row() {
         .for_each(|w| w.current = false);
     let mut app = App::new();
     app.set_groups(groups);
-    let screen = render(&mut app, 34, 14);
+    let screen = render(&mut app, 34, 15);
     let row = |name: &str| {
         screen
             .lines()
@@ -1024,17 +1024,17 @@ fn an_agent_already_waiting_at_startup_is_orange_too() {
 fn a_list_too_long_for_the_screen_says_what_is_above_and_below() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Idle));
-    let top = render(&mut app, 34, 8);
+    let top = render(&mut app, 34, 9);
     insta::assert_snapshot!("scrolled_to_the_top", top);
     assert!(top.contains("▼ 1 more") && !top.contains('▲'), "{top}");
 
     app.handle_key(key(KeyCode::End));
-    let bottom = render(&mut app, 34, 8);
+    let bottom = render(&mut app, 34, 9);
     insta::assert_snapshot!("scrolled_to_the_bottom", bottom);
     assert!(bottom.contains("▲") && !bottom.contains('▼'), "{bottom}");
 
     // When it all fits, no marker lines.
-    let all = render(&mut app, 34, 20);
+    let all = render(&mut app, 34, 21);
     assert!(!all.contains("more"), "{all}");
 }
 
@@ -1044,7 +1044,7 @@ fn ctrl_d_and_ctrl_u_move_half_a_page_and_the_markers_can_be_clicked() {
     let ctrl = |c| KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL);
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Idle));
-    render(&mut app, 34, 8); // a 4-row list: half a page is 2
+    render(&mut app, 34, 9); // a 4-row list: half a page is 2
     let start = app.selected_row();
     assert_eq!(app.handle_key(ctrl('d')), None);
     assert_ne!(app.selected_row(), start, "moved down");
@@ -1059,8 +1059,8 @@ fn ctrl_d_and_ctrl_u_move_half_a_page_and_the_markers_can_be_clicked() {
         row,
         modifiers: KeyModifiers::NONE,
     };
-    // The ▼ line is the last list row: row 5 of 8 (two footer rows below it).
-    render(&mut app, 34, 8);
+    // The ▼ line is the last list row: row 5 of 9 (three footer rows below it).
+    render(&mut app, 34, 9);
     assert_eq!(
         app.handle_mouse(click(5)),
         None,

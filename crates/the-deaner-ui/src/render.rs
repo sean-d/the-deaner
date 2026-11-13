@@ -62,7 +62,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
     frame.buffer_mut().set_style(full, crate::theme::base());
     let area = frame.area();
     let p = palette(app);
-    let footer_rows = if app.update.is_some() { 3 } else { 2 };
+    let footer_rows = if app.update.is_some() { 4 } else { 3 };
     let [list_area, footer] =
         Layout::vertical([Constraint::Min(1), Constraint::Length(footer_rows)]).areas(area);
 
@@ -231,9 +231,9 @@ fn dialog_block<'a>(p: &Palette, title: &str) -> Block<'a> {
         .title(Span::styled(title.to_string(), p.accent))
 }
 
-/// Two rows at the bottom: key hints, and how many agents are waiting on you or working.
-/// A filter, when there is one, takes the top row. A new version, when there is one, gets
-/// a row above them.
+/// Three rows at the bottom: key hints, with how many agents are waiting on you or working
+/// at the right of the first. A filter, when there is one, takes the top row. A new
+/// version, when there is one, gets a row above them.
 fn draw_footer(frame: &mut Frame<'_>, app: &App, p: &Palette, area: Rect) {
     let area = match &app.update {
         Some(version) => {
@@ -250,8 +250,8 @@ fn draw_footer(frame: &mut Frame<'_>, app: &App, p: &Palette, area: Rect) {
         }
         None => area,
     };
-    let [top, bottom] = Layout::vertical([Constraint::Length(1); 2]).areas(area);
-    let [hints, counts] = footer_lines(app, p, area.width);
+    let [top, middle, bottom] = Layout::vertical([Constraint::Length(1); 3]).areas(area);
+    let [hints, edits, counts] = footer_lines(app, p, area.width);
     match &app.mode {
         Mode::Filter(input) => {
             frame.render_widget(
@@ -274,13 +274,15 @@ fn draw_footer(frame: &mut Frame<'_>, app: &App, p: &Palette, area: Rect) {
         }
         _ => frame.render_widget(hints, top),
     }
+    frame.render_widget(edits, middle);
     frame.render_widget(counts, bottom);
 }
 
-/// `? keys` with the counts at the right, over `q detach | p pin | n next | v peek`. A hint that
+/// `? keys` with the counts at the right, over `a add | x remove`, over
+/// `q detach | p pin | n next | v peek`. A hint that
 /// doesn't fit is left out (from the end of its row). The `n` turns orange when
 /// something needs you.
-fn footer_lines<'a>(app: &App, p: &Palette, width: u16) -> [Line<'a>; 2] {
+fn footer_lines<'a>(app: &App, p: &Palette, width: u16) -> [Line<'a>; 3] {
     let all = || app.groups.iter().flat_map(|g| g.workspaces.iter());
     let awaiting = all().filter(|w| w.agent == AgentState::Awaiting).count();
     let busy = all().filter(|w| w.agent == AgentState::Busy).count();
@@ -324,12 +326,14 @@ fn footer_lines<'a>(app: &App, p: &Palette, width: u16) -> [Line<'a>; 2] {
     };
     let right_w: usize = right.iter().map(|s| s.content.width()).sum();
     let top = row(&[("?", "keys")], right_w);
+    let middle = row(&[("a", "add"), ("x", "remove")], 0);
     let bottom = row(
         &[("q", leave), ("p", "pin"), ("n", "next"), ("v", "peek")],
         0,
     );
     [
         justify(top, right, width),
+        justify(middle, Vec::new(), width),
         justify(bottom, Vec::new(), width),
     ]
 }

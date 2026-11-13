@@ -1,14 +1,15 @@
 ---
 source: crates/the-deaner-ui/tests/browser.rs
+assertion_line: 398
 expression: term.backend()
 ---
 " Open a project  ~/dev                                      "
 " Filter  type to narrow, or a path like /tmp/ or ~/         "
 "                                                            "
+" ↑ Up to ~                                                  "
 " + Use this folder                                          "
 " ⎇ api                                           in sidebar "
 " ▫ go                                                       "
 " ⎇ website                                                  "
 "                                                            "
-"                                                            "
-" Enter open · → into folder · ← up · ↑↓ move · Ctrl-f favori"
+" Enter open · Tab/→ into folder · ← up · ↑↓ move · Ctrl-f fa"

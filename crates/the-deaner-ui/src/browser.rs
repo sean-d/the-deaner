@@ -42,6 +42,8 @@ enum Row {
     Favorite(usize),
     /// Pick the folder being browsed.
     ThisFolder,
+    /// Go up to the parent folder.
+    Up,
     Item(usize),
 }
 
@@ -49,7 +51,12 @@ enum Row {
 type Lister = Box<dyn Fn(&Path) -> Option<Vec<DirItem>>>;
 
 pub struct Browser {
+    /// The folder listed.
     cwd: PathBuf,
+    /// Where a typed relative path starts: the folder you were in before typing it.
+    base: PathBuf,
+    /// A typed path names a folder that doesn't exist (or can't be read): list nothing.
+    missing: bool,
     home: Option<PathBuf>,
     items: Vec<DirItem>,
     favorites: Vec<PathBuf>,
@@ -70,6 +77,8 @@ impl Browser {
         lister: Lister,
     ) -> Self {
         let mut b = Self {
+            base: start.clone(),
+            missing: false,
             cwd: start,
             home,
             items: Vec::new(),
@@ -120,7 +129,7 @@ impl Browser {
     /// The folder a row stands for.
     fn row_path(&self, row: Row) -> Option<PathBuf> {
         match row {
-            Row::Heading(_) => None,
+            Row::Heading(_) | Row::Up => None,
             Row::Favorite(i) => self.favorites.get(i).cloned(),
             Row::ThisFolder => Some(self.cwd.clone()),
             Row::Item(i) => self.items.get(i).map(|item| item.path.clone()),
@@ -137,11 +146,16 @@ impl Browser {
         &self.cwd
     }
 
-    /// Read the current folder, selecting `focus` if it's there.
+    /// What's in the box.
+    #[must_use]
+    pub fn typed(&self) -> &str {
+        self.query.value()
+    }
+
+    /// Read the current folder, selecting `focus` if it's there. Keeps what's typed.
     fn load(&mut self, focus: Option<&Path>) {
         self.items = (self.lister)(&self.cwd).unwrap_or_default();
         self.items.sort_by_key(|i| i.name.to_lowercase());
-        self.query = InputState::default();
         self.select_first();
         if let Some(i) = focus.and_then(|f| {
             self.rows()
@@ -152,14 +166,37 @@ impl Browser {
         }
     }
 
+    /// What's typed, as a path: anything with a `/` in it.
+    fn typed_path(&self) -> Option<&str> {
+        let typed = self.query.value().trim();
+        typed.contains('/').then_some(typed)
+    }
+
+    /// The text that narrows the list: everything typed, or what's after a path's last `/`.
+    fn narrowing(&self) -> String {
+        let typed = self.query.value().trim();
+        let leaf = match typed.rsplit_once('/') {
+            Some((_, leaf)) => leaf,
+            None => typed,
+        };
+        leaf.to_lowercase()
+    }
+
     fn rows(&self) -> Vec<Row> {
-        let query = self.query.value().trim().to_lowercase();
+        let query = self.narrowing();
+        let path_mode = self.typed_path().is_some();
         let mut rows = Vec::new();
+        if path_mode && self.missing {
+            return rows;
+        }
+        // While a path is typed, the list is that folder; favorites would only get in the way.
         let favorites: Vec<Row> = (0..self.favorites.len())
             .filter(|i| {
-                self.display(&self.favorites[*i])
-                    .to_lowercase()
-                    .contains(&query)
+                !path_mode
+                    && self
+                        .display(&self.favorites[*i])
+                        .to_lowercase()
+                        .contains(&query)
             })
             .map(Row::Favorite)
             .collect();
@@ -169,6 +206,9 @@ impl Browser {
             rows.push(Row::Heading(""));
         }
         if query.is_empty() {
+            if self.cwd.parent().is_some() {
+                rows.push(Row::Up);
+            }
             rows.push(Row::ThisFolder);
         }
         rows.extend(self.items.iter().enumerate().filter_map(|(i, item)| {
@@ -210,9 +250,19 @@ impl Browser {
             .collect()
     }
 
+    /// Into a folder. While a path is typed, the path grows to match, so the box always
+    /// says where you are; otherwise the box starts empty.
     fn enter(&mut self, path: PathBuf) {
-        self.cwd = path;
         self.message = None;
+        if self.typed_path().is_some() {
+            self.query = InputState::new(self.path_text(&path));
+            self.follow_typed_path();
+            return;
+        }
+        self.query = InputState::default();
+        self.cwd = path.clone();
+        self.base = path;
+        self.missing = false;
         self.load(None);
     }
 
@@ -220,36 +270,83 @@ impl Browser {
         let Some(parent) = self.cwd.parent().map(Path::to_path_buf) else {
             return;
         };
-        let came_from = std::mem::replace(&mut self.cwd, parent);
         self.message = None;
+        if self.typed_path().is_some() {
+            self.query = InputState::new(self.path_text(&parent));
+            self.follow_typed_path();
+            return;
+        }
+        self.query = InputState::default();
+        let came_from = std::mem::replace(&mut self.cwd, parent);
+        self.base = self.cwd.clone();
+        self.missing = false;
         self.load(Some(&came_from));
     }
 
-    /// Typing a path works like a shell: anything ending in `/` that exists is entered,
-    /// so `/`, `~/`, `../` and `go/` all jump, and a pasted path arrives step by step.
-    fn follow_typed_path(&mut self) {
-        let typed = self.query.value().trim().to_string();
-        let Some(path) = typed.strip_suffix('/') else {
-            return;
-        };
-        let target = if typed == "/" {
-            PathBuf::from("/")
-        } else if path == ".." {
-            self.go_up();
-            return;
-        } else if path == "~" {
-            let Some(home) = self.home.clone() else {
-                return;
-            };
-            home
-        } else if let Some(rest) = path.strip_prefix("~/") {
-            let Some(home) = &self.home else { return };
-            home.join(rest)
+    /// A folder as you'd type it, ending in `/`: `~/dev/`, `/tmp/`, `/`.
+    fn path_text(&self, path: &Path) -> String {
+        let shown = self.display(path);
+        if shown.ends_with('/') {
+            shown
         } else {
-            self.cwd.join(path)
+            format!("{shown}/")
+        }
+    }
+
+    /// The folder named by a typed path's part before its last `/`: from `/`, from `~`,
+    /// or from where you were before you started typing. `.` and `..` work as in a shell.
+    fn typed_dir(&self, typed: &str) -> Option<PathBuf> {
+        let (dir, _) = typed.rsplit_once('/')?;
+        let (root, rest) = if typed.starts_with('/') {
+            (PathBuf::from("/"), dir)
+        } else if dir == "~" || dir.starts_with("~/") {
+            (self.home.clone()?, dir.trim_start_matches('~'))
+        } else {
+            (self.base.clone(), dir)
         };
-        if (self.lister)(&target).is_some() {
-            self.enter(target);
+        let mut out = root;
+        for part in rest.split('/') {
+            match part {
+                "" | "." => {}
+                ".." => {
+                    out.pop();
+                }
+                name => out.push(name),
+            }
+        }
+        Some(out)
+    }
+
+    /// Typing a path works like a shell: the box keeps what you type, the list shows the
+    /// folder up to the last `/`, and what comes after narrows it. So `/tmp/cl`, `~/dev/`
+    /// and `../` all work, and deleting back past a `/` goes back out of that folder.
+    fn follow_typed_path(&mut self) {
+        let Some(typed) = self.typed_path().map(str::to_string) else {
+            // No path any more: back to plain narrowing where you started.
+            if self.missing || self.cwd != self.base {
+                self.missing = false;
+                self.cwd = self.base.clone();
+                self.load(None);
+            }
+            return;
+        };
+        match self
+            .typed_dir(&typed)
+            .filter(|t| (self.lister)(t).is_some())
+        {
+            Some(dir) => {
+                self.missing = false;
+                if dir == self.cwd {
+                    self.select_first();
+                } else {
+                    self.cwd = dir;
+                    self.load(None);
+                }
+            }
+            None => {
+                self.missing = true;
+                self.list.select(None);
+            }
         }
     }
 
@@ -292,15 +389,17 @@ impl Browser {
             KeyCode::Char('p' | 'k') if ctrl => self.step(-1),
             KeyCode::PageDown => self.step(10),
             KeyCode::PageUp => self.step(-10),
-            KeyCode::Left => self.go_up(),
-            KeyCode::Backspace if self.query.value().is_empty() => self.go_up(),
+            // Left moves through what's typed; with nothing typed, it goes up a folder.
+            KeyCode::Left | KeyCode::Backspace if self.query.value().is_empty() => self.go_up(),
             KeyCode::Right | KeyCode::Tab => match self.selected() {
+                Some(Row::Up) => self.go_up(),
                 Some(Row::Item(i)) => self.enter(self.items[i].path.clone()),
                 Some(Row::Favorite(i)) => self.enter(self.favorites[i].clone()),
                 _ => {}
             },
             KeyCode::Enter => match self.selected() {
                 Some(Row::ThisFolder) => return BrowserAction::Pick(self.cwd.clone()),
+                Some(Row::Up) => self.go_up(),
                 Some(Row::Favorite(i)) => self.enter(self.favorites[i].clone()),
                 Some(Row::Item(i)) => {
                     let item = &self.items[i];
@@ -352,6 +451,14 @@ impl Browser {
                 Span::styled(" + ", Style::new().fg(colors::GREEN)),
                 Span::raw("Use this folder"),
             ]),
+            Row::Up => {
+                let parent = self.cwd.parent().unwrap_or(&self.cwd);
+                Line::from(vec![
+                    Span::styled(" ↑ ", Style::new().fg(colors::GOLD)),
+                    Span::raw("Up to "),
+                    Span::styled(self.display(parent), muted),
+                ])
+            }
             Row::Item(i) => {
                 let item = &self.items[i];
                 let (icon, style) = if item.is_repo {
@@ -431,7 +538,7 @@ impl Browser {
         let bottom = self.message.as_ref().map_or_else(
             || {
                 Line::styled(
-                    " Enter open · → into folder · ← up · ↑↓ move · Ctrl-f favorite · Esc close",
+                    " Enter open · Tab/→ into folder · ← up · ↑↓ move · Ctrl-f favorite · Esc close",
                     muted,
                 )
             },

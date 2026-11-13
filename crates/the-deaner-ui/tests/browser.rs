@@ -156,6 +156,115 @@ fn typed_paths_jump_anywhere_on_the_system() {
 }
 
 #[test]
+fn a_typed_path_stays_in_the_box() {
+    // The bug: typing `/` used to jump and wipe the box, so `~/dev/go` looked erased.
+    let mut b = browser();
+    typing(&mut b, "~/");
+    assert_eq!(b.typed(), "~/");
+    assert_eq!(b.cwd(), Path::new("/home/sd"));
+    typing(&mut b, "dev/");
+    assert_eq!(b.typed(), "~/dev/");
+    assert_eq!(b.cwd(), Path::new("/home/sd/dev"));
+    // After the last `/`, typing narrows that folder.
+    typing(&mut b, "web");
+    assert_eq!(b.typed(), "~/dev/web");
+    assert_eq!(b.visible_names(), ["website"]);
+    assert_eq!(
+        press(&mut b, KeyCode::Enter),
+        picked("/home/sd/dev/website")
+    );
+
+    let mut b = browser();
+    typing(&mut b, "/tmp/cl");
+    assert_eq!(b.typed(), "/tmp/cl");
+    assert_eq!(press(&mut b, KeyCode::Enter), picked("/tmp/clone"));
+}
+
+#[test]
+fn backspace_over_a_slash_goes_back_out() {
+    let mut b = browser();
+    typing(&mut b, "~/dev/go/");
+    assert_eq!(b.cwd(), Path::new("/home/sd/dev/go"));
+    press(&mut b, KeyCode::Backspace);
+    assert_eq!(b.typed(), "~/dev/go");
+    assert_eq!(
+        b.cwd(),
+        Path::new("/home/sd/dev"),
+        "back out, narrowing by go"
+    );
+    assert_eq!(b.visible_names(), ["go"]);
+    for _ in 0.."~/dev/go".len() {
+        press(&mut b, KeyCode::Backspace);
+    }
+    assert_eq!(b.typed(), "");
+    assert_eq!(b.cwd(), Path::new("/home/sd/dev"), "where you started");
+}
+
+#[test]
+fn tab_completes_into_a_folder_and_left_edits_the_path() {
+    let mut b = browser();
+    typing(&mut b, "~/dev/g");
+    assert_eq!(b.visible_names(), ["go"]);
+    press(&mut b, KeyCode::Tab);
+    assert_eq!(b.typed(), "~/dev/go/");
+    assert_eq!(b.cwd(), Path::new("/home/sd/dev/go"));
+    // With text in the box, Left is a cursor move, not "up a folder".
+    press(&mut b, KeyCode::Left);
+    assert_eq!(b.cwd(), Path::new("/home/sd/dev/go"));
+    assert_eq!(b.typed(), "~/dev/go/");
+}
+
+#[test]
+fn relative_paths_start_where_you_were() {
+    let mut b = browser();
+    typing(&mut b, "go/");
+    assert_eq!(b.typed(), "go/");
+    assert_eq!(b.cwd(), Path::new("/home/sd/dev/go"));
+    typing(&mut b, "../");
+    assert_eq!(b.cwd(), Path::new("/home/sd/dev"));
+    typing(&mut b, "../");
+    assert_eq!(b.cwd(), Path::new("/home/sd"));
+}
+
+#[test]
+fn the_up_row_goes_up_a_folder() {
+    let mut b = browser();
+    // The cursor starts on the first folder; above it, "Use this folder", then the up row.
+    press(&mut b, KeyCode::Up);
+    press(&mut b, KeyCode::Up);
+    press(&mut b, KeyCode::Enter);
+    assert_eq!(b.cwd(), Path::new("/home/sd"));
+    assert_eq!(b.typed(), "");
+
+    // Gone while typing, and at the root.
+    let mut b = browser();
+    typing(&mut b, "w");
+    press(&mut b, KeyCode::Up);
+    press(&mut b, KeyCode::Enter);
+    assert_ne!(b.cwd(), Path::new("/home/sd"));
+    typing(&mut b, "/");
+    let mut b = browser();
+    typing(&mut b, "/");
+    assert!(!render_browser(&mut b).contains("Up to"));
+    let mut b = browser();
+    assert!(render_browser(&mut b).contains("↑ Up to ~"));
+}
+
+fn render_browser(b: &mut Browser) -> String {
+    let mut term = Terminal::new(TestBackend::new(60, 14)).unwrap();
+    term.draw(|f| b.draw(f)).unwrap();
+    let buf = term.backend().buffer();
+    (0..14)
+        .map(|y| {
+            (0..60)
+                .map(|x| buf[(x, y)].symbol().to_string())
+                .collect::<String>()
+                + "\n"
+        })
+        .collect()
+}
+
+#[test]
 fn walking_up_reaches_the_root_and_stops() {
     let mut b = browser();
     for _ in 0..10 {
@@ -184,16 +293,17 @@ fn enter_on_a_favorite_travels_there() {
     // The cursor still starts on the first folder, so Enter never travels by accident.
     assert_eq!(press(&mut b, KeyCode::Enter), picked("/home/sd/dev/api"));
 
-    // Up past "Use this folder" and over the blank line to the last favorite.
-    press(&mut b, KeyCode::Up);
-    press(&mut b, KeyCode::Up);
+    // Up past "Use this folder", the up row and the blank line to the last favorite.
+    for _ in 0..3 {
+        press(&mut b, KeyCode::Up);
+    }
     assert_eq!(press(&mut b, KeyCode::Enter), BrowserAction::None);
     assert_eq!(b.cwd(), Path::new("/tmp"));
 
     // Favorites stay listed wherever you are, and the arrow key travels too.
-    press(&mut b, KeyCode::Up);
-    press(&mut b, KeyCode::Up);
-    press(&mut b, KeyCode::Up);
+    for _ in 0..4 {
+        press(&mut b, KeyCode::Up);
+    }
     assert_eq!(press(&mut b, KeyCode::Right), BrowserAction::None);
     assert_eq!(b.cwd(), Path::new("/home/sd/dev/go"));
 }

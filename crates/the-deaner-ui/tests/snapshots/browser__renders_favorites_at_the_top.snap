@@ -1,5 +1,6 @@
 ---
 source: crates/the-deaner-ui/tests/browser.rs
+assertion_line: 373
 expression: term.backend()
 ---
 " Open a project  ~/dev                                      "
@@ -9,11 +10,11 @@ expression: term.backend()
 " ★ ~/dev/go                                                 "
 " ★ /tmp                                                     "
 "                                                            "
+" ↑ Up to ~                                                  "
 " + Use this folder                                          "
 " ⎇ api                                           in sidebar "
 " ▫ go                                              favorite "
 " ⎇ website                                                  "
 "                                                            "
 "                                                            "
-"                                                            "
-" Enter open · → into folder · ← up · ↑↓ move · Ctrl-f favori"
+" Enter open · Tab/→ into folder · ← up · ↑↓ move · Ctrl-f fa"

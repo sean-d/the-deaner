@@ -1,6 +1,6 @@
 ---
 source: crates/the-deaner-ui/tests/sidebar.rs
-assertion_line: 993
+assertion_line: 1028
 expression: top
 ---
 "                                  "
@@ -10,4 +10,5 @@ expression: top
 "╭ shop-api ────────────── ⠋1 ✻1 ─╮"
 " ▼ 1 more                         "
 " ? keys                       ⠋ 1 "
+" a add | x remove                 "
 " q detach | p pin | n next        "

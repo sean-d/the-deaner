@@ -1,7 +1,7 @@
 ---
 source: crates/the-deaner-ui/tests/sidebar.rs
 assertion_line: 190
-expression: "render(&mut app, 34, 12)"
+expression: "render(&mut app, 34, 13)"
 ---
 "★ PINNED 2 ────────────────────── "
 "the-deaner                        "
@@ -14,4 +14,5 @@ expression: "render(&mut app, 34, 12)"
 "○ INACTIVE 1 ──────────────────── "
 "› dotfiles  ⎇ main              ‖ "
 " ? keys                       ⠋ 1 "
+" a add | x remove                 "
 " q detach | p pin | n next        "

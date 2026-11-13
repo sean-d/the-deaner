@@ -8,15 +8,16 @@ project lives:
 | Key | Action |
 |---|---|
 | `↑` `↓` | Move |
-| type | Narrow the list |
+| type | Narrow the list, or type a path (below) |
 | `Enter` | On a git repo: add it, start it and show it. On a plain folder: go into it. |
-| `→` | Go into the highlighted folder |
-| `←` | Up one folder |
+| `→`, `Tab` | Go into the highlighted folder |
+| `←` | Up one folder (with nothing typed; otherwise it moves through what you typed) |
 | `Ctrl-f` | Add the highlighted folder to your favorites, or remove it |
 | `Esc` | Close |
 
 Git repos have a branch icon, plain folders a folder icon. To use a plain folder as a project, go into
-it and pick **Use this folder** at the top. Folders starting with a dot are hidden until you type a `.`.
+it and pick **Use this folder** at the top. Above that, **↑ Up to …** goes up a folder (it names where
+to), the same as `←`. Folders starting with a dot are hidden until you type a `.`.
 
 **Favorites** are folders you jump to, listed at the top wherever you are. `Enter` on one takes you there.
 The browser starts in your first favorite, so make that where you usually begin. To add the folder you're
@@ -24,7 +25,14 @@ in, go to **Use this folder** and press `Ctrl-f`. They're kept in order in `stat
 reorder them for now.
 
 To go anywhere on the system, press `←` until you reach the folder you want, or type a path the way
-you would in a shell: `/tmp/`, `~/`, `../`, `go/`. Anything ending in `/` that exists is entered.
+you would in a shell: `/tmp/`, `~/dev/`, `../`, `go/` (from where you were). The path stays in the box,
+the list shows the folder up to its last `/`, and whatever comes after narrows that list. So
+`~/dev/ru` lists `~/dev` narrowed to `rust`; `Tab` completes it to `~/dev/rust/`, and `Enter` opens the
+highlighted repo. Backspacing over a `/` goes back out of that folder. A path to a folder that doesn't
+exist lists nothing until you fix it.
+
+To take a project out of the sidebar, select it and press `x` (it asks first). Its sessions keep
+running and nothing on disk is touched; `the-deaner forget <name>` does the same from a shell.
 
 From the command line: `the-deaner open <path or name>` adds a folder if needed and opens it, and
 `the-deaner add <path>` adds without opening.
@@ -275,6 +283,14 @@ Agents still active:
 Then it saves a snapshot and stops everything. Power off. Run `the-deaner` tomorrow.
 
 Claude writes its transcript continuously, so "save anyway" loses at most the turn in progress.
+
+## A new version is out
+
+When the sidebar shows `↑ 0.2.0 · the-deaner upgrade` at the bottom, run `the-deaner upgrade` in any
+tab. It installs the release (with pacman or Homebrew), saves everything, restarts in the same
+window, and offers to restore it all, with each claude picking up its own conversation, the same as
+the start of the day. If an agent is still working it asks first, as `shutdown` does. Details in
+[getting started](getting-started.md#updating).
 
 ## Crashes, dead batteries, forgetting to shut down
 

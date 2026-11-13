@@ -89,6 +89,33 @@ flowchart TB
 `the-deaner-ui` never does IO. Keys become `Command` values, data arrives as `RepoGroup`s, and all of
 it is tested with ratatui's `TestBackend` and insta snapshots.
 
+## Restart and upgrade
+
+`the-deaner` with no arguments starts the frame if needed and then waits on `tmux attach`. That
+waiting process is what lets a restart bring the window back:
+
+1. `the-deaner restart` saves a snapshot and writes the current time (ms) to
+   `~/.local/state/the-deaner/restart`, then stops the frame and the workspace server.
+2. Each waiting `the-deaner` sees its attach end. If the restart time is later than when it
+   attached, it waits for both servers to be gone (so the new sidebar finds nothing running and
+   offers to restore), then `exec`s the binary now on disk. A window you detached from or closed
+   never comes back by itself, because there's no restart newer than its attach.
+3. If no window is attached and the command isn't running inside a workspace tab, the command
+   itself starts the-deaner in its own terminal.
+
+On Linux, a binary replaced while it runs (as `pacman -U` does) reports its path as
+`/usr/bin/the-deaner (deleted)`. the-deaner strips that suffix wherever it starts itself again (the
+relaunch and the sidebar's popups), so it runs the new file at the same path. On macOS, Homebrew's
+`/opt/homebrew/bin/the-deaner` is a symlink that moves to the new version.
+
+`the-deaner upgrade` reads `repos/sean-d/the-deaner/releases/latest`, compares versions, and
+recognizes the install from the binary's path: a path inside Homebrew's `Cellar`, or one that
+`pacman -Qqo` says belongs to the `the-deaner` package. It installs, runs the new binary's
+`--version` to make sure it changed, and only then restarts. The sidebar's daily check is one
+thread that reads the cached answer in `update.toml` every hour and asks GitHub only when the
+answer is a day old. `last_version` in `state.toml` is how the sidebar knows to say "Updated to …"
+once.
+
 ## Snapshots and restore
 
 A snapshot is TOML listing each workspace's windows (name, layout string) and panes (cwd, launch

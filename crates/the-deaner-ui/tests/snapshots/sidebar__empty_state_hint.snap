@@ -1,7 +1,7 @@
 ---
 source: crates/the-deaner-ui/tests/sidebar.rs
 assertion_line: 139
-expression: "render(&mut app, 34, 8)"
+expression: "render(&mut app, 34, 9)"
 ---
 "                                  "
 " No repos yet.                    "
@@ -10,4 +10,5 @@ expression: "render(&mut app, 34, 8)"
 "                                  "
 "                                  "
 " ? keys                           "
+" a add | x remove                 "
 " q detach | p pin | n next        "

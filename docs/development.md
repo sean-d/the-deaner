@@ -69,5 +69,19 @@ CI fails if they are out of date. The docs are plain markdown; GitHub renders th
 
 ## Releases
 
-Tag `vX.Y.Z` and push the tag. The release workflow builds Linux (x86_64, aarch64) and macOS
-(arm64) binaries and attaches them to a GitHub release.
+1. Bump `version` in the workspace `Cargo.toml` (and `Cargo.lock`, by building), commit, push.
+2. Wait for CI on `main` to pass.
+3. Tag `vX.Y.Z` and push the tag.
+
+The release workflow builds Linux (x86_64, aarch64) and macOS (arm64) tarballs, builds the Arch
+package from the Linux x86_64 binary, publishes the GitHub release with everything and a `.sha256`
+for each file, and then pushes the updated formula to `sean-d/homebrew-tap`.
+
+`the-deaner upgrade` and the sidebar's `↑` notice read that release, so they depend on its shape:
+the tag is `v<version>`, and the Arch package is named `the-deaner-<version>-1-<arch>.pkg.tar.zst`
+with a `.sha256` beside it. The release shows up on GitHub a little before its files finish
+uploading; an upgrade run in that gap says there's no Arch package yet and changes nothing.
+
+To try the upgrade path without a real release, build with a lower `version` in `Cargo.toml` and
+run `the-deaner upgrade --check` with that binary (and throwaway `THE_DEANER_HOME`,
+`THE_DEANER_SOCKET` and `THE_DEANER_FRAME_SOCKET`).

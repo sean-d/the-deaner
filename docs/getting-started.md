@@ -138,12 +138,64 @@ set -as terminal-features ",*:extkeys"
 
 ## Updating
 
-| Installed with | Update with |
-|---|---|
-| Homebrew | `brew upgrade the-deaner` |
-| pacman | download the new package, `sudo pacman -U` it |
-| cargo | `cargo install --locked --force --git https://github.com/sean-d/the-deaner the-deaner` |
+### Knowing there's a new version
 
-Running sessions are not affected. To switch to the new version, run `the-deaner restart`, from a
-the-deaner tab or any other terminal: it saves your workspaces, stops, and comes back in the same
-window, offering to restore them.
+Once a day the sidebar asks GitHub for the latest release (through `gh`, or `curl` when `gh` isn't
+logged in). When it's newer than the version you're running, a line appears above the footer:
+
+```text
+ ↑ 0.2.0 · the-deaner upgrade
+ ? keys
+ a add | x remove
+ q detach | p pin | n next
+```
+
+It stays until you're running that version. The answer is kept in
+`~/.local/state/the-deaner/update.toml`, so restarting doesn't ask GitHub again; if GitHub can't be
+reached, it tries again in an hour. To check right now:
+
+```text
+$ the-deaner upgrade --check
+the-deaner 0.2.0 is out (you have 0.1.5): https://github.com/sean-d/the-deaner/releases/tag/v0.2.0
+Run `the-deaner upgrade` to install it.
+```
+
+This also saves the answer, so the sidebar shows the line within the hour. To turn the daily check
+off, set `update_check = false` in `~/.config/the-deaner/config.toml`. Nothing is ever installed by
+itself.
+
+### Installing it
+
+```sh
+the-deaner upgrade
+```
+
+Run it from a the-deaner tab or from any other terminal. It asks before doing anything, then installs
+the release the way this copy was installed:
+
+| Installed with | What `the-deaner upgrade` does |
+|---|---|
+| pacman | Downloads the release's `.pkg.tar.zst` and its `.sha256`, checks the checksum, runs `sudo pacman -U` (your password, pacman's own prompt) |
+| Homebrew | `brew update`, then `brew upgrade the-deaner` |
+| cargo / source | Prints the command to rebuild (`cargo install --locked --force --git https://github.com/sean-d/the-deaner the-deaner`) and installs nothing |
+
+Once the new binary answers with the new version, it restarts: if an agent is still working it asks
+first (wait, interrupt, save anyway, cancel), then saves your workspaces and stops. Your window comes
+back by itself on the new version, offers to restore your workspaces (`y`), and shows "Updated to
+the-deaner 0.2.0" once. If anything fails before that (no network, wrong password, a bad checksum),
+nothing has been stopped. `-y` skips the "Install and restart?" question; pacman still asks its own.
+
+### Restarting by hand
+
+Installed a new version yourself (`brew upgrade`, `pacman -U`, `cargo install`)? Running sessions keep
+going on the old one until you restart:
+
+```sh
+the-deaner restart
+```
+
+It works like `the-deaner shutdown` followed by `the-deaner`, except that every window that had
+the-deaner open comes back by itself, including the one you typed it in.
+
+Versions before 0.1.4 don't know how to come back by themselves, so the first time, use
+`the-deaner shutdown` and then `the-deaner`.

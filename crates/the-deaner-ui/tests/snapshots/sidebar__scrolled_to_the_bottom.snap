@@ -1,6 +1,6 @@
 ---
 source: crates/the-deaner-ui/tests/sidebar.rs
-assertion_line: 998
+assertion_line: 1033
 expression: bottom
 ---
 " ▲ 1 more                         "
@@ -10,4 +10,5 @@ expression: bottom
 "› dotfiles  ⎇ main              ‖ "
 "                                  "
 " ? keys                       ⠋ 1 "
+" a add | x remove                 "
 " q detach | p pin | n next        "

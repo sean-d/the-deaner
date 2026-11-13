@@ -113,6 +113,12 @@ pub fn entries(frame: &FrameKeys, tmux: &[TmuxShortcut], icons: &Icons) -> Vec<E
         ]
         .map(|(icon, what)| Entry::new(ICONS, icon, what, "legend symbol badge status")),
     );
+    out.push(Entry::new(
+        ICONS,
+        "↑ 0.2.0",
+        "A newer the-deaner is out: run `the-deaner upgrade`",
+        "update upgrade version release new",
+    ));
     out
 }
 

@@ -1,7 +1,7 @@
 ---
 source: crates/the-deaner-ui/tests/sidebar.rs
-assertion_line: 122
-expression: "render(&mut app, 40, 30)"
+assertion_line: 130
+expression: "render(&mut app, 40, 31)"
 ---
 "╭ Keys ────────────────────────────────╮"
 "│Navigate                              │"
@@ -32,4 +32,5 @@ expression: "render(&mut app, 40, 30)"
 "│session                               │"
 "│S        Save a snapshot now          │"
 "│                                      │"
+"│Pins                                  │"
 "╰──────────────────────────────────────╯"

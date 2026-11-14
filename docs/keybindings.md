@@ -41,7 +41,7 @@ These work while the sidebar has focus.
 | `w` | New worktree + session for a branch |
 | `t` | New tab (agent, editor, shell) |
 | `a` | Open a project: browse folders, add and start it |
-| `x` | Archive worktree / remove project, stopping its sessions (asks first) |
+| `x` | Remove a worktree or a project, stopping its tmux sessions (asks first) |
 | `P` | Park: save and stop the session |
 | `S` | Save a snapshot now |
 

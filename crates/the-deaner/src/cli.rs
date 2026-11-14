@@ -48,8 +48,7 @@ pub enum Cmd {
         #[arg(required = true)]
         paths: Vec<String>,
     },
-    /// Remove a repo from the sidebar and stop its tmux sessions; files are untouched
-    Forget { target: String },
+
     /// Create a worktree for BRANCH in REPO and start a session for it
     New { repo: String, branch: String },
     /// Start (or unpark) a workspace and switch to it. A folder that isn't added yet is added first
@@ -62,12 +61,25 @@ pub enum Cmd {
         #[arg(last = true)]
         command: Vec<String>,
     },
-    /// Remove a worktree and kill its session
-    Archive {
+    /// Remove a worktree (deletes its folder) or a project (from the sidebar), stopping its tmux sessions
+    ///
+    /// A worktree (`<repo>/<branch>`, see `the-deaner ls`): stops its session and deletes
+    /// its folder with `git worktree remove`. Refuses when it has uncommitted changes,
+    /// unless --force. Its branch stays unless --delete-branch, which deletes it only if
+    /// it's merged (`git branch -d`).
+    ///
+    /// A project: stops its sessions (its checkout and worktrees), drops a parked copy, and
+    /// takes it out of the sidebar. Nothing on disk is touched; `the-deaner add` brings it
+    /// back.
+    #[command(alias = "archive", alias = "forget")]
+    Remove {
         target: String,
-        /// Remove even with uncommitted changes
+        /// Remove a worktree even with uncommitted changes (they're lost)
         #[arg(long)]
         force: bool,
+        /// Also delete a removed worktree's branch, if it's merged
+        #[arg(long)]
+        delete_branch: bool,
     },
     /// List workspaces, tabs and agent states
     Ls {
@@ -222,15 +234,6 @@ pub fn run(cli: Cli) -> Result<()> {
             }
             Ok(())
         }
-        Some(Cmd::Forget { target }) => {
-            let ws = engine.find(&target)?;
-            let stopped = engine.forget_repo(&ws.repo)?;
-            println!("removed {}", ws.repo.display());
-            for session in stopped {
-                println!("stopped session {session}");
-            }
-            Ok(())
-        }
         Some(Cmd::New { repo, branch }) => {
             let repo_path = engine
                 .find(&repo)
@@ -273,12 +276,11 @@ pub fn run(cli: Cli) -> Result<()> {
             println!("added tab {name} to {session}");
             Ok(())
         }
-        Some(Cmd::Archive { target, force }) => {
-            let ws = engine.find(&target)?;
-            engine.archive(&ws, force)?;
-            println!("archived {}", ws.name);
-            Ok(())
-        }
+        Some(Cmd::Remove {
+            target,
+            force,
+            delete_branch,
+        }) => remove(&engine, &target, force, delete_branch),
         Some(Cmd::Ls { json }) => ls(&engine, json),
         Some(Cmd::Send {
             addr,
@@ -415,6 +417,38 @@ fn ls(engine: &Engine, json: bool) -> Result<()> {
                 tabs.join("  ")
             );
         }
+    }
+    Ok(())
+}
+
+/// `the-deaner remove`: a worktree, or a whole project.
+fn remove(engine: &Engine, target: &str, force: bool, delete_branch: bool) -> Result<()> {
+    let ws = engine.find(target)?;
+    if !ws.worktree {
+        let stopped = engine.forget_repo(&ws.repo)?;
+        println!("removed {}", ws.repo.display());
+        for session in stopped {
+            println!("stopped session {session}");
+        }
+        return Ok(());
+    }
+    engine.remove_worktree(&ws, force)?;
+    println!("removed worktree {}", ws.name);
+    let Some(branch) = ws
+        .branch
+        .filter(|b| the_deaner_git::branch_exists(&ws.repo, b))
+    else {
+        return Ok(());
+    };
+    if !delete_branch {
+        println!(
+            "kept branch {branch} (delete it with: git -C {} branch -d {branch})",
+            ws.repo.display()
+        );
+    } else if the_deaner_git::delete_branch(&ws.repo, &branch)? {
+        println!("deleted branch {branch}");
+    } else {
+        println!("kept branch {branch}: it has commits that aren't merged");
     }
     Ok(())
 }

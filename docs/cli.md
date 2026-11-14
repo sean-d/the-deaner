@@ -12,11 +12,10 @@ Usage: the-deaner [OPTIONS] [COMMAND]
 Commands:
   sidebar        Run the sidebar in the current terminal (the frame runs this for you)
   add            Add repos or folders to the sidebar
-  forget         Remove a repo from the sidebar and stop its tmux sessions; files are untouched
   new            Create a worktree for BRANCH in REPO and start a session for it
   open           Start (or unpark) a workspace and switch to it. A folder that isn't added yet is added first
   tab            Add a tab to a workspace, e.g. `the-deaner tab api claude` or `the-deaner tab api logs -- tail -f app.log`
-  archive        Remove a worktree and kill its session
+  remove         Remove a worktree (deletes its folder) or a project (from the sidebar), stopping its tmux sessions
   ls             List workspaces, tabs and agent states
   send           Type a message into another agent's tab and press Enter
   whoami         Print this pane's address, for other agents to `the-deaner send` to
@@ -69,22 +68,6 @@ Usage: the-deaner add <PATHS>...
 
 Arguments:
   <PATHS>...
-          
-
-Options:
-  -h, --help
-          Print help
-```
-
-## the-deaner forget
-
-```text
-Remove a repo from the sidebar and stop its tmux sessions; files are untouched
-
-Usage: the-deaner forget <TARGET>
-
-Arguments:
-  <TARGET>
           
 
 Options:
@@ -149,12 +132,16 @@ Options:
           Print help
 ```
 
-## the-deaner archive
+## the-deaner remove
 
 ```text
-Remove a worktree and kill its session
+Remove a worktree (deletes its folder) or a project (from the sidebar), stopping its tmux sessions
 
-Usage: the-deaner archive [OPTIONS] <TARGET>
+A worktree (`<repo>/<branch>`, see `the-deaner ls`): stops its session and deletes its folder with `git worktree remove`. Refuses when it has uncommitted changes, unless --force. Its branch stays unless --delete-branch, which deletes it only if it's merged (`git branch -d`).
+
+A project: stops its sessions (its checkout and worktrees), drops a parked copy, and takes it out of the sidebar. Nothing on disk is touched; `the-deaner add` brings it back.
+
+Usage: the-deaner remove [OPTIONS] <TARGET>
 
 Arguments:
   <TARGET>
@@ -162,10 +149,13 @@ Arguments:
 
 Options:
       --force
-          Remove even with uncommitted changes
+          Remove a worktree even with uncommitted changes (they're lost)
+
+      --delete-branch
+          Also delete a removed worktree's branch, if it's merged
 
   -h, --help
-          Print help
+          Print help (see a summary with '-h')
 ```
 
 ## the-deaner ls

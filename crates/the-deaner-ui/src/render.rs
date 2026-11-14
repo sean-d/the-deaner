@@ -182,7 +182,9 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
                 .collect();
             frame.render_widget(Paragraph::new(lines), inner);
         }
-        Mode::Confirm { message, .. } => {
+        Mode::Confirm {
+            message, answer, ..
+        } => {
             let text_width = area.width.saturating_sub(4).max(1);
             let lines =
                 u16::try_from(message.width().div_ceil(usize::from(text_width))).unwrap_or(1);
@@ -194,12 +196,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App) {
             let para = Paragraph::new(vec![
                 Line::raw(message.clone()),
                 Line::raw(""),
-                Line::from(vec![
-                    Span::styled("y", p.accent),
-                    Span::raw(" yes · "),
-                    Span::styled("n", p.accent),
-                    Span::raw(" no"),
-                ]),
+                confirm_keys(&p, *answer),
             ])
             .wrap(Wrap { trim: true });
             frame.render_widget(para, inner.inner(ratatui::layout::Margin::new(1, 0)));
@@ -221,6 +218,27 @@ fn popup(area: Rect, height: u16) -> Rect {
     let height = height.min(area.height);
     let y = area.y + area.height.saturating_sub(height) / 3;
     Rect::new(area.x, y, area.width, height)
+}
+
+/// `y yes · n no` under a confirmation. A suggested `y` is bold; when only `y`/`n` will do,
+/// a note says so, since Enter does nothing there.
+fn confirm_keys<'a>(p: &Palette, answer: crate::app::Answer) -> Line<'a> {
+    use crate::app::Answer;
+    let yes = match answer {
+        Answer::Choose { suggest_yes: true } => Modifier::BOLD,
+        _ => Modifier::empty(),
+    };
+    let mut spans = vec![
+        Span::styled("y", p.accent.add_modifier(yes)),
+        Span::styled(" yes", Style::new().add_modifier(yes)),
+        Span::raw(" · "),
+        Span::styled("n", p.accent),
+        Span::raw(" no"),
+    ];
+    if matches!(answer, Answer::Choose { .. }) {
+        spans.push(Span::styled("  (press one)", p.muted));
+    }
+    Line::from(spans)
 }
 
 fn dialog_block<'a>(p: &Palette, title: &str) -> Block<'a> {

@@ -25,7 +25,7 @@ pub enum Action {
     TogglePin,
     PinUp,
     PinDown,
-    Archive,
+    Remove,
     Park,
     Save,
     Refresh,
@@ -178,9 +178,9 @@ pub const BINDINGS: &[Binding] = &[
     },
     Binding {
         keys: &[Char('x')],
-        action: Action::Archive,
+        action: Action::Remove,
         section: "Workspaces",
-        help: "Archive worktree / remove project, stopping its sessions (asks first)",
+        help: "Remove a worktree or a project, stopping its tmux sessions (asks first)",
     },
     Binding {
         keys: &[Char('P')],
@@ -291,7 +291,7 @@ pub const fn search_terms(action: Action) -> &'static str {
         Action::AddRepo => {
             "add repo folder directory new select file browser browse system favorite"
         }
-        Action::Archive => "delete remove worktree forget",
+        Action::Remove => "delete remove worktree forget archive project branch",
         Action::Park => "pause suspend stop",
         Action::Save => "snapshot backup",
         Action::TogglePin => "favorite top order",

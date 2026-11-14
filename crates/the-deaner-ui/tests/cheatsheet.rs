@@ -165,3 +165,11 @@ fn shows_the_running_version_in_the_corner() {
         "{screen}"
     );
 }
+
+#[test]
+fn says_what_removing_a_worktree_loses() {
+    let mut s = sheet();
+    search(&mut s, "what do i lose removing a worktree");
+    let keys: Vec<String> = found(&s).into_iter().map(|e| e.keys).collect();
+    assert!(keys.contains(&"x on a worktree".to_string()), "{keys:?}");
+}

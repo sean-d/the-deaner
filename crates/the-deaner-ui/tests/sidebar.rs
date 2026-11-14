@@ -151,6 +151,49 @@ fn enter_opens_main_checkout_from_repo_row() {
 }
 
 #[test]
+fn x_on_a_worktree_asks_to_remove_it() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    for _ in 0..2 {
+        app.handle_key(ch('j')); // the sec-bump worktree
+    }
+    app.handle_key(ch('x'));
+    assert!(matches!(app.mode(), Mode::Confirm { message, .. }
+            if message.starts_with("Remove worktree shop-api/sec-bump? Deletes ")
+                && message.ends_with(" and stops its tmux session.")),);
+    let Some(Command::RemoveWorktree { ws, force }) = app.handle_key(ch('y')) else {
+        panic!("y removes it");
+    };
+    assert_eq!((ws.branch.as_deref(), force), (Some("sec-bump"), false));
+}
+
+#[test]
+fn a_question_that_must_be_answered_ignores_enter() {
+    let delete = Command::DeleteBranch {
+        repo: PathBuf::from("/dev/shop-api"),
+        branch: "sec-bump".into(),
+    };
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    app.ask("Delete branch sec-bump too?", delete.clone(), true);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        None,
+        "Enter isn't an answer"
+    );
+    assert!(matches!(app.mode(), Mode::Confirm { .. }), "still asking");
+    assert!(render(&mut app, 40, 13).contains("(press one)"));
+    assert_eq!(app.handle_key(ch('y')), Some(delete.clone()));
+
+    app.ask("Delete branch sec-bump too?", delete, true);
+    assert_eq!(app.handle_key(ch('n')), None);
+    assert!(
+        matches!(app.mode(), Mode::Normal),
+        "n closes it, nothing done"
+    );
+}
+
+#[test]
 fn selection_survives_refresh_and_reorder() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Idle));
@@ -215,7 +258,7 @@ fn filter_narrows_rows_and_esc_clears() {
 }
 
 #[test]
-fn pin_moves_require_a_pin_and_archive_asks() {
+fn pin_moves_require_a_pin_and_remove_asks() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Idle));
     assert_eq!(
@@ -229,7 +272,7 @@ fn pin_moves_require_a_pin_and_archive_asks() {
         "unpinned repos cannot be moved"
     );
 
-    // archive on a main checkout = remove the repo, after confirmation
+    // x on a main checkout = remove the repo, after confirmation
     app.handle_key(ch('x'));
     assert!(
         matches!(app.mode(), Mode::Confirm { message, .. }

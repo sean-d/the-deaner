@@ -112,7 +112,7 @@ fn agent_pane(f: &Fixture, session: &str) -> String {
 }
 
 #[test]
-fn full_day_create_status_save_restore_park_archive() {
+fn full_day_create_status_save_restore_park_remove() {
     let f = fixture();
     let e = &f.engine;
 
@@ -202,21 +202,21 @@ fn full_day_create_status_save_restore_park_archive() {
     assert_eq!(back, "api/sec/bump");
     assert!(e.parked().is_empty());
 
-    // archive it: session gone, worktree removed
+    // remove it: session gone, worktree removed
     let ws = e.find("api/sec/bump").unwrap();
     std::fs::write(ws.path.join("scratch.txt"), "x").unwrap();
-    let refused = e.archive(&ws, false).unwrap_err().to_string();
+    let refused = e.remove_worktree(&ws, false).unwrap_err().to_string();
     assert!(
         refused.contains("1 uncommitted change.")
-            && refused.contains("the-deaner archive api/sec/bump --force"),
+            && refused.contains("the-deaner remove api/sec/bump --force"),
         "says what to do: {refused}"
     );
-    e.archive(&ws, true).unwrap();
+    e.remove_worktree(&ws, true).unwrap();
     assert!(!ws.path.exists());
     assert_eq!(e.workspaces().len(), 1);
 
-    // the main checkout cannot be archived
-    assert!(e.archive(&e.find("api").unwrap(), true).is_err());
+    // the main checkout is not a worktree
+    assert!(e.remove_worktree(&e.find("api").unwrap(), true).is_err());
 }
 
 #[test]
@@ -386,18 +386,21 @@ fn archiving_the_last_worktree_leaves_no_empty_folders() {
     assert!(root.join("feat/one").is_dir() && root.join("other").is_dir());
 
     // Neighbours keep their folders.
-    e.archive(&e.find("api/feat/one").unwrap(), false).unwrap();
+    e.remove_worktree(&e.find("api/feat/one").unwrap(), false)
+        .unwrap();
     assert!(!root.join("feat/one").exists());
     assert!(root.join("feat/two").is_dir());
 
-    e.archive(&e.find("api/feat/two").unwrap(), false).unwrap();
+    e.remove_worktree(&e.find("api/feat/two").unwrap(), false)
+        .unwrap();
     assert!(!root.join("feat").exists(), "feat/ emptied");
     assert!(
         root.join("other").is_dir(),
         "the worktrees folder stays while it's in use"
     );
 
-    e.archive(&e.find("api/other").unwrap(), false).unwrap();
+    e.remove_worktree(&e.find("api/other").unwrap(), false)
+        .unwrap();
     assert!(!root.exists(), "nothing left behind");
     assert!(f.repo.is_dir(), "the repo itself is untouched");
     assert!(f.repo.parent().unwrap().is_dir());
@@ -412,7 +415,8 @@ fn archiving_keeps_a_worktrees_folder_holding_anything_else() {
     e.new_worktree(&f.repo, "one").unwrap();
     std::fs::write(root.join("my-notes.txt"), "keep me").unwrap();
 
-    e.archive(&e.find("api/one").unwrap(), false).unwrap();
+    e.remove_worktree(&e.find("api/one").unwrap(), false)
+        .unwrap();
     assert!(root.join("my-notes.txt").is_file());
 }
 

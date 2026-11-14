@@ -55,7 +55,7 @@ The workspace is split so that edits rebuild as little as possible:
 | `the-deaner-tmux` | Typed wrapper over the tmux CLI; `TestServer` for isolated test servers | core |
 | `the-deaner-git` | Runs git and gh | core |
 | `the-deaner-ui` | Sidebar state machine, keymap (source of truth for keys and docs), rendering | core, ratatui, ratcn |
-| `the-deaner` | Engine (create, restore, park, archive), frame, hooks, CLI | all |
+| `the-deaner` | Engine (create, restore, park, remove), frame, hooks, CLI | all |
 
 Editing sidebar code rebuilds `the-deaner-ui` and the binary. Editing a parser rebuilds everything
 above `the-deaner-core`, which is still small.
@@ -67,7 +67,7 @@ flowchart TB
   main["main thread<br/>draw + input (never blocks)"] -- Command --> exec
   subgraph exec["executor"]
     quick["quick lane (in order)<br/>pin · collapse · add · forget · save"]
-    bg["background lane<br/>one thread per action, one action per workspace<br/>open · new worktree · archive · park · restore"]
+    bg["background lane<br/>one thread per action, one action per workspace<br/>open · new worktree · remove · park · restore"]
   end
   refresh["refresher<br/>tmux every 1 s or when kicked<br/>builds the sidebar from caches"] -- groups --> main
   pollers["pollers, one job per repo, in parallel<br/>git status · worktree list · git fetch · gh PR"] -- cache + kick --> refresh

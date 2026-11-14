@@ -243,6 +243,32 @@ pub fn remove_worktree(repo: &Path, path: &Path, force: bool) -> Result<()> {
     git_slow(repo, &args).map(drop)
 }
 
+/// Files with uncommitted changes, untracked ones included, as `git status` names them.
+///
+/// # Errors
+/// When git fails.
+pub fn changed_files(path: &Path) -> Result<Vec<String>> {
+    git(path, &["status", "--porcelain=v1", "--untracked-files=all"]).map(|out| {
+        out.lines()
+            .filter_map(|l| l.get(3..))
+            .map(|p| p.trim_matches('"').to_string())
+            .collect()
+    })
+}
+
+/// Delete a branch the safe way (`git branch -d`). `Ok(false)` when git keeps it because
+/// it has commits that aren't merged anywhere.
+///
+/// # Errors
+/// When git fails for any other reason.
+pub fn delete_branch(repo: &Path, branch: &str) -> Result<bool> {
+    match git(repo, &["branch", "-d", "--", branch]) {
+        Ok(_) => Ok(true),
+        Err(Error::Failed { stderr, .. }) if stderr.contains("not fully merged") => Ok(false),
+        Err(e) => Err(e),
+    }
+}
+
 /// Whether the `gh` CLI is installed.
 #[must_use]
 pub fn gh_available() -> bool {
@@ -309,6 +335,34 @@ mod tests {
         sh(dir.path(), &["add", "."]);
         sh(dir.path(), &["commit", "-qm", "init"]);
         dir
+    }
+
+    #[test]
+    fn changed_files_names_what_would_be_lost() {
+        let dir = repo();
+        let root = dir.path();
+        assert!(changed_files(root).unwrap().is_empty());
+        std::fs::write(root.join("a.txt"), "changed").unwrap();
+        std::fs::create_dir(root.join("notes")).unwrap();
+        std::fs::write(root.join("notes/scratch.txt"), "n").unwrap();
+        assert_eq!(changed_files(root).unwrap(), ["a.txt", "notes/scratch.txt"]);
+    }
+
+    #[test]
+    fn delete_branch_keeps_one_with_unmerged_commits() {
+        let dir = repo();
+        let root = dir.path();
+        sh(root, &["branch", "merged"]);
+        assert!(delete_branch(root, "merged").unwrap());
+        assert!(!branch_exists(root, "merged"));
+
+        sh(root, &["checkout", "-qb", "unmerged"]);
+        std::fs::write(root.join("b.txt"), "b").unwrap();
+        sh(root, &["add", "."]);
+        sh(root, &["commit", "-qm", "work"]);
+        sh(root, &["checkout", "-q", "main"]);
+        assert!(!delete_branch(root, "unmerged").unwrap(), "git -d refuses");
+        assert!(branch_exists(root, "unmerged"));
     }
 
     #[test]

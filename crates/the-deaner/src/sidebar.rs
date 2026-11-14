@@ -8,7 +8,7 @@
 //!   fetched by [`Poller`]s, one job per repo with several in parallel, so a huge
 //!   or hung repo only delays its own badge.
 //! - **Executor**: quick state changes (pins, collapse, add/forget) run in order
-//!   on one lane; anything that can take a while (open, new worktree, archive,
+//!   on one lane; anything that can take a while (open, new worktree, remove,
 //!   park, restore) runs on its own thread, at most one per workspace.
 
 use crate::engine::{Checkout, Engine, checkouts, now_unix};
@@ -34,6 +34,13 @@ pub enum Outcome {
     Info(String),
     Err(String),
     Silent,
+    /// A follow-up question: `y` runs `yes`. Only `y` or `n` answer it (Enter does
+    /// nothing); `suggest_yes` highlights `y`.
+    Ask {
+        message: String,
+        yes: Box<Command>,
+        suggest_yes: bool,
+    },
 }
 
 impl Outcome {
@@ -42,7 +49,7 @@ impl Outcome {
             Self::Ok(t) => Some(Toast::success(t)),
             Self::Info(t) => Some(Toast::info(t)),
             Self::Err(t) => Some(Toast::error(t).duration(Duration::from_secs(8))),
-            Self::Silent => None,
+            Self::Silent | Self::Ask { .. } => None,
         }
     }
 }
@@ -213,6 +220,23 @@ fn event_loop(
             match msg {
                 Msg::Groups(g) => app.set_groups(g),
                 Msg::Progress { id, text } => app.progress(&id, text),
+                Msg::Done {
+                    id,
+                    outcome:
+                        Outcome::Ask {
+                            message,
+                            yes,
+                            suggest_yes,
+                        },
+                } => {
+                    app.finish(&id, None);
+                    if app.is_asking() {
+                        // Don't trample a prompt that's open; say it instead.
+                        app.toast(Toast::info(message).duration(Duration::from_secs(8)));
+                    } else {
+                        app.ask(message, *yes, suggest_yes);
+                    }
+                }
                 Msg::Done { id, outcome } => app.finish(&id, outcome.toast()),
                 Msg::Update(v) => app.update = v,
             }
@@ -272,6 +296,22 @@ fn event_loop(
             None => {}
         }
     }
+}
+
+/// "Remove it anyway?" for a worktree with uncommitted changes, naming a few of them.
+fn uncommitted_question(name: &str, changed: &[String]) -> String {
+    const SHOWN: usize = 3;
+    let n = changed.len();
+    let mut list = changed[..n.min(SHOWN)].join(", ");
+    if n > SHOWN {
+        list.push_str(&format!(" and {} more", n - SHOWN));
+    }
+    let (change, them) = if n == 1 {
+        ("change", "it")
+    } else {
+        ("changes", "them")
+    };
+    format!("{name} has {n} uncommitted {change}: {list}. Remove it anyway and lose {them}?")
 }
 
 /// Ask GitHub about new versions at most once a day (the answer is kept in the state
@@ -493,11 +533,14 @@ fn lane(cmd: &Command, cfg: &Config) -> Lane {
             &ws.name,
             Some(format!("Parking {}…", ws.name)),
         ),
-        Command::Archive(ws) => bg(
+        Command::RemoveWorktree { ws, .. } => bg(
             ws.path.display().to_string(),
             &ws.name,
-            Some(format!("Archiving {}…", ws.name)),
+            Some(format!("Removing {}…", ws.name)),
         ),
+        Command::DeleteBranch { repo, branch } => {
+            bg(format!("{}#{branch}", repo.display()), branch, None)
+        }
         Command::NewWorktree { repo, branch } => bg(
             cfg.worktree_path(repo, branch).display().to_string(),
             branch,
@@ -561,7 +604,7 @@ impl Executor {
     }
 
     /// Queue a command. Never blocks.
-    /// No slow action (open, restore, archive, ...) is running.
+    /// No slow action (open, restore, remove, ...) is running.
     fn idle(&self) -> bool {
         self.busy.lock().is_ok_and(|b| b.is_empty())
     }
@@ -656,9 +699,36 @@ fn execute(engine: &Engine, switcher: &Switcher, command: Command) -> Result<Out
             engine.update_state(|s| s.toggle_collapsed(&path))?;
             Outcome::Silent
         }
-        Command::Archive(ws) => {
-            engine.archive(&ws, false)?;
-            Outcome::Ok(format!("Archived {}", ws.name))
+        Command::RemoveWorktree { ws, force } => {
+            if !force {
+                let changed = the_deaner_git::changed_files(&ws.path).unwrap_or_default();
+                if !changed.is_empty() {
+                    return Ok(Outcome::Ask {
+                        message: uncommitted_question(&ws.name, &changed),
+                        yes: Box::new(Command::RemoveWorktree { ws, force: true }),
+                        suggest_yes: false,
+                    });
+                }
+            }
+            engine.remove_worktree(&ws, force)?;
+            match ws.branch.clone() {
+                Some(branch) if the_deaner_git::branch_exists(&ws.repo, &branch) => Outcome::Ask {
+                    message: format!("Removed worktree {}. Delete branch {branch} too?", ws.name),
+                    yes: Box::new(Command::DeleteBranch {
+                        repo: ws.repo.clone(),
+                        branch,
+                    }),
+                    suggest_yes: true,
+                },
+                _ => Outcome::Ok(format!("Removed worktree {}", ws.name)),
+            }
+        }
+        Command::DeleteBranch { repo, branch } => {
+            if the_deaner_git::delete_branch(&repo, &branch)? {
+                Outcome::Ok(format!("Deleted branch {branch}"))
+            } else {
+                Outcome::Info(format!("Kept {branch}: it has commits that aren't merged"))
+            }
         }
         Command::ForgetRepo(path) => {
             let stopped = engine.forget_repo(&path)?;
@@ -859,6 +929,19 @@ mod tests {
         }
         ex.submit(Command::Restore);
         assert_eq!(next_done(&rx), Outcome::Ok("restored".into()));
+    }
+
+    #[test]
+    fn the_uncommitted_question_names_a_few_files() {
+        assert_eq!(
+            uncommitted_question("api/try", &["scratch.txt".into()]),
+            "api/try has 1 uncommitted change: scratch.txt. Remove it anyway and lose it?"
+        );
+        let many: Vec<String> = ["a", "b", "c", "d", "e"].map(String::from).to_vec();
+        assert_eq!(
+            uncommitted_question("api/try", &many),
+            "api/try has 5 uncommitted changes: a, b, c and 2 more. Remove it anyway and lose them?"
+        );
     }
 
     #[test]

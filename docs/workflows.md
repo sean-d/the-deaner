@@ -34,7 +34,7 @@ exist lists nothing until you fix it.
 To take a project out of the sidebar, select it and press `x`. It asks first, saying which tmux
 sessions will stop and warning you if an agent in it is still working. `y` stops its sessions (its
 checkout and any worktrees), drops a parked copy, and removes it. Nothing on disk is touched, and
-`the-deaner add` or `a` brings it back. `the-deaner forget <name>` does the same from a shell.
+`the-deaner add` or `a` brings it back. `the-deaner remove <name>` does the same from a shell.
 
 From the command line: `the-deaner open <path or name>` adds a folder if needed and opens it, and
 `the-deaner add <path>` adds without opening.
@@ -116,6 +116,19 @@ different files. Plain branches are fine for those.
   container name.
 - A branch can only be checked out in one folder at a time.
 
+**What removing one loses.** A worktree's folder is a complete second checkout: every tracked file of the
+repo (code, docs, `Cargo.toml`, …) is in it, which is why it looks like "a lot of stuff". Removing it with
+`x` deletes that folder, but nearly everything in it lives on in git:
+
+| In the worktree's folder | Lost when it's removed? |
+|---|---|
+| Tracked files you haven't changed | No: the same files are in git (and in your main checkout) |
+| Commits on its branch | No: the branch keeps them; it's only deleted if you say so, and only if merged |
+| Uncommitted edits and untracked files | **Yes**: `x` names them and asks before they go |
+| Ignored files (`node_modules`, build output, `.env`) | Yes, without asking: they were only ever in that folder |
+
+So before removing, commit or push what you want to keep, and `x` will tell you about anything you forgot.
+
 ## A security bump in the middle of a feature (two branches at once)
 
 Switching branches under a running agent pulls its files out from under it. Use a worktree instead:
@@ -126,15 +139,32 @@ Switching branches under a running agent pulls its files out from under it. Use 
 the-deaner runs `git worktree add` (at `../<repo>.worktrees/<branch>` by default), starts a session
 with your default tabs, and shows it. The worktree is nested under the repo in the sidebar.
 
-When the bump is merged, select the worktree and press `x`. the-deaner kills its session and removes the
-worktree. It refuses if there are uncommitted changes (use `the-deaner archive <name> --force` to override).
+When the bump is merged, select the worktree and press `x`, then `y`. the-deaner stops its tmux session
+and deletes the worktree's folder (`git worktree remove`). Then it asks:
+
+```text
+Removed worktree shop-api/deps/security-bump. Delete branch deps/security-bump too?
+y yes · n no  (press one)
+```
+
+`y` deletes the branch the safe way (`git branch -d`): if it has commits that aren't merged anywhere, git
+keeps it and the sidebar says so, so you can't lose work this way. `n` keeps it. Enter does nothing here;
+press `y` or `n`.
+
+If the worktree has uncommitted changes, `x` asks first, naming them (`… has 1 uncommitted change:
+scratch.txt. Remove it anyway and lose it?`). `y` removes it and the changes are gone; `n` leaves it as it
+was.
 
 From the CLI:
 
 ```sh
 the-deaner new shop-api deps/security-bump
-the-deaner archive shop-api/deps/security-bump
+the-deaner remove shop-api/deps/security-bump                   # keeps the branch
+the-deaner remove shop-api/deps/security-bump --delete-branch   # and deletes it if merged
 ```
+
+`--force` removes it despite uncommitted changes. (`the-deaner archive` and `the-deaner forget`, the old
+names, still work.)
 
 ## Agents talking to each other across repos
 

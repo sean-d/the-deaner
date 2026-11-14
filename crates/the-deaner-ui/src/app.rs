@@ -33,8 +33,17 @@ pub enum Command {
     TogglePin(PathBuf),
     MovePin(PathBuf, isize),
     ToggleCollapse(PathBuf),
-    /// Remove a linked worktree and its session.
-    Archive(WorkspaceView),
+    /// Remove a linked worktree: stop its session and delete its folder. Without `force`,
+    /// uncommitted changes make it ask first.
+    RemoveWorktree {
+        ws: WorkspaceView,
+        force: bool,
+    },
+    /// `git branch -d`, after removing that branch's worktree.
+    DeleteBranch {
+        repo: PathBuf,
+        branch: String,
+    },
     /// Remove a repo from the sidebar and stop its sessions (files untouched).
     ForgetRepo(PathBuf),
     Park(WorkspaceView),
@@ -65,6 +74,15 @@ pub enum PromptKind {
     AddRepo,
 }
 
+/// How a confirmation is answered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Answer {
+    /// `y` or Enter for yes.
+    EnterIsYes,
+    /// Only `y` or `n`: Enter does nothing. `suggest_yes` highlights `y` as the usual answer.
+    Choose { suggest_yes: bool },
+}
+
 pub enum Mode {
     Normal,
     Filter(InputState),
@@ -82,6 +100,8 @@ pub enum Mode {
         command: Box<Command>,
         /// Sent on "no", if anything.
         on_no: Option<Box<Command>>,
+        /// How it's answered: Enter as yes, or only `y`/`n`.
+        answer: Answer,
     },
     /// Help overlay, scrolled down by this many lines.
     Help(u16),
@@ -319,6 +339,18 @@ impl App {
             message: message.into(),
             command: Box::new(command),
             on_no: None,
+            answer: Answer::EnterIsYes,
+        };
+    }
+
+    /// A question that must be answered with `y` or `n` (Enter does nothing), for ones where
+    /// a reflexive Enter could cost something. `suggest_yes` highlights `y`.
+    pub fn ask(&mut self, message: impl Into<String>, yes: Command, suggest_yes: bool) {
+        self.mode = Mode::Confirm {
+            message: message.into(),
+            command: Box::new(yes),
+            on_no: None,
+            answer: Answer::Choose { suggest_yes },
         };
     }
 
@@ -328,6 +360,7 @@ impl App {
             message: message.into(),
             command: Box::new(yes),
             on_no: Some(Box::new(no)),
+            answer: Answer::EnterIsYes,
         };
     }
 
@@ -495,14 +528,17 @@ impl App {
                 message,
                 command,
                 on_no,
+                answer,
             } => match key.code {
-                KeyCode::Char('y' | 'Y') | KeyCode::Enter => Some(*command),
+                KeyCode::Char('y' | 'Y') => Some(*command),
+                KeyCode::Enter if answer == Answer::EnterIsYes => Some(*command),
                 KeyCode::Char('n' | 'N') | KeyCode::Esc => on_no.map(|c| *c),
                 _ => {
                     self.mode = Mode::Confirm {
                         message,
                         command,
                         on_no,
+                        answer,
                     };
                     None
                 }
@@ -587,7 +623,7 @@ impl App {
                 let delta = if action == Action::PinUp { -1 } else { 1 };
                 return Some(Command::MovePin(g.path.clone(), delta));
             }
-            Action::Archive => self.ask_archive(),
+            Action::Remove => self.ask_remove(),
             Action::Park => {
                 let ws = self.selected_ws()?.clone();
                 if ws.status != WsStatus::Live {
@@ -601,6 +637,7 @@ impl App {
                     ),
                     command: Box::new(Command::Park(ws)),
                     on_no: None,
+                    answer: Answer::EnterIsYes,
                 };
             }
             Action::Save => return Some(Command::Save),
@@ -615,7 +652,7 @@ impl App {
         None
     }
 
-    fn ask_archive(&mut self) {
+    fn ask_remove(&mut self) {
         let Some(row) = self.selected_row() else {
             return;
         };
@@ -624,11 +661,14 @@ impl App {
                 let w = self.groups[group].workspaces[ws].clone();
                 (
                     format!(
-                        "Archive {}? Removes the worktree at {} and kills its session.",
+                        "Remove worktree {}? Deletes {} and stops its tmux session.",
                         w.name,
-                        w.path.display()
+                        crate::app::tilde(&w.path)
                     ),
-                    Command::Archive(w),
+                    Command::RemoveWorktree {
+                        ws: w,
+                        force: false,
+                    },
                 )
             }
             Row::Header { .. } | Row::Gap { .. } | Row::BoxEnd { .. } | Row::Agent { .. } => return,
@@ -641,6 +681,7 @@ impl App {
             message,
             command: Box::new(command),
             on_no: None,
+            answer: Answer::EnterIsYes,
         };
     }
 
@@ -797,6 +838,19 @@ fn peek_target(ws: &WorkspaceView) -> String {
 }
 
 /// Apply one key to a text field using ratcn's editor bindings.
+/// A path with the home folder shown as `~`.
+pub(crate) fn tilde(path: &Path) -> String {
+    match dirs_home().and_then(|h| path.strip_prefix(&h).ok().map(Path::to_path_buf)) {
+        Some(rest) if rest.as_os_str().is_empty() => "~".into(),
+        Some(rest) => format!("~/{}", rest.display()),
+        None => path.display().to_string(),
+    }
+}
+
+fn dirs_home() -> Option<PathBuf> {
+    std::env::var_os("HOME").map(PathBuf::from)
+}
+
 /// What `x` on a project asks: what goes, and what stops with it.
 fn forget_message(g: &RepoGroup) -> String {
     let live = g

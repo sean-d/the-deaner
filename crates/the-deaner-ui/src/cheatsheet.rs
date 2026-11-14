@@ -21,6 +21,7 @@ const ANYWHERE: &str = "Anywhere";
 const SIDEBAR: &str = "Sidebar";
 const TERMINAL: &str = "Terminal";
 const ICONS: &str = "Sidebar icons";
+const REMOVING: &str = "Removing things";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
@@ -82,6 +83,30 @@ pub fn entries(frame: &FrameKeys, tmux: &[TmuxShortcut], icons: &Icons) -> Vec<E
     out.extend(
         tmux.iter()
             .map(|t| Entry::new(TERMINAL, t.keys.clone(), t.what, t.terms)),
+    );
+    out.extend(
+        [
+            (
+                "x on a worktree",
+                "Deletes that copy of the repo; asks before losing uncommitted files",
+            ),
+            (
+                "x, then y",
+                "Offers to delete its branch too (only if merged)",
+            ),
+            (
+                "x on a project",
+                "Out of the sidebar, its tmux sessions stop; files untouched",
+            ),
+        ]
+        .map(|(keys, what)| {
+            Entry::new(
+                REMOVING,
+                keys,
+                what,
+                "remove delete worktree branch project forget archive lose lost uncommitted",
+            )
+        }),
     );
     out.extend(
         [

@@ -534,14 +534,15 @@ impl Engine {
         self.create_session(&repo, &path, Some(branch), true)
     }
 
-    /// Kill the session of a worktree and remove the worktree.
+    /// Remove a worktree: stop its session and delete its folder (`git worktree remove`).
+    /// The branch stays. Refuses when it has uncommitted changes, unless `force`.
     ///
     /// # Errors
-    /// When git refuses (uncommitted changes without `force`).
-    pub fn archive(&self, ws: &WorkspaceView, force: bool) -> Result<()> {
+    /// When it's a main checkout, has uncommitted changes without `force`, or git refuses.
+    pub fn remove_worktree(&self, ws: &WorkspaceView, force: bool) -> Result<()> {
         if !ws.worktree {
             bail!(
-                "{} is a main checkout; use `the-deaner forget` to drop the repo",
+                "{} is a main checkout, not a worktree; removing it takes the whole project out of the sidebar",
                 ws.name
             );
         }
@@ -551,7 +552,7 @@ impl Engine {
         {
             let n = s.changed();
             bail!(
-                "{} has {n} uncommitted {}. Commit or delete {} first, or run: the-deaner archive {} --force",
+                "{} has {n} uncommitted {}. Commit or delete {} first, or run: the-deaner remove {} --force",
                 ws.name,
                 if n == 1 { "change" } else { "changes" },
                 if n == 1 { "it" } else { "them" },

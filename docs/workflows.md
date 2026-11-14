@@ -321,6 +321,11 @@ ssh you@your-box
 the-deaner
 ```
 
-Detach with `q` in the sidebar (or close the window) and everything keeps running. Popups such as
-peek and the cheat sheet open on whichever window you used last. If your desk window is still
-attached, both show the same frame at the size of the one you used last; detach the desk first.
+`the-deaner` takes over: any other window showing it (say, the one still open at your desk) is
+detached, so the screen you're using sets the size and the two don't fight over it. That window
+just goes back to its shell, and running `the-deaner` there takes it back. Nothing stops either way.
+To keep both on screen (pairing, or two monitors), open with `the-deaner --shared`: the other window
+stays attached, and the frame takes the size of whichever one you used last.
+
+Detach with `q` in the sidebar (or close the window) and everything keeps running. After
+`the-deaner restart` or an upgrade, every window that was showing it comes back.

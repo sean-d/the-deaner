@@ -22,6 +22,14 @@ use the_deaner_core::sidebar::WsStatus;
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Cmd>,
+    /// Open alongside other windows instead of taking over (they stay attached and share
+    /// the size)
+    #[arg(long)]
+    pub shared: bool,
+    /// Coming back after a restart: attach alongside other windows instead of taking over
+    /// (internal)
+    #[arg(long, hide = true)]
+    pub rejoin: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -181,6 +189,7 @@ pub enum Cmd {
 /// Propagates command failures for `main` to print.
 pub fn run(cli: Cli) -> Result<()> {
     let command = cli.command;
+    let take_over = !(cli.rejoin || cli.shared);
     // The hook path must be as fast and forgiving as possible: no config load.
     if let Some(Cmd::Hook { agent, event }) = &command {
         if let Ok(event) = event.parse::<HookEvent>() {
@@ -199,7 +208,7 @@ pub fn run(cli: Cli) -> Result<()> {
 
     let engine = Engine::from_env()?;
     match command {
-        None => frame::open(&engine),
+        None => frame::open(&engine, take_over),
         Some(Cmd::Sidebar { standalone }) => sidebar::run(engine, standalone),
         Some(Cmd::Cheatsheet) => cheatsheet::run(&engine),
         Some(Cmd::Toast) => crate::toast::run(),

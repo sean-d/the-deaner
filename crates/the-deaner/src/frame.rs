@@ -133,9 +133,13 @@ pub fn open_popup(frame: &Tmux, subcommand: &str) -> Result<()> {
 
 /// `the-deaner` with no arguments: attach to the frame, creating it if needed.
 ///
+/// With `take_over`, every other window attached to the frame is detached, so this one is
+/// the only screen and sets the size (from your laptop over SSH, the desk window lets go).
+/// After a restart, windows come back without it, so they don't detach each other.
+///
 /// # Errors
 /// When tmux cannot be started.
-pub fn open(engine: &Engine) -> Result<()> {
+pub fn open(engine: &Engine, take_over: bool) -> Result<()> {
     let exe = exe_path()?;
     let exe = shell_quote(&exe.to_string_lossy());
     crate::paths::write_atomic(
@@ -157,7 +161,7 @@ pub fn open(engine: &Engine) -> Result<()> {
         // Loops keep the panes alive if a process exits or crashes.
         let sidebar = format!("while :; do {exe} sidebar; sleep 1; done");
         let term = format!("while :; do {exe} term; sleep 1; done");
-        frame.run(&[
+        let created = frame.run(&[
             "new-session",
             "-d",
             "-s",
@@ -169,7 +173,15 @@ pub fn open(engine: &Engine) -> Result<()> {
             "-e",
             &env,
             &sidebar,
-        ])?;
+        ]);
+        if let Err(e) = created {
+            // Another window got there first (several come back at once after a restart):
+            // use the frame it made.
+            if !frame.has_session(FRAME_SESSION) {
+                return Err(e.into());
+            }
+            return attach(engine, &frame, take_over);
+        }
         frame.run(&[
             "split-window",
             "-h",
@@ -188,10 +200,16 @@ pub fn open(engine: &Engine) -> Result<()> {
         };
         let _ = frame.select_pane(focus);
     }
+    attach(engine, &frame, take_over)
+}
+
+/// Attach this terminal to the frame and wait. Afterwards, start again if a restart asked
+/// for it while we were attached.
+fn attach(engine: &Engine, frame: &Tmux, take_over: bool) -> Result<()> {
     let attached_at = now_ms();
     let status = frame
         .command()
-        .args(["attach-session", "-t", &session_target(FRAME_SESSION)])
+        .args(attach_args(take_over))
         .status()
         .context("attaching to the the-deaner frame")?;
     if restart_requested_since(&engine.paths.restart_marker(), attached_at) {
@@ -201,6 +219,16 @@ pub fn open(engine: &Engine) -> Result<()> {
         anyhow::bail!("tmux attach failed");
     }
     Ok(())
+}
+
+/// `tmux attach` for the frame; `-d` detaches every other client.
+fn attach_args(take_over: bool) -> Vec<String> {
+    let mut args = vec!["attach-session".to_string()];
+    if take_over {
+        args.push("-d".into());
+    }
+    args.extend(["-t".to_string(), session_target(FRAME_SESSION)]);
+    args
 }
 
 /// This binary's path as it is on disk now. On Linux, a binary replaced while it runs
@@ -273,7 +301,9 @@ pub fn relaunch(engine: &Engine) -> Result<()> {
         std::thread::sleep(Duration::from_millis(100));
     }
     let exe = exe_path()?;
-    let err = std::process::Command::new(&exe).exec();
+    // Every window that was open comes back; `--rejoin` keeps them from detaching each
+    // other, since none of them asked to take over.
+    let err = std::process::Command::new(&exe).arg("--rejoin").exec();
     Err(err).with_context(|| format!("starting {} again", exe.display()))
 }
 
@@ -482,6 +512,18 @@ mod tests {
         assert!(!restart_requested_since(&marker, 2_001));
         std::fs::write(&marker, "garbage").unwrap();
         assert!(!restart_requested_since(&marker, 0));
+    }
+
+    #[test]
+    fn opening_takes_over_unless_rejoining_after_a_restart() {
+        assert_eq!(
+            attach_args(true),
+            ["attach-session", "-d", "-t", &session_target(FRAME_SESSION)]
+        );
+        assert_eq!(
+            attach_args(false),
+            ["attach-session", "-t", &session_target(FRAME_SESSION)]
+        );
     }
 
     #[test]

@@ -163,10 +163,12 @@ machine:
 
 ```sh
 ssh you@your-box
-the-deaner          # the same running setup
+the-deaner          # the same running setup, and your desk window lets go
 ```
 
-Press `q` in the sidebar to detach before you disconnect, or just close the window. Nothing stops.
+The window you run `the-deaner` in takes over, so the screen you're using sets the size
+(`the-deaner --shared` keeps the other window attached). Press `q` in
+the sidebar to detach before you disconnect, or just close the window. Nothing stops.
 
 ## How it works
 

@@ -7,7 +7,7 @@ A tmux-backed command center for running coding agents side by side.
 
 Run `the-deaner` with no arguments to open the sidebar and terminal frame.
 
-Usage: the-deaner [COMMAND]
+Usage: the-deaner [OPTIONS] [COMMAND]
 
 Commands:
   sidebar        Run the sidebar in the current terminal (the frame runs this for you)
@@ -35,6 +35,9 @@ Commands:
   help           Print this message or the help of the given subcommand(s)
 
 Options:
+      --shared
+          Open alongside other windows instead of taking over (they stay attached and share the size)
+
   -h, --help
           Print help (see a summary with '-h')
 

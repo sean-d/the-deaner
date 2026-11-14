@@ -58,7 +58,7 @@ impl State {
         self.repos.last().expect("just pushed")
     }
 
-    /// Forget a repo (does not touch the disk or its sessions).
+    /// Forget a repo (does not touch the disk; the engine stops its sessions).
     pub fn remove_repo(&mut self, path: &Path) -> bool {
         let before = self.repos.len();
         self.repos.retain(|r| r.path != path);

@@ -230,6 +230,9 @@ fn dialog_block<'a>(p: &Palette, title: &str) -> Block<'a> {
         .title(Span::styled(title.to_string(), p.accent))
 }
 
+/// The fewest letters of a footer hint worth showing before `…`.
+const MIN_HINT: usize = 6;
+
 /// Three rows at the bottom: key hints, with how many agents are waiting on you or working
 /// at the right of the first. A filter, when there is one, takes the top row. A new
 /// version, when there is one, gets a row above them.
@@ -286,7 +289,7 @@ fn draw_footer(frame: &mut Frame<'_>, app: &App, p: &Palette, area: Rect) {
     frame.render_widget(counts, bottom);
 }
 
-/// `? keys` with the counts at the right, over `a add | x remove`, over
+/// `? keys` with the counts at the right, over `a add | x remove/terminate tmux session`, over
 /// `q detach | p pin | n next | v peek`. A hint that
 /// doesn't fit is left out (from the end of its row). The `n` turns orange when
 /// something needs you.
@@ -315,10 +318,25 @@ fn footer_lines<'a>(app: &App, p: &Palette, width: u16) -> [Line<'a>; 3] {
         for (i, &(key, word)) in hints.iter().enumerate() {
             let sep = if i == 0 { 0 } else { 3 };
             let w = sep + key.width() + 1 + word.width();
-            if used + w + right_w >= usize::from(width) {
+            let room = usize::from(width).saturating_sub(used + right_w + 1);
+            // A long description that doesn't fit is cut short rather than left out, so its
+            // key still shows; a short one that doesn't fit is left out.
+            let word: std::borrow::Cow<'_, str> = if w <= room {
+                word.into()
+            } else if room > sep + key.width() + 1 + MIN_HINT {
+                let keep = room - (sep + key.width() + 1) - 1;
+                let mut cut = String::new();
+                for c in word.chars() {
+                    if cut.width() + c.to_string().width() > keep {
+                        break;
+                    }
+                    cut.push(c);
+                }
+                format!("{}…", cut.trim_end()).into()
+            } else {
                 break;
-            }
-            used += w;
+            };
+            used += sep + key.width() + 1 + word.width();
             if i > 0 {
                 spans.push(Span::styled(" | ", p.border));
             }
@@ -329,12 +347,15 @@ fn footer_lines<'a>(app: &App, p: &Palette, width: u16) -> [Line<'a>; 3] {
             };
             spans.push(Span::styled(key, style.add_modifier(Modifier::BOLD)));
             spans.push(Span::styled(format!(" {word}"), p.muted));
+            if word.ends_with('…') {
+                break;
+            }
         }
         spans
     };
     let right_w: usize = right.iter().map(|s| s.content.width()).sum();
     let top = row(&[("?", "keys")], right_w);
-    let middle = row(&[("a", "add"), ("x", "remove")], 0);
+    let middle = row(&[("a", "add"), ("x", "remove/terminate tmux session")], 0);
     let bottom = row(
         &[("q", leave), ("p", "pin"), ("n", "next"), ("v", "peek")],
         0,

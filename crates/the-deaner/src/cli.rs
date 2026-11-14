@@ -48,7 +48,7 @@ pub enum Cmd {
         #[arg(required = true)]
         paths: Vec<String>,
     },
-    /// Forget a repo; its sessions keep running and files are untouched
+    /// Remove a repo from the sidebar and stop its tmux sessions; files are untouched
     Forget { target: String },
     /// Create a worktree for BRANCH in REPO and start a session for it
     New { repo: String, branch: String },
@@ -224,8 +224,10 @@ pub fn run(cli: Cli) -> Result<()> {
         }
         Some(Cmd::Forget { target }) => {
             let ws = engine.find(&target)?;
-            if engine.forget_repo(&ws.repo)? {
-                println!("forgot {}", ws.repo.display());
+            let stopped = engine.forget_repo(&ws.repo)?;
+            println!("removed {}", ws.repo.display());
+            for session in stopped {
+                println!("stopped session {session}");
             }
             Ok(())
         }

@@ -229,9 +229,14 @@ fn pin_moves_require_a_pin_and_archive_asks() {
         "unpinned repos cannot be moved"
     );
 
-    // archive on a main checkout = forget repo, after confirmation
+    // archive on a main checkout = remove the repo, after confirmation
     app.handle_key(ch('x'));
-    assert!(matches!(app.mode(), Mode::Confirm { .. }));
+    assert!(
+        matches!(app.mode(), Mode::Confirm { message, .. }
+            if message.starts_with("Remove dotfiles from the sidebar?")
+                && message.ends_with("Files on disk aren't touched.")),
+        "parked, not running: nothing to stop"
+    );
     assert_eq!(
         app.handle_key(ch('y')),
         Some(Command::ForgetRepo(PathBuf::from("/dev/dotfiles")))

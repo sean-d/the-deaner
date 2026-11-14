@@ -135,7 +135,7 @@ In the sidebar:
 | `a` | Add a project: browse folders, favorites with `Ctrl-f` |
 | `p`, `J` / `K` | Pin or unpin; move a pinned project up or down |
 | `Space`, `/` | Collapse a project; filter by name or branch |
-| `P`, `x` | Park a workspace (save and stop it); archive a worktree or forget a project |
+| `P`, `x` | Park a workspace (save and stop it); archive a worktree, or remove a project and stop its sessions |
 | `q` | Detach. Everything keeps running |
 | `?` | Every key, searchable, plus what the icons mean |
 

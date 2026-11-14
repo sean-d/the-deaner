@@ -1,6 +1,6 @@
 ---
 source: crates/the-deaner-ui/tests/sidebar.rs
-assertion_line: 809
+assertion_line: 814
 expression: screen
 ---
 "★ PINNED 2 ● ──────────────────── "
@@ -18,5 +18,5 @@ expression: screen
 "                                  "
 "                                  "
 " ? keys                   ! 1 ⠋ 1 "
-" a add | x remove                 "
+" a add | x remove/terminate tmux… "
 " q detach | p pin | n next        "

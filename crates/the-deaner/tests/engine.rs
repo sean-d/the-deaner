@@ -280,8 +280,22 @@ fn pins_order_groups_and_survive_forget() {
     assert!(!ws.worktree && ws.branch.is_none());
     assert_eq!(e.ensure_session(&ws).unwrap(), "zeta");
 
-    assert!(e.forget_repo(&other).unwrap());
+    // Removing it stops its session, so it really leaves the sidebar: a running session
+    // used to keep a forgotten project listed.
+    assert_eq!(e.forget_repo(&other).unwrap(), ["zeta"]);
     assert!(e.state().pins.is_empty());
+    assert!(!f.srv.tmux.has_session("zeta"));
+    assert_eq!(names(), ["api"]);
+
+    // A parked copy goes too, or it would come back as a parked row.
+    e.add_repo(&other.display().to_string()).unwrap();
+    let ws = e.find("zeta").unwrap();
+    e.ensure_session(&ws).unwrap();
+    e.park("zeta").unwrap();
+    assert_eq!(e.parked().len(), 1);
+    assert_eq!(e.forget_repo(&other).unwrap(), Vec::<String>::new());
+    assert!(e.parked().is_empty());
+    assert_eq!(names(), ["api"]);
 }
 
 #[test]

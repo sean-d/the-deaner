@@ -661,8 +661,16 @@ fn execute(engine: &Engine, switcher: &Switcher, command: Command) -> Result<Out
             Outcome::Ok(format!("Archived {}", ws.name))
         }
         Command::ForgetRepo(path) => {
-            engine.forget_repo(&path)?;
-            Outcome::Info(format!("Forgot {}", path.display()))
+            let stopped = engine.forget_repo(&path)?;
+            let name = path.file_name().map_or_else(
+                || path.display().to_string(),
+                |n| n.to_string_lossy().into_owned(),
+            );
+            Outcome::Info(match stopped.len() {
+                0 => format!("Removed {name}"),
+                1 => format!("Removed {name}, stopped its session"),
+                n => format!("Removed {name}, stopped {n} sessions"),
+            })
         }
         Command::Park(ws) => {
             engine.park(&ws.name)?;

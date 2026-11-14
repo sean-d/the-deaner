@@ -180,7 +180,7 @@ pub const BINDINGS: &[Binding] = &[
         keys: &[Char('x')],
         action: Action::Archive,
         section: "Workspaces",
-        help: "Archive worktree / forget repo (asks first)",
+        help: "Archive worktree / remove project, stopping its sessions (asks first)",
     },
     Binding {
         keys: &[Char('P')],

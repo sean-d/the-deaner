@@ -31,8 +31,10 @@ the list shows the folder up to its last `/`, and whatever comes after narrows t
 highlighted repo. Backspacing over a `/` goes back out of that folder. A path to a folder that doesn't
 exist lists nothing until you fix it.
 
-To take a project out of the sidebar, select it and press `x` (it asks first). Its sessions keep
-running and nothing on disk is touched; `the-deaner forget <name>` does the same from a shell.
+To take a project out of the sidebar, select it and press `x`. It asks first, saying which tmux
+sessions will stop and warning you if an agent in it is still working. `y` stops its sessions (its
+checkout and any worktrees), drops a parked copy, and removes it. Nothing on disk is touched, and
+`the-deaner add` or `a` brings it back. `the-deaner forget <name>` does the same from a shell.
 
 From the command line: `the-deaner open <path or name>` adds a folder if needed and opens it, and
 `the-deaner add <path>` adds without opening.

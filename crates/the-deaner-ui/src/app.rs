@@ -35,7 +35,7 @@ pub enum Command {
     ToggleCollapse(PathBuf),
     /// Remove a linked worktree and its session.
     Archive(WorkspaceView),
-    /// Forget a repo (files untouched).
+    /// Remove a repo from the sidebar and stop its sessions (files untouched).
     ForgetRepo(PathBuf),
     Park(WorkspaceView),
     Save,
@@ -634,10 +634,7 @@ impl App {
             Row::Header { .. } | Row::Gap { .. } | Row::BoxEnd { .. } | Row::Agent { .. } => return,
             Row::Repo { group } | Row::Workspace { group, .. } => {
                 let g = &self.groups[group];
-                (
-                    format!("Forget {}? Files on disk are not touched.", g.name),
-                    Command::ForgetRepo(g.path.clone()),
-                )
+                (forget_message(g), Command::ForgetRepo(g.path.clone()))
             }
         };
         self.mode = Mode::Confirm {
@@ -800,6 +797,33 @@ fn peek_target(ws: &WorkspaceView) -> String {
 }
 
 /// Apply one key to a text field using ratcn's editor bindings.
+/// What `x` on a project asks: what goes, and what stops with it.
+fn forget_message(g: &RepoGroup) -> String {
+    let live = g
+        .workspaces
+        .iter()
+        .filter(|w| w.status == the_deaner_core::sidebar::WsStatus::Live)
+        .count();
+    let working = g
+        .workspaces
+        .iter()
+        .any(|w| matches!(w.agent, AgentState::Busy | AgentState::Compacting));
+    let stops = match live {
+        0 => String::new(),
+        1 => " Stops its tmux session".to_string(),
+        n => format!(" Stops its {n} tmux sessions"),
+    };
+    let stops = match (live, working) {
+        (0, _) => stops,
+        (_, true) => format!("{stops}, and an agent in it is still working."),
+        (_, false) => format!("{stops}."),
+    };
+    format!(
+        "Remove {} from the sidebar?{stops} Files on disk aren't touched.",
+        g.name
+    )
+}
+
 pub(crate) fn edit(input: InputState, key: KeyEvent) -> InputState {
     let Ok(k) = ratcn::runtime::KeyEvent::try_from(key) else {
         return input;

@@ -138,12 +138,35 @@ impl Engine {
         self.update_state(|s| s.add_repo(root, name).clone())
     }
 
-    /// Forget a repo. Its sessions keep running; files are untouched.
+    /// Take a repo out of the sidebar: stop every tmux session for it (its checkout and its
+    /// worktrees), drop its parked copies, and forget it. Files on disk are untouched.
+    /// Returns the sessions stopped. A running session would otherwise keep it listed.
     ///
     /// # Errors
-    /// When state cannot be written.
-    pub fn forget_repo(&self, path: &Path) -> Result<bool> {
-        self.update_state(|s| s.remove_repo(path))
+    /// When a session can't be stopped or state can't be written.
+    pub fn forget_repo(&self, path: &Path) -> Result<Vec<String>> {
+        let mut stopped: Vec<String> = self
+            .managed_panes()
+            .into_iter()
+            .filter(|p| p.repo.as_deref() == Some(path))
+            .map(|p| p.session)
+            .collect();
+        stopped.sort();
+        stopped.dedup();
+        for session in &stopped {
+            self.tmux.kill_session(session)?;
+        }
+        if let Ok(entries) = std::fs::read_dir(self.paths.parked_dir()) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let parked_here = load_snapshot(&entry.path())
+                    .is_some_and(|s| s.workspaces.iter().any(|w| w.repo == path));
+                if parked_here {
+                    let _ = std::fs::remove_file(entry.path());
+                }
+            }
+        }
+        self.update_state(|s| s.remove_repo(path))?;
+        Ok(stopped)
     }
 
     // ---- listing -------------------------------------------------------

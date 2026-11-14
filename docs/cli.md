@@ -12,7 +12,7 @@ Usage: the-deaner [OPTIONS] [COMMAND]
 Commands:
   sidebar        Run the sidebar in the current terminal (the frame runs this for you)
   add            Add repos or folders to the sidebar
-  forget         Forget a repo; its sessions keep running and files are untouched
+  forget         Remove a repo from the sidebar and stop its tmux sessions; files are untouched
   new            Create a worktree for BRANCH in REPO and start a session for it
   open           Start (or unpark) a workspace and switch to it. A folder that isn't added yet is added first
   tab            Add a tab to a workspace, e.g. `the-deaner tab api claude` or `the-deaner tab api logs -- tail -f app.log`
@@ -79,7 +79,7 @@ Options:
 ## the-deaner forget
 
 ```text
-Forget a repo; its sessions keep running and files are untouched
+Remove a repo from the sidebar and stop its tmux sessions; files are untouched
 
 Usage: the-deaner forget <TARGET>
 

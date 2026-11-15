@@ -13,6 +13,8 @@ workspace = true
 
 [dependencies]
 the-deaner-core.workspace = true
+mmdflux.workspace = true
+pulldown-cmark.workspace = true
 ratatui.workspace = true
 ratcn.workspace = true
 unicode-width.workspace = true

@@ -242,13 +242,38 @@ impl Cheatsheet {
     pub fn draw(&mut self, frame: &mut Frame<'_>) {
         let full = frame.area();
         frame.buffer_mut().set_style(full, crate::theme::base());
-        let [search, list, hint] = Layout::vertical([
+        let [search, guide, rule, list, hint] = Layout::vertical([
+            Constraint::Length(2),
+            Constraint::Length(1),
             Constraint::Length(2),
             Constraint::Min(1),
             Constraint::Length(1),
         ])
         .areas(frame.area());
         let muted = Style::new().fg(self.theme.muted_foreground);
+        // Right under the search: the docs are one key away. A thin rule sets it apart
+        // from the list (not orange: that means "needs you" everywhere else).
+        frame.render_widget(
+            Line::styled(
+                format!(" {}", "─".repeat(usize::from(rule.width.saturating_sub(2)))),
+                Style::new().fg(colors::LINE),
+            ),
+            rule,
+        );
+        frame.render_widget(
+            Line::from(vec![
+                Span::styled(
+                    " User Guide:",
+                    Style::new().fg(colors::GOLD).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    " Tab",
+                    Style::new().fg(colors::CYAN).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(" while viewing this help", Style::new().fg(colors::FG)),
+            ]),
+            guide,
+        );
         frame.render_widget(
             InputWidget::new(&self.query)
                 .themed(&self.theme)
@@ -295,7 +320,10 @@ impl Cheatsheet {
         self.scroll = self.scroll.min(max);
         frame.render_widget(Paragraph::new(lines).scroll((self.scroll, 0)), list);
         frame.render_widget(
-            Line::styled(" type to search · ↑↓ scroll · Esc closes", muted),
+            Line::styled(
+                " type to search · ↑↓ scroll · Tab guide · Esc closes",
+                muted,
+            ),
             hint,
         );
         if let Some(version) = &self.version {

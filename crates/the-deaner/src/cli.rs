@@ -176,6 +176,12 @@ pub enum Cmd {
     },
     /// Open the searchable shortcut cheat sheet (Alt-/ inside the-deaner)
     Cheatsheet,
+    /// Read the docs here in the terminal: the guide (Tab in the cheat sheet), optionally at a page
+    Guide {
+        /// A page: overview, getting-started, workflows, keybindings, configuration, agents, cli,
+        /// architecture, development (or the start of one)
+        page: Option<String>,
+    },
     /// Make toast (`b` in the sidebar)
     #[command(hide = true)]
     Toast,
@@ -223,6 +229,7 @@ pub fn run(cli: Cli) -> Result<()> {
         None => frame::open(&engine, take_over),
         Some(Cmd::Sidebar { standalone }) => sidebar::run(engine, standalone),
         Some(Cmd::Cheatsheet) => cheatsheet::run(&engine),
+        Some(Cmd::Guide { page }) => cheatsheet::run_guide(&engine, page.as_deref()),
         Some(Cmd::Toast) => crate::toast::run(),
         Some(Cmd::Peek { addr }) => crate::peek::run(&engine, &addr),
         Some(Cmd::Browse { dir }) => browse::run(&engine, dir.as_deref()),

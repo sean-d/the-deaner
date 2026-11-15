@@ -54,7 +54,8 @@ what each claude is doing. Say `n` and it won't ask again; `the-deaner install-h
 2. Press `Alt-s` to jump between the sidebar and the terminal.
 3. In the terminal you are in plain tmux (your `~/.tmux.conf`, your prefix). Switch tabs the way
    you always do.
-4. Press `Alt-/` anywhere to search every shortcut: try typing "hide" or "new tab".
+4. Press `Alt-/` anywhere to search every shortcut: try typing "hide" or "new tab". Press `Tab`
+   there for the guide: these docs, built in (also `the-deaner guide`).
 
 Close the terminal window whenever you like. Everything keeps running. Run `the-deaner` again to come back.
 

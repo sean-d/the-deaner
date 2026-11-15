@@ -52,6 +52,16 @@ UPDATE_DOCS=1 cargo test -p the-deaner --test docs
 
 CI fails if they are out of date. The docs are plain markdown; GitHub renders them, diagrams included.
 
+The same files are compiled into the binary as the built-in guide (`Tab` in the cheat sheet,
+`the-deaner guide`; the page list is `guide_pages()` in `crates/the-deaner/src/cheatsheet.rs`), so a
+doc change ships with the next release. `the-deaner-ui`'s `markdown` module draws them: headings,
+lists, code, tables wrapped to fit, and mermaid diagrams drawn as text by
+[mmdflux](https://github.com/kevinswiber/mmdflux). A left-to-right diagram too wide for the screen is
+redrawn top to bottom; one that still doesn't fit is shown as its source. A test checks that every
+page draws and that every diagram is drawn (not shown as source) at 140 columns. If mmdflux lays a
+diagram out badly, an invisible link (`a ~~~ b`) can nudge it without changing what it says, as in
+the README's "How it works".
+
 ## Fast builds
 
 - The workspace is split into five crates, so an edit rebuilds only the crates downstream of it.

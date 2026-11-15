@@ -187,6 +187,7 @@ flowchart LR
     end
     hooks["Claude Code hooks"] -- "working · waiting · idle" --> work
     sidebar -. "reads panes, git, gh,<br/>Claude transcripts" .-> work
+    pane ~~~ hooks
 ```
 
 Two tmux servers. The *frame* holds the sidebar and a terminal pane; the *workspaces* server holds one
@@ -204,6 +205,10 @@ reads that along with git, `gh` and Claude's transcripts. More in [architecture]
 [CLI reference](docs/cli.md) ·
 [Architecture](docs/architecture.md) ·
 [Development](docs/development.md)
+
+The same pages are built into the-deaner, for the version you're running: press `Alt-/` (or `?` in
+the sidebar), then `Tab`, or run `the-deaner guide` (`the-deaner guide workflows` opens a page). They
+read and search like a pager, diagrams included, and work over SSH too.
 
 ## The name
 

@@ -1,12 +1,13 @@
 ---
 source: crates/the-deaner-ui/tests/cheatsheet.rs
+assertion_line: 114
 expression: "render(&mut s, 8)"
 ---
 " How do I…  how do i hide                                             "
 "                                                                      "
+" User Guide: Tab while viewing this help                              "
+" ──────────────────────────────────────────────────────────────────── "
+"                                                                      "
 " Anywhere                                                             "
 "   Alt-e  Hide / show the sidebar                                     "
-"                                                                      "
-" Sidebar                                                              "
-"   ?      Show / hide this help                                       "
-" type to search · ↑↓ scroll · Esc closes                              "
+" type to search · ↑↓ scroll · Tab guide · Esc closes                  "

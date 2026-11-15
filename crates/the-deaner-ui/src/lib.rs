@@ -3,8 +3,10 @@
 pub mod app;
 pub mod browser;
 pub mod cheatsheet;
+pub mod guide;
 pub mod icons;
 pub mod keymap;
+pub mod markdown;
 pub mod render;
 pub mod theme;
 

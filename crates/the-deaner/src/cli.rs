@@ -71,7 +71,6 @@ pub enum Cmd {
     /// A project: stops its sessions (its checkout and worktrees), drops a parked copy, and
     /// takes it out of the sidebar. Nothing on disk is touched; `the-deaner add` brings it
     /// back.
-    #[command(alias = "archive", alias = "forget")]
     Remove {
         target: String,
         /// Remove a worktree even with uncommitted changes (they're lost)
@@ -105,8 +104,10 @@ pub enum Cmd {
     },
     /// Snapshot all workspaces now
     Save,
-    /// Save a workspace and stop its session; open it again to bring it back
-    Park { target: String },
+    /// Put a workspace to sleep: save it and stop its tmux session; `wake` (or Enter) wakes it
+    Sleep { target: String },
+    /// Wake a sleeping workspace and switch to it, each agent resuming its conversation
+    Wake { target: String },
     /// Rebuild workspaces from the latest snapshot
     Restore {
         /// Restore from this snapshot file instead
@@ -316,13 +317,25 @@ pub fn run(cli: Cli) -> Result<()> {
             );
             Ok(())
         }
-        Some(Cmd::Park { target }) => {
+        Some(Cmd::Wake { target }) => {
+            let ws = engine.find(&target)?;
+            if ws.status != WsStatus::Parked {
+                bail!("{} isn't asleep", ws.name);
+            }
+            let name = engine.ensure_session(&ws)?;
+            println!("{name} is awake");
+            show(&engine, &name)
+        }
+        Some(Cmd::Sleep { target }) => {
             let ws = engine.find(&target)?;
             if ws.status != WsStatus::Live {
                 bail!("{} is not running", ws.name);
             }
             engine.park(&ws.name)?;
-            println!("parked {}", ws.name);
+            println!(
+                "{} is asleep; `the-deaner wake {}` wakes it",
+                ws.name, ws.name
+            );
             Ok(())
         }
         Some(Cmd::Restore { from }) => {
@@ -406,7 +419,7 @@ fn ls(engine: &Engine, json: bool) -> Result<()> {
         for w in &g.workspaces {
             let status = match w.status {
                 WsStatus::Live => "live",
-                WsStatus::Parked => "parked",
+                WsStatus::Parked => "asleep",
                 WsStatus::Stopped => "-",
             };
             let tabs: Vec<String> = w

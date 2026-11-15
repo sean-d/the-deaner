@@ -636,3 +636,27 @@ fn an_agent_killed_hard_stops_counting_once_a_shell_is_back() {
     hooks::handle(&f.srv.tmux, Some(&agent), "fake", HookEvent::Busy, &payload);
     assert_eq!(e.find("api").unwrap().agent, AgentState::Busy);
 }
+
+#[test]
+fn a_new_workspace_opens_on_the_focus_tab() {
+    let active = |f: &Fixture, session: &str| {
+        f.srv
+            .tmux
+            .display(Some(&format!("={session}:")), "#{window_name}")
+            .unwrap_or_default()
+    };
+    // No tab named "claude" here (the default focus_tab): the first tab.
+    let f = fixture();
+    f.engine.add_repo(&f.repo.display().to_string()).unwrap();
+    let ws = f.engine.find("api").unwrap();
+    let session = f.engine.ensure_session(&ws).unwrap();
+    assert_eq!(active(&f, &session), "agent");
+
+    // A tab by that name: that one.
+    let mut f = fixture();
+    f.engine.config.focus_tab = "shell".into();
+    f.engine.add_repo(&f.repo.display().to_string()).unwrap();
+    let ws = f.engine.find("api").unwrap();
+    let session = f.engine.ensure_session(&ws).unwrap();
+    assert_eq!(active(&f, &session), "shell");
+}

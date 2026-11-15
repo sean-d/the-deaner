@@ -314,15 +314,23 @@ fn new_tab_picker() {
 }
 
 #[test]
-fn park_only_live_workspaces() {
+fn z_sleeps_only_running_workspaces() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Idle));
-    app.handle_key(key(KeyCode::End)); // parked dotfiles
-    assert_eq!(app.handle_key(ch('P')), None);
+    app.handle_key(key(KeyCode::End)); // dotfiles, already asleep
+    assert_eq!(app.handle_key(ch('z')), None);
     assert!(matches!(app.mode(), Mode::Normal));
     app.handle_key(key(KeyCode::Home));
-    app.handle_key(ch('P'));
+    app.handle_key(ch('z'));
+    assert!(
+        matches!(app.mode(), Mode::Confirm { message, .. } if message.starts_with("Put the-deaner to sleep?"))
+    );
     assert!(matches!(app.handle_key(ch('y')), Some(Command::Park(w)) if w.name == "the-deaner"));
+    // P does the same (the footer shows only z).
+    app.handle_key(ch('P'));
+    assert!(
+        matches!(app.mode(), Mode::Confirm { message, .. } if message.starts_with("Put the-deaner to sleep?"))
+    );
 }
 
 #[test]

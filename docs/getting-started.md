@@ -147,7 +147,7 @@ logged in). When it's newer than the version you're running, a line appears abov
 ```text
  ↑ 0.2.0 upgrade available
  ? keys
- a add | x remove
+ a add | x remove | z sleep
  q detach | p pin | n next
  v0.1.9
 ```

@@ -523,7 +523,7 @@ fn lane(cmd: &Command, cfg: &Config) -> Lane {
             &ws.name,
             match ws.status {
                 WsStatus::Live => None,
-                WsStatus::Parked => Some(format!("Unparking {}…", ws.name)),
+                WsStatus::Parked => Some(format!("Waking {}…", ws.name)),
                 WsStatus::Stopped => Some(format!("Starting {}…", ws.name)),
             },
         ),
@@ -531,7 +531,7 @@ fn lane(cmd: &Command, cfg: &Config) -> Lane {
         Command::Park(ws) => bg(
             ws.path.display().to_string(),
             &ws.name,
-            Some(format!("Parking {}…", ws.name)),
+            Some(format!("Putting {} to sleep…", ws.name)),
         ),
         Command::RemoveWorktree { ws, .. } => bg(
             ws.path.display().to_string(),
@@ -744,7 +744,7 @@ fn execute(engine: &Engine, switcher: &Switcher, command: Command) -> Result<Out
         }
         Command::Park(ws) => {
             engine.park(&ws.name)?;
-            Outcome::Ok(format!("Parked {}", ws.name))
+            Outcome::Ok(format!("{} is asleep; Enter wakes it", ws.name))
         }
         Command::Save => {
             let snap = engine.snapshot();

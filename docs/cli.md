@@ -21,7 +21,8 @@ Commands:
   whoami         Print this pane's address, for other agents to `the-deaner send` to
   peek           Show the end of a tab's output in a pager (`v` in the sidebar)
   save           Snapshot all workspaces now
-  park           Save a workspace and stop its session; open it again to bring it back
+  sleep          Put a workspace to sleep: save it and stop its tmux session; `wake` (or Enter) wakes it
+  wake           Wake a sleeping workspace and switch to it, each agent resuming its conversation
   restore        Rebuild workspaces from the latest snapshot
   shutdown       Done for the day: save everything, then stop all sessions
   restart        Save everything, stop, and start again (picks up a newly installed version)
@@ -236,12 +237,28 @@ Options:
           Print help
 ```
 
-## the-deaner park
+## the-deaner sleep
 
 ```text
-Save a workspace and stop its session; open it again to bring it back
+Put a workspace to sleep: save it and stop its tmux session; `wake` (or Enter) wakes it
 
-Usage: the-deaner park <TARGET>
+Usage: the-deaner sleep <TARGET>
+
+Arguments:
+  <TARGET>
+          
+
+Options:
+  -h, --help
+          Print help
+```
+
+## the-deaner wake
+
+```text
+Wake a sleeping workspace and switch to it, each agent resuming its conversation
+
+Usage: the-deaner wake <TARGET>
 
 Arguments:
   <TARGET>

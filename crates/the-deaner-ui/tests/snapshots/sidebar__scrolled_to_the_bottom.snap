@@ -1,14 +1,14 @@
 ---
 source: crates/the-deaner-ui/tests/sidebar.rs
-assertion_line: 1054
+assertion_line: 1103
 expression: bottom
 ---
 " ▲ 1 more                         "
 "╰────────────────────────────────╯"
 "                                  "
-"○ INACTIVE 1 ──────────────────── "
+"‖ ASLEEP 1 ────────────────────── "
 "› dotfiles  ⎇ main              ‖ "
 "                                  "
 " ? keys                       ⠋ 1 "
-" a add | x remove/terminate tmux… "
+" a add | x remove | z sleep       "
 " q detach | p pin | n next        "

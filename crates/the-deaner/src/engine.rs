@@ -394,14 +394,17 @@ impl Engine {
         self.mark_session(&name, repo, path, branch, worktree)?;
         let mut typed = Vec::new();
         typed.extend(self.launch(&created.pane_id, first.command.as_deref())?);
+        // Open on `focus_tab` (claude by default), or the first tab when there's none by that name.
+        let mut focus = created.window_index;
         for tab in rest {
             let c = self.tmux.new_window(&name, path, &tab.name)?;
             typed.extend(self.launch(&c.pane_id, tab.command.as_deref())?);
+            if tab.name == self.config.focus_tab {
+                focus = c.window_index;
+            }
         }
         self.type_when_ready(&typed)?;
-        let _ = self
-            .tmux
-            .select_window(&window_target(&name, created.window_index));
+        let _ = self.tmux.select_window(&window_target(&name, focus));
         Ok(name)
     }
 
@@ -813,7 +816,7 @@ impl Engine {
                 return Ok(name);
             }
         }
-        bail!("nothing parked for {}", path.display())
+        bail!("nothing asleep for {}", path.display())
     }
 
     // ---- agents --------------------------------------------------------

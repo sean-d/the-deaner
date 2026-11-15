@@ -1,6 +1,6 @@
 ---
 source: crates/the-deaner-ui/tests/sidebar.rs
-assertion_line: 814
+assertion_line: 863
 expression: screen
 ---
 "★ PINNED 2 ● ──────────────────── "
@@ -13,10 +13,10 @@ expression: screen
 "│▌  ! Bump every dependency to … │"
 "╰────────────────────────────────╯"
 "                                  "
-"○ INACTIVE 1 ──────────────────── "
+"‖ ASLEEP 1 ────────────────────── "
 "› dotfiles  ⎇ main              ‖ "
 "                                  "
 "                                  "
 " ? keys                   ! 1 ⠋ 1 "
-" a add | x remove/terminate tmux… "
+" a add | x remove | z sleep       "
 " q detach | p pin | n next        "

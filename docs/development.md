@@ -35,7 +35,7 @@ cargo run
 | Unit | `crates/*/src/**` | Parsers, ordering, config, snapshot rules |
 | tmux integration | `crates/the-deaner-tmux/tests` | Real tmux via `TestServer` (own socket, no user config) |
 | git integration | `crates/the-deaner-git/src` | Temp repos, real `git worktree` |
-| Engine end-to-end | `crates/the-deaner/tests/engine.rs` | Create, hooks, save, kill server, restore with `--resume`, park, remove |
+| Engine end-to-end | `crates/the-deaner/tests/engine.rs` | Create, hooks, save, kill server, restore with `--resume`, sleep, remove |
 | UI snapshots | `crates/the-deaner-ui/tests` | `insta` + ratatui `TestBackend` |
 | Docs freshness | `crates/the-deaner/tests/docs.rs` | Generated pages must match the code |
 

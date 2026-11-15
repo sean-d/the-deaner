@@ -33,7 +33,7 @@ exist lists nothing until you fix it.
 
 To take a project out of the sidebar, select it and press `x`. It asks first, saying which tmux
 sessions will stop and warning you if an agent in it is still working. `y` stops its sessions (its
-checkout and any worktrees), drops a parked copy, and removes it. Nothing on disk is touched, and
+checkout and any worktrees), drops a sleeping copy, and removes it. Nothing on disk is touched, and
 `the-deaner add` or `a` brings it back. `the-deaner remove <name>` does the same from a shell.
 
 From the command line: `the-deaner open <path or name>` adds a folder if needed and opens it, and
@@ -163,8 +163,7 @@ the-deaner remove shop-api/deps/security-bump                   # keeps the bran
 the-deaner remove shop-api/deps/security-bump --delete-branch   # and deletes it if merged
 ```
 
-`--force` removes it despite uncommitted changes. (`the-deaner archive` and `the-deaner forget`, the old
-names, still work.)
+`--force` removes it despite uncommitted changes.
 
 ## Agents talking to each other across repos
 
@@ -197,7 +196,8 @@ The sidebar has up to three sections. A section's heading only appears when it h
 |---|---|---|
 | `PINNED` | Repos you pinned, running or not | **Your** order; activity never moves them |
 | `ACTIVE` | Unpinned repos with an agent running (in the main checkout or any worktree) | By name |
-| `INACTIVE` | Repos you've added with no agent running, including parked ones and ones with only an editor or shell open | By name |
+| `ASLEEP` | Repos put to sleep with `z` (saved, no tmux session) and nothing else of theirs running. Only shown when there's one | By name |
+| `INACTIVE` | Repos you've added with no agent running: ones with only an editor or shell open, and ones not started | By name |
 
 Press `p` on a repo to pin it, `K` to move it up, `J` to move it down.
 
@@ -244,7 +244,7 @@ that started it. A session running in one does get listed. Clean up leftovers wi
 | `+1 -0` | Commits ahead of and behind the upstream. Hidden when both are 0. the-deaner fetches running repos in the background every minute (`fetch_seconds`), so this tracks GitHub to within about a minute. Repos without a running session aren't fetched. |
 | `#259` | The branch's open PR, or its last merged one. |
 | Check | CI: green check passing, yellow clock running, red X failing. It comes from an open PR, otherwise from the branch's latest commit on GitHub, so `main` shows one with no PR at all. Repos without CI show nothing. Running projects update every minute (`pr_poll_seconds`), others every 5. While a project's CI is running, and for 3 minutes after you push from it, it updates every 5 seconds (`pr_fast_seconds`); opening a project or pressing `r` updates right away. |
-| Agent | Spinner: working. Bell: waiting on you. `✻`: idle. `◐`: compacting. Pause: parked. |
+| Agent | Spinner: working. Bell: waiting on you. `✻`: idle. `◐`: compacting. Pause: asleep (`z`). |
 
 The project shown on the right sits in a thin gold box with its name in the top border
 (`open_project = "block"` gives a dark gold block with a bar down its edge instead). The cursor is a navy
@@ -293,11 +293,14 @@ This applies to projects as they start. A project restored from a snapshot keeps
 
 A repo's own `.the-deaner.toml` overrides this. See [Configuration](configuration.md).
 
-## Park a workspace (pause it)
+## Put a workspace to sleep
 
-Select a running workspace and press `P` (or `the-deaner park <name>`). the-deaner saves it and stops its
-session, which frees the memory. It stays in the sidebar, dimmed, with a pause icon. Press `Enter`
-on it to bring it back exactly as it was.
+Select a running workspace and press `z` or `P` (or `the-deaner sleep <name>`). the-deaner saves it and stops
+its tmux session, which frees the memory (any agent in it stops too). It moves to the `‖ ASLEEP` section,
+between ACTIVE and INACTIVE since you're likely to come back to it (a pinned project stays in PINNED,
+with the `‖`). The section only appears when something is asleep. Press `Enter` on it (or `the-deaner wake <name>`) to wake it exactly as it was, each claude resuming its own
+conversation. It's `the-deaner shutdown` for one project: for something you're done with for now, but
+not finished with.
 
 ## End of the day
 

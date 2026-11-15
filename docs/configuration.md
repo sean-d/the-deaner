@@ -47,6 +47,10 @@ fetch_seconds = 60
 # of the sidebar. It never installs anything by itself: run `the-deaner upgrade` for that.
 update_check = true
 
+# The tab a new workspace opens on (by name); the first tab if it has none by that name. A woken or
+# restored workspace comes back on the tab it was saved on.
+focus_tab = "claude"
+
 # Where `w` / `the-deaner new` put worktrees. {repo_parent}, {repo} and {branch} are substituted.
 worktree_dir = "{repo_parent}/{repo}.worktrees/{branch}"
 
@@ -135,7 +139,7 @@ same place.
 |---|---|
 | `~/.local/state/the-deaner/state.toml` | Known repos, pin order, collapsed groups, sidebar width |
 | `~/.local/state/the-deaner/snapshots/` | `latest.toml` plus timestamped snapshots |
-| `~/.local/state/the-deaner/parked/` | One file per parked workspace |
+| `~/.local/state/the-deaner/parked/` | One file per sleeping workspace (`z`) |
 | `~/.local/state/the-deaner/frame.tmux.conf` | Generated config for the frame server |
 
 `THE_DEANER_HOME=/some/dir` moves all of it (config and state) under one directory.

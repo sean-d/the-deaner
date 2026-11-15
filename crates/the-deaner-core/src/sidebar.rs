@@ -63,6 +63,9 @@ pub struct WorkspaceView {
 pub enum Section {
     Pinned,
     Active,
+    /// Nothing running, and something put to sleep (`z`): saved, no tmux session. Above
+    /// INACTIVE: you put these away on purpose, so you're likelier to come back to them.
+    Asleep,
     Inactive,
 }
 
@@ -74,6 +77,7 @@ impl Section {
             Self::Pinned => "PINNED",
             Self::Active => "ACTIVE",
             Self::Inactive => "INACTIVE",
+            Self::Asleep => "ASLEEP",
         }
     }
 }
@@ -94,11 +98,11 @@ impl RepoGroup {
         AgentState::rollup(self.workspaces.iter().map(|w| w.agent))
     }
 
-    /// Shown as a single row, name and branch together: an inactive repo with only its
-    /// one checkout. Not the open project, which needs its own row for the box.
+    /// Shown as a single row, name and branch together: an inactive or sleeping repo with
+    /// only its one checkout. Not the open project, which needs its own row for the box.
     #[must_use]
     pub fn one_line(&self) -> bool {
-        self.section == Section::Inactive
+        matches!(self.section, Section::Inactive | Section::Asleep)
             && self.workspaces.len() == 1
             && !self.workspaces[0].current
     }
@@ -204,6 +208,10 @@ pub fn build(layout: &Layout<'_>, workspaces: Vec<WorkspaceView>) -> Vec<RepoGro
             Section::Pinned
         } else if g.workspaces.iter().any(|w| w.agent != AgentState::None) {
             Section::Active
+        } else if g.workspaces.iter().all(|w| w.status != WsStatus::Live)
+            && g.workspaces.iter().any(|w| w.status == WsStatus::Parked)
+        {
+            Section::Asleep
         } else {
             Section::Inactive
         };
@@ -645,5 +653,48 @@ mod tests {
         assert_eq!(groups[0].section, Section::Active);
         assert_eq!(groups[1].section, Section::Inactive);
         assert_eq!(groups[1].workspaces[0].status, WsStatus::Live);
+    }
+
+    #[test]
+    fn sleeping_projects_get_their_own_section_unless_pinned_or_running() {
+        let repos = repos(&["api", "docs", "pinned", "web"]);
+        let pins = [PathBuf::from("/r/pinned")];
+        let layout = Layout {
+            repos: &repos,
+            pins: &pins,
+            collapsed: &[],
+            float_attention: true,
+        };
+        let asleep = |repo: &str, path: &str| WorkspaceView {
+            status: WsStatus::Parked,
+            ..ws(repo, path, "main", AgentState::None)
+        };
+        let groups = build(
+            &layout,
+            vec![
+                asleep("/r/docs", "/r/docs"),
+                asleep("/r/pinned", "/r/pinned"),
+                // web's main checkout is asleep, but a worktree of it is running.
+                asleep("/r/web", "/r/web"),
+                ws("/r/web", "/r/web.worktrees/fix", "fix", AgentState::None),
+                ws("/r/api", "/r/api", "main", AgentState::None),
+            ],
+        );
+        let sections: Vec<(&str, Section)> = groups
+            .iter()
+            .map(|g| (g.name.as_str(), g.section))
+            .collect();
+        assert_eq!(
+            sections,
+            [
+                ("pinned", Section::Pinned),
+                ("docs", Section::Asleep),
+                ("api", Section::Inactive),
+                ("web", Section::Inactive),
+            ],
+            "asleep comes before inactive; pins stay put; anything running keeps it out"
+        );
+        assert_eq!(Section::Asleep.label(), "ASLEEP");
+        assert!(groups[1].one_line());
     }
 }

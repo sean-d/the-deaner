@@ -132,7 +132,7 @@ pub const BINDINGS: &[Binding] = &[
         keys: &[Enter],
         action: Action::Open,
         section: "Navigate",
-        help: "Open workspace in the terminal (starts or unparks it)",
+        help: "Open workspace in the terminal (starts or wakes it)",
     },
     Binding {
         keys: &[Char('n')],
@@ -183,10 +183,10 @@ pub const BINDINGS: &[Binding] = &[
         help: "Remove a worktree or a project, stopping its tmux sessions (asks first)",
     },
     Binding {
-        keys: &[Char('P')],
+        keys: &[Char('z'), Char('P')],
         action: Action::Park,
         section: "Workspaces",
-        help: "Park: save and stop the session",
+        help: "Sleep: save it and stop its tmux session; Enter wakes it",
     },
     Binding {
         keys: &[Char('S')],
@@ -292,7 +292,7 @@ pub const fn search_terms(action: Action) -> &'static str {
             "add repo folder directory new select file browser browse system favorite"
         }
         Action::Remove => "delete remove worktree forget archive project branch",
-        Action::Park => "pause suspend stop",
+        Action::Park => "sleep pause suspend stop park wake",
         Action::Save => "snapshot backup",
         Action::TogglePin => "favorite top order",
         Action::PinUp | Action::PinDown => "reorder order favorite",
@@ -406,7 +406,12 @@ mod tests {
             action_for(&KeyEvent::new(KeyCode::Char('j'), KeyModifiers::CONTROL)),
             None
         );
-        assert_eq!(action_for(&ev(KeyCode::Char('z'))), None);
+        assert_eq!(action_for(&ev(KeyCode::Char('z'))), Some(Action::Park));
+        assert_eq!(
+            action_for(&ev(KeyCode::Char('P'))),
+            Some(Action::Park),
+            "z and P both put a workspace to sleep"
+        );
     }
 
     #[test]

@@ -63,7 +63,9 @@ fn answers_the_questions_people_actually_ask() {
     answers("open a new tab on the right side", "t");
     answers("new tab", "Ctrl-Space c");
     answers("split", "Ctrl-h/j/k/l");
-    answers("pause", "P");
+    answers("pause", "z / P");
+    answers("put a project to sleep", "z / P");
+    answers("park", "z / P");
     answers("how do i open a project", "a");
     answers("select a project from a file browser", "a");
     answers("how do i navigate the tabs", "Alt-Right or Ctrl-Space n");
@@ -122,7 +124,7 @@ fn scrolling_stops_at_the_end() {
     }
     let screen = render(&mut s, 12);
     assert!(
-        screen.contains("Parked"),
+        screen.contains("Asleep"),
         "last entry is on screen: {screen}"
     );
 }

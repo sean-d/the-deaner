@@ -28,7 +28,7 @@ These work while the sidebar has focus.
 | `G` / `End` | Jump to bottom |
 | `Ctrl-d` | Half a page down |
 | `Ctrl-u` | Half a page up |
-| `Enter` | Open workspace in the terminal (starts or unparks it) |
+| `Enter` | Open workspace in the terminal (starts or wakes it) |
 | `n` | Go to next agent needing you |
 | `v` | Peek at an agent's output |
 | `Space` | Collapse / expand repo |
@@ -42,7 +42,7 @@ These work while the sidebar has focus.
 | `t` | New tab (agent, editor, shell) |
 | `a` | Open a project: browse folders, add and start it |
 | `x` | Remove a worktree or a project, stopping its tmux sessions (asks first) |
-| `P` | Park: save and stop the session |
+| `z` / `P` | Sleep: save it and stop its tmux session; Enter wakes it |
 | `S` | Save a snapshot now |
 
 ### Pins

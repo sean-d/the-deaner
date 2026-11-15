@@ -33,7 +33,8 @@ going, next to a terminal that is just your own tmux. Linux first, macOS too.
 - **Git and GitHub at a glance.** Changed files, commits ahead and behind, the pull request and its
   CI status, for every branch (via `gh`).
 - **Sections that stay put.** Pinned projects keep the order you gave them. The rest split into
-  ACTIVE (an agent is running) and INACTIVE, which takes one line per project.
+  ACTIVE (an agent is running), ASLEEP (put to sleep with `z`, shown only when something is), and
+  INACTIVE (open, nothing working). ASLEEP and INACTIVE take one line per project.
 - **Done for the day.** `the-deaner shutdown` saves everything and stops it. Tomorrow, `the-deaner`
   offers to restore it all, and each claude picks up its own conversation. If the machine goes
   down without a shutdown, the autosave from the last five minutes is what comes back.
@@ -85,7 +86,7 @@ above the footer until you install it:
 ```text
  ↑ 0.2.0 upgrade available
  ? keys
- a add | x remove
+ a add | x remove | z sleep
  q detach | p pin | n next
  v0.1.9
 ```
@@ -127,7 +128,7 @@ In the sidebar:
 |---|---|
 | `j` / `k`, `g` / `G` | Move; jump to the top or bottom |
 | `Ctrl-d` / `Ctrl-u` | Half a page down or up |
-| `Enter` | Open the workspace in the terminal (starts or unparks it) |
+| `Enter` | Open the workspace in the terminal (starts or wakes it) |
 | `n` | Go to the next agent that needs you |
 | `v` | Peek at an agent's output |
 | `t` | New tab: claude, nvim, a shell, anything you've configured |
@@ -135,7 +136,7 @@ In the sidebar:
 | `a` | Add a project: browse folders, favorites with `Ctrl-f` |
 | `p`, `J` / `K` | Pin or unpin; move a pinned project up or down |
 | `Space`, `/` | Collapse a project; filter by name or branch |
-| `P`, `x` | Park a workspace (save and stop it); remove a worktree (then, if you like, its branch) or a project, stopping their tmux sessions |
+| `z` (or `P`), `x` | Put a workspace to sleep (save it, stop its tmux session; `Enter` wakes it); remove a worktree (then, if you like, its branch) or a project, stopping their tmux sessions |
 | `q` | Detach. Everything keeps running |
 | `?` | Every key, searchable, plus what the icons mean |
 
@@ -150,7 +151,7 @@ cheat sheet. These are tmux key names in `~/.config/the-deaner/config.toml`, so 
 | `!` (a bell with a Nerd Font) | An agent is waiting on you: a question, a plan to approve, a permission |
 | `✻` | An agent is idle |
 | Orange row | Waiting on you, or finished while you were elsewhere. Clears when you go there |
-| `‖` | Parked: saved and stopped; `Enter` brings it back |
+| `‖` | Asleep (`z`): saved and stopped; `Enter` wakes it |
 | `✎ 3`, `+1 -2` | Changed files; commits ahead of and behind the upstream |
 | `#42 ✓` | The branch's pull request and its CI: `✓` passing, `✗` failing, `…` running |
 | `▲ 3 more` / `▼ 3 more` | Projects scrolled out of view; click to scroll |

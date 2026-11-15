@@ -632,7 +632,7 @@ impl App {
                 }
                 self.mode = Mode::Confirm {
                     message: format!(
-                        "Park {}? It is saved and stopped; Enter brings it back.",
+                        "Put {} to sleep? It's saved and its tmux session stops; Enter wakes it.",
                         ws.name
                     ),
                     command: Box::new(Command::Park(ws)),

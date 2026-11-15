@@ -127,6 +127,9 @@ pub struct Config {
     pub keys: FrameKeys,
     /// Tabs a new workspace starts with (overridden by a repo's `.the-deaner.toml`).
     pub tabs: Vec<TabSpec>,
+    /// The tab a new workspace opens on, by name; the first tab when there's none by that
+    /// name. Woken and restored workspaces come back on the tab they were saved on.
+    pub focus_tab: String,
     /// Known agents, merged over the built-in `claude` and `codex` definitions.
     pub agents: BTreeMap<String, AgentDef>,
 }
@@ -158,6 +161,7 @@ impl Default for Config {
                 TabSpec::new("claude", Some("claude")),
                 TabSpec::new("shell", None),
             ],
+            focus_tab: "claude".into(),
             agents: builtin_agents(),
         }
     }

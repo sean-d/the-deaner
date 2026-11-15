@@ -133,7 +133,10 @@ pub fn entries(frame: &FrameKeys, tmux: &[TmuxShortcut], icons: &Icons) -> Vec<E
             (icons.awaiting, "Agent waiting on you"),
             (icons.idle, "Agent idle"),
             (icons.compacting, "Agent compacting"),
-            (icons.parked, "Parked"),
+            (
+                icons.parked,
+                "Asleep (z): saved and stopped; Enter wakes it",
+            ),
             ("!1 ⠋2 ✻1", "Agents on a project: waiting, working, idle"),
         ]
         .map(|(icon, what)| Entry::new(ICONS, icon, what, "legend symbol badge status")),

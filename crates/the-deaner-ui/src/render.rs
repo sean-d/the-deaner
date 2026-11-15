@@ -307,7 +307,7 @@ fn draw_footer(frame: &mut Frame<'_>, app: &App, p: &Palette, area: Rect) {
     frame.render_widget(counts, bottom);
 }
 
-/// `? keys` with the counts at the right, over `a add | x remove/terminate tmux session`, over
+/// `? keys` with the counts at the right, over `a add | x remove | z sleep`, over
 /// `q detach | p pin | n next | v peek`. A hint that
 /// doesn't fit is left out (from the end of its row). The `n` turns orange when
 /// something needs you.
@@ -373,7 +373,7 @@ fn footer_lines<'a>(app: &App, p: &Palette, width: u16) -> [Line<'a>; 3] {
     };
     let right_w: usize = right.iter().map(|s| s.content.width()).sum();
     let top = row(&[("?", "keys")], right_w);
-    let middle = row(&[("a", "add"), ("x", "remove/terminate tmux session")], 0);
+    let middle = row(&[("a", "add"), ("x", "remove"), ("z", "sleep")], 0);
     let bottom = row(
         &[("q", leave), ("p", "pin"), ("n", "next"), ("v", "peek")],
         0,
@@ -645,6 +645,7 @@ fn heading_line<'a>(app: &App, p: &Palette, section: Section, width: u16) -> Lin
         Section::Pinned => (app.icons.pinned, p.warn),
         Section::Active => (app.icons.active, p.good),
         Section::Inactive => (app.icons.inactive, p.muted),
+        Section::Asleep => (app.icons.parked, p.muted),
     };
     let in_section = || app.groups.iter().filter(|g| g.section == section);
     let mut spans = vec![
@@ -670,7 +671,7 @@ fn heading_line<'a>(app: &App, p: &Palette, section: Section, width: u16) -> Lin
 
 fn repo_line<'a>(app: &App, p: &Palette, g: &RepoGroup, width: u16) -> Line<'a> {
     let mut left = Vec::new();
-    if g.section == Section::Inactive {
+    if matches!(g.section, Section::Inactive | Section::Asleep) {
         left.push(Span::styled(INACTIVE_MARK, p.muted));
     }
     // An arrow only says something when there's a hidden list to get back.
@@ -680,7 +681,7 @@ fn repo_line<'a>(app: &App, p: &Palette, g: &RepoGroup, width: u16) -> Line<'a> 
     let attention = g.workspaces.iter().any(|w| app.needs_attention(w));
     let name_style = match g.section {
         _ if attention => p.flagged,
-        Section::Inactive => p.muted,
+        Section::Inactive | Section::Asleep => p.muted,
         Section::Pinned | Section::Active => Style::new(),
     };
     left.push(Span::styled(
@@ -924,7 +925,7 @@ fn draw_help(frame: &mut Frame<'_>, p: &Palette, app: &App, area: Rect, scroll: 
         (icons.awaiting, p.warn, "Agent waiting on you"),
         (icons.idle, p.good, "Agent idle"),
         (icons.compacting, p.busy, "Agent compacting"),
-        (icons.parked, p.muted, "Parked"),
+        (icons.parked, p.muted, "Asleep (z)"),
     ] {
         lines.push(Line::from(vec![
             Span::styled(format!("{icon:<9}"), style),

@@ -177,10 +177,16 @@ pub enum Cmd {
     },
     /// Open the searchable shortcut cheat sheet (Alt-/ inside the-deaner)
     Cheatsheet,
+    /// What's new in each version (the first page of the guide)
+    Changelog {
+        /// Put what changed after this version first, e.g. the one you upgraded from
+        #[arg(long)]
+        since: Option<String>,
+    },
     /// Read the docs here in the terminal: the guide (Tab in the cheat sheet), optionally at a page
     Guide {
-        /// A page: overview, getting-started, workflows, keybindings, configuration, agents, cli,
-        /// architecture, development (or the start of one)
+        /// A page: changelog, overview, getting-started, workflows, keybindings, configuration,
+        /// agents, cli, architecture, development (or the start of one)
         page: Option<String>,
     },
     /// Make toast (`b` in the sidebar)
@@ -231,6 +237,7 @@ pub fn run(cli: Cli) -> Result<()> {
         Some(Cmd::Sidebar { standalone }) => sidebar::run(engine, standalone),
         Some(Cmd::Cheatsheet) => cheatsheet::run(&engine),
         Some(Cmd::Guide { page }) => cheatsheet::run_guide(&engine, page.as_deref()),
+        Some(Cmd::Changelog { since }) => cheatsheet::run_changelog(&engine, since.as_deref()),
         Some(Cmd::Toast) => crate::toast::run(),
         Some(Cmd::Peek { addr }) => crate::peek::run(&engine, &addr),
         Some(Cmd::Browse { dir }) => browse::run(&engine, dir.as_deref()),

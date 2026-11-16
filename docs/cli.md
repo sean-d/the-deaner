@@ -30,6 +30,7 @@ Commands:
   install-hooks  Install the-deaner's status hooks into an agent's settings
   browse         Browse folders to pick a project, add it, and open it (`a` in the sidebar)
   cheatsheet     Open the searchable shortcut cheat sheet (Alt-/ inside the-deaner)
+  changelog      What's new in each version (the first page of the guide)
   guide          Read the docs here in the terminal: the guide (Tab in the cheat sheet), optionally at a page
   keys           Show keybindings
   config         Show where config and state live, or print the default config
@@ -403,6 +404,21 @@ Options:
           Print help
 ```
 
+## the-deaner changelog
+
+```text
+What's new in each version (the first page of the guide)
+
+Usage: the-deaner changelog [OPTIONS]
+
+Options:
+      --since <SINCE>
+          Put what changed after this version first, e.g. the one you upgraded from
+
+  -h, --help
+          Print help
+```
+
 ## the-deaner guide
 
 ```text
@@ -412,7 +428,7 @@ Usage: the-deaner guide [PAGE]
 
 Arguments:
   [PAGE]
-          A page: overview, getting-started, workflows, keybindings, configuration, agents, cli, architecture, development (or the start of one)
+          A page: changelog, overview, getting-started, workflows, keybindings, configuration, agents, cli, architecture, development (or the start of one)
 
 Options:
   -h, --help

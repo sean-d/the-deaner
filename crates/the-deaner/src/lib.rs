@@ -4,6 +4,7 @@
 //! library so integration tests can drive it against throwaway tmux servers.
 
 pub mod browse;
+pub mod changelog;
 pub mod cheatsheet;
 pub mod cli;
 pub mod engine;

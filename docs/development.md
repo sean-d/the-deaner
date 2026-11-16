@@ -79,9 +79,13 @@ the README's "How it works".
 
 ## Releases
 
-1. Bump `version` in the workspace `Cargo.toml` (and `Cargo.lock`, by building), commit, push.
-2. Wait for CI on `main` to pass.
-3. Tag `vX.Y.Z` and push the tag.
+1. Add a `## X.Y.Z · YYYY-MM-DD` section at the top of `CHANGELOG.md`, in plain words for the
+   people using it (it's what they see after upgrading). A test fails until the version in
+   `Cargo.toml` has one.
+2. Bump `version` in the workspace `Cargo.toml` (and `Cargo.lock`, by building), commit, push.
+3. Wait for CI on `main` to pass.
+4. Tag `vX.Y.Z` and push the tag. The release notes on GitHub start with that `CHANGELOG.md`
+   section.
 
 The release workflow builds Linux (x86_64, aarch64) and macOS (arm64) tarballs, builds the Arch
 package from the Linux x86_64 binary, publishes the GitHub release with everything and a `.sha256`

@@ -184,8 +184,11 @@ the release the way this copy was installed:
 
 Once the new binary answers with the new version, it restarts: if an agent is still working it asks
 first (wait, interrupt, save anyway, cancel), then saves your workspaces and stops. Your window comes
-back by itself on the new version, offers to restore your workspaces (`y`), and shows "Updated to
-the-deaner 0.2.0" once. If anything fails before that (no network, wrong password, a bad checksum),
+back by itself on the new version, offers to restore your workspaces (`y`), shows "Updated to
+the-deaner 0.2.0" once, and opens **What's new**: what changed since the version you had at the top,
+every earlier version below it, searchable with `/`. Esc closes it. It's also the first page of the
+guide (`Alt-/`, then `Tab`) and `the-deaner changelog` from a shell; `show_changelog = false` in the
+config skips the popup. If anything fails before that (no network, wrong password, a bad checksum),
 nothing has been stopped. `-y` skips the "Install and restart?" question; pacman still asks its own.
 
 ### Installing some other way

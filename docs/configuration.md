@@ -46,6 +46,9 @@ fetch_seconds = 60
 # Once a day, ask GitHub whether a newer the-deaner is out, and show `↑ <version>` at the bottom
 # of the sidebar. It never installs anything by itself: run `the-deaner upgrade` for that.
 update_check = true
+# The first time the-deaner starts on a new version, open "What's new" (the changelog) with what
+# changed since the version you had at the top. `false` leaves just the "Updated to" toast.
+show_changelog = true
 
 # The tab a new workspace opens on (by name); the first tab if it has none by that name. A woken or
 # restored workspace comes back on the tab it was saved on.

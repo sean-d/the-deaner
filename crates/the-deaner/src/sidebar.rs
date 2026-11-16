@@ -171,8 +171,31 @@ fn announce_upgrade(engine: &Engine, app: &mut App) {
             Toast::success(format!("Updated to the-deaner {CURRENT}"))
                 .duration(Duration::from_secs(12)),
         );
+        if engine.config.show_changelog && in_frame() {
+            show_whats_new(engine, state.last_version.clone());
+        }
     }
     let _ = engine.update_state(|s| s.last_version = Some(CURRENT.into()));
+}
+
+/// Open What's new over the frame, with what changed since `since` first. After a restart the
+/// sidebar starts a moment before the window attaches again, so wait for a window to show
+/// it on.
+fn show_whats_new(engine: &Engine, since: Option<String>) {
+    let frame = crate::frame::frame_tmux(engine);
+    std::thread::spawn(move || {
+        for _ in 0..60 {
+            if frame.latest_client().is_some() {
+                let cmd = match &since {
+                    Some(v) => format!("changelog --since {v}"),
+                    None => "changelog".to_string(),
+                };
+                let _ = crate::frame::open_popup(&frame, &cmd);
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(250));
+        }
+    });
 }
 
 /// Claude is here but can't tell us what it's doing yet: offer the hooks, once. A restore

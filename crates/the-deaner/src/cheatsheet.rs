@@ -39,6 +39,7 @@ pub fn guide_pages() -> Vec<GuidePage> {
         };
     }
     vec![
+        page!("changelog", "What's new", "CHANGELOG.md"),
         page!("overview", "Overview", "README.md"),
         page!(
             "getting-started",
@@ -66,7 +67,16 @@ enum Showing {
 /// # Errors
 /// When the terminal can't be set up.
 pub fn run(engine: &Engine) -> Result<()> {
-    run_from(engine, Showing::Keys, None)
+    run_from(engine, Showing::Keys, None, None)
+}
+
+/// `the-deaner changelog [--since <version>]`: the guide, open on What's new. With `since`,
+/// what changed after that version comes first.
+///
+/// # Errors
+/// When the terminal can't be set up.
+pub fn run_changelog(engine: &Engine, since: Option<&str>) -> Result<()> {
+    run_from(engine, Showing::Guide, Some("changelog"), since)
 }
 
 /// `the-deaner guide [page]`: the same popup, opened on the guide.
@@ -74,11 +84,25 @@ pub fn run(engine: &Engine) -> Result<()> {
 /// # Errors
 /// When the page doesn't exist or the terminal can't be set up.
 pub fn run_guide(engine: &Engine, page: Option<&str>) -> Result<()> {
-    run_from(engine, Showing::Guide, page)
+    run_from(engine, Showing::Guide, page, None)
 }
 
-fn run_from(engine: &Engine, start: Showing, page: Option<&str>) -> Result<()> {
-    let mut guide = Guide::new(guide_pages()).with_version(crate::upgrade::CURRENT);
+fn run_from(
+    engine: &Engine,
+    start: Showing,
+    page: Option<&str>,
+    since: Option<&str>,
+) -> Result<()> {
+    let mut pages = guide_pages();
+    if let Some(since) = since {
+        // What's new, with what changed after `since` first. Built once per popup.
+        let text: &'static str =
+            Box::leak(crate::changelog::page(crate::changelog::TEXT, Some(since)).into_boxed_str());
+        if let Some(p) = pages.iter_mut().find(|p| p.slug == "changelog") {
+            p.source = text;
+        }
+    }
+    let mut guide = Guide::new(pages).with_version(crate::upgrade::CURRENT);
     if let Some(name) = page
         && !guide.open(name)
     {

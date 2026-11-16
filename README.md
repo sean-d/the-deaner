@@ -101,8 +101,10 @@ Install 0.2.0 and restart? [Y/n]
 
 It installs the release the way you installed the-deaner: on Arch, the package from the release
 (checksum checked) with `sudo pacman -U`; on macOS, `brew update` and `brew upgrade`. Then it saves
-your workspaces, restarts in the same window, offers to restore them, and says "Updated to
-the-deaner 0.2.0". Nothing is ever installed without you running it. `the-deaner upgrade --check`
+your workspaces, restarts in the same window, offers to restore them, says "Updated to the-deaner
+0.2.0", and opens **What's new**: what changed since the version you had, then every earlier
+version (also the guide's first page, and `the-deaner changelog`; [CHANGELOG.md](CHANGELOG.md) here).
+Nothing is ever installed without you running it. `the-deaner upgrade --check`
 only reports, and `update_check = false` in the config turns the daily check off. Installed a new
 version some other way (`brew upgrade`, `pacman -U`)? The sidebar notices and switches to it by itself
 within a few seconds. More in [getting started](docs/getting-started.md#updating).
@@ -198,6 +200,7 @@ reads that along with git, `gh` and Claude's transcripts. More in [architecture]
 
 ## Documentation
 
+[What's new](CHANGELOG.md) ·
 [Getting started](docs/getting-started.md) ·
 [Workflows](docs/workflows.md) ·
 [Keybindings](docs/keybindings.md) ·

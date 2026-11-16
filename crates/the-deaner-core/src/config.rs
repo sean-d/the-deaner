@@ -118,6 +118,8 @@ pub struct Config {
     /// Ask GitHub once a day whether a newer the-deaner is out, and say so in the sidebar.
     /// It never installs anything; that's `the-deaner upgrade`.
     pub update_check: bool,
+    /// Open "What's new" by itself the first time the-deaner starts on a new version.
+    pub show_changelog: bool,
     /// Where new worktrees go. `{repo_parent}`, `{repo}` and `{branch}` are substituted.
     pub worktree_dir: String,
     /// Process names that count as "just a shell" (nothing to restore).
@@ -148,6 +150,7 @@ impl Default for Config {
             pr_fast_seconds: 5,
             fetch_seconds: 60,
             update_check: true,
+            show_changelog: true,
             worktree_dir: "{repo_parent}/{repo}.worktrees/{branch}".into(),
             shells: ["zsh", "bash", "fish", "sh", "dash", "nu", "elvish", "xonsh"]
                 .map(String::from)

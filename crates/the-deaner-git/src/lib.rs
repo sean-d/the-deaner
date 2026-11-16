@@ -269,6 +269,15 @@ pub fn delete_branch(repo: &Path, branch: &str) -> Result<bool> {
     }
 }
 
+/// The URL of a repo's `origin` remote, if it has one.
+#[must_use]
+pub fn origin_url(path: &Path) -> Option<String> {
+    git(path, &["config", "--get", "remote.origin.url"])
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
 /// Whether the `gh` CLI is installed.
 #[must_use]
 pub fn gh_available() -> bool {

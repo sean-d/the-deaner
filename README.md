@@ -203,6 +203,7 @@ reads that along with git, `gh` and Claude's transcripts. More in [architecture]
 [What's new](CHANGELOG.md) ·
 [Getting started](docs/getting-started.md) ·
 [Workflows](docs/workflows.md) ·
+[Projects on every machine](docs/projects.md) ·
 [Keybindings](docs/keybindings.md) ·
 [Configuration](docs/configuration.md) ·
 [Agents and hooks](docs/agents.md) ·

@@ -30,6 +30,8 @@ Commands:
   install-hooks  Install the-deaner's status hooks into an agent's settings
   browse         Browse folders to pick a project, add it, and open it (`a` in the sidebar)
   cheatsheet     Open the searchable shortcut cheat sheet (Alt-/ inside the-deaner)
+  sync           Add the projects in your projects file to this sidebar, cloning what's missing. Shows the plan and asks first; never removes anything
+  export         Save this sidebar as your projects file (~/.config/the-deaner/projects.toml), for `the-deaner sync` on another machine. Asks before replacing a different one
   changelog      What's new in each version (the first page of the guide)
   guide          Read the docs here in the terminal: the guide (Tab in the cheat sheet), optionally at a page
   keys           Show keybindings
@@ -404,6 +406,42 @@ Options:
           Print help
 ```
 
+## the-deaner sync
+
+```text
+Add the projects in your projects file to this sidebar, cloning what's missing. Shows the plan and asks first; never removes anything
+
+Usage: the-deaner sync [OPTIONS]
+
+Options:
+  -y, --yes
+          Don't ask before doing it
+
+      --file <FILE>
+          Read this file instead of ~/.config/the-deaner/projects.toml
+
+  -h, --help
+          Print help
+```
+
+## the-deaner export
+
+```text
+Save this sidebar as your projects file (~/.config/the-deaner/projects.toml), for `the-deaner sync` on another machine. Asks before replacing a different one
+
+Usage: the-deaner export [OPTIONS]
+
+Options:
+      --show
+          Only print it, to look at; nothing is saved
+
+      --file <FILE>
+          Save it here instead
+
+  -h, --help
+          Print help
+```
+
 ## the-deaner changelog
 
 ```text
@@ -428,7 +466,7 @@ Usage: the-deaner guide [PAGE]
 
 Arguments:
   [PAGE]
-          A page: changelog, overview, getting-started, workflows, keybindings, configuration, agents, cli, architecture, development (or the start of one)
+          A page: changelog, overview, getting-started, workflows, projects, keybindings, configuration, agents, cli, architecture, development (or the start of one)
 
 Options:
   -h, --help

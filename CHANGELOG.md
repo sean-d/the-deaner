@@ -4,6 +4,19 @@ What changed in each version of the-deaner, newest first. The same notes are bui
 the-deaner: they open by themselves after an upgrade, they're the first page of the guide (`Alt-/`,
 then `Tab`), and `the-deaner changelog` shows them from a shell. Search them with `/`.
 
+## 0.2.0 · 2026-11-16
+
+- **Your projects on every machine.** `the-deaner export` saves your sidebar as a projects
+  file (`~/.config/the-deaner/projects.toml`: each project's path, git remote, and whether it's
+  pinned). Keep it in your dotfiles; on another machine, `the-deaner sync` adds those projects to the
+  sidebar, cloning any that are missing and pinning them in the file's order. It shows its plan and
+  asks first, skips what's already there (same path and remote), warns about anything that doesn't
+  match, and never removes anything. `s` in the sidebar runs it in a popup. A new guide page,
+  "Projects everywhere", covers it.
+- `S` (save a snapshot) is gone: the-deaner saves one every 5 minutes and before shutting down,
+  restarting or upgrading, and `the-deaner save` still takes one by hand. The Workflows page explains
+  when snapshots are taken.
+
 ## 0.1.15 · 2026-11-15
 
 - **What's new.** These notes: they open by themselves the first time the-deaner starts on a new

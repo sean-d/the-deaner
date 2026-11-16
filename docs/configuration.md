@@ -143,6 +143,7 @@ same place.
 | `~/.local/state/the-deaner/state.toml` | Known repos, pin order, collapsed groups, sidebar width |
 | `~/.local/state/the-deaner/snapshots/` | `latest.toml` plus timestamped snapshots |
 | `~/.local/state/the-deaner/parked/` | One file per sleeping workspace (`z`) |
+| `~/.config/the-deaner/projects.toml` | Your projects, for `the-deaner sync` on another machine; written by `the-deaner export`, never by anything else. See [Projects on every machine](projects.md) |
 | `~/.local/state/the-deaner/frame.tmux.conf` | Generated config for the frame server |
 
 `THE_DEANER_HOME=/some/dir` moves all of it (config and state) under one directory.

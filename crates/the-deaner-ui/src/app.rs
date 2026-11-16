@@ -47,13 +47,14 @@ pub enum Command {
     /// Remove a repo from the sidebar and stop its sessions (files untouched).
     ForgetRepo(PathBuf),
     Park(WorkspaceView),
-    Save,
     /// Rebuild workspaces from the latest snapshot.
     Restore,
     /// Open the shortcut cheat sheet popup.
     Cheatsheet,
     /// Open the project browser popup.
     BrowseRepos,
+    /// Run `the-deaner sync` in a popup.
+    Sync,
     Refresh,
     Quit,
     /// Detach from the frame; everything keeps running.
@@ -640,7 +641,7 @@ impl App {
                     answer: Answer::EnterIsYes,
                 };
             }
-            Action::Save => return Some(Command::Save),
+            Action::Sync => return Some(Command::Sync),
             Action::Toast => return Some(Command::Toast),
             Action::Refresh => return Some(Command::Refresh),
             // In the frame `?` opens the same popup as Alt-/; there's no popup to use otherwise.

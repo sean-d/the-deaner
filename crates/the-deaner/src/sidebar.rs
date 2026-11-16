@@ -579,9 +579,9 @@ fn lane(cmd: &Command, cfg: &Config) -> Lane {
         | Command::MovePin(..)
         | Command::ToggleCollapse(_)
         | Command::ForgetRepo(_)
-        | Command::Save
         | Command::Cheatsheet
         | Command::BrowseRepos
+        | Command::Sync
         | Command::Refresh
         | Command::Quit
         | Command::Detach
@@ -769,12 +769,6 @@ fn execute(engine: &Engine, switcher: &Switcher, command: Command) -> Result<Out
             engine.park(&ws.name)?;
             Outcome::Ok(format!("{} is asleep; Enter wakes it", ws.name))
         }
-        Command::Save => {
-            let snap = engine.snapshot();
-            let n = snap.workspaces.len();
-            engine.save_snapshot(&snap)?;
-            Outcome::Ok(format!("Saved {n} workspace(s)"))
-        }
         Command::Restore => {
             let snap = engine
                 .latest_snapshot()
@@ -823,6 +817,13 @@ fn execute(engine: &Engine, switcher: &Switcher, command: Command) -> Result<Out
             }
             Outcome::Silent
         }
+        Command::Sync => match switcher {
+            Switcher::Frame(frame) => {
+                crate::frame::open_popup(frame, "sync --popup")?;
+                Outcome::Silent
+            }
+            _ => Outcome::Info("Run `the-deaner sync` in a shell".into()),
+        },
         Command::Peek(addr) => {
             if let Switcher::Frame(frame) = switcher {
                 let quoted = shell_words::quote(&addr).into_owned();
@@ -970,7 +971,7 @@ mod tests {
     #[test]
     fn lanes() {
         let cfg = Config::default();
-        assert_eq!(lane(&Command::Save, &cfg), Lane::Quick);
+        assert_eq!(lane(&Command::Refresh, &cfg), Lane::Quick);
         assert_eq!(
             lane(&Command::MovePin(PathBuf::from("/r"), 1), &cfg),
             Lane::Quick

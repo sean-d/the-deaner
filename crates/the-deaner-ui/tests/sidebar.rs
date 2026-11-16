@@ -1163,6 +1163,13 @@ fn a_question_can_send_one_command_for_yes_and_another_for_no() {
     assert_eq!(app.handle_key(ch('y')), Some(Command::InstallHooks));
 
     // A plain confirm still sends nothing on no.
-    app.confirm("Park?", Command::Save);
+    app.confirm("Refresh?", Command::Refresh);
     assert_eq!(app.handle_key(key(KeyCode::Esc)), None);
+}
+
+#[test]
+fn s_syncs_the_projects_file() {
+    let mut app = App::new();
+    app.set_groups(fixture(AgentState::Idle));
+    assert_eq!(app.handle_key(ch('s')), Some(Command::Sync));
 }

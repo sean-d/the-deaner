@@ -328,14 +328,29 @@ window, and offers to restore it all, with each claude picking up its own conver
 the start of the day. If an agent is still working it asks first, as `shutdown` does. Details in
 [getting started](getting-started.md#updating).
 
+## Snapshots: how everything comes back
+
+A **snapshot** is what a restore rebuilds from: every running workspace with its tabs, splits and
+layouts, each pane's folder and what was running in it, and each claude's conversation, so it can
+resume. You don't need to take them yourself; the-deaner saves one:
+
+| When | Which |
+|---|---|
+| Every 5 minutes while anything is running (`autosave_minutes`) | Everything |
+| `the-deaner shutdown`, `restart` and `upgrade`, just before stopping | Everything |
+| Putting a workspace to sleep (`z`) | That workspace (it's what waking it rebuilds from) |
+| `the-deaner save`, whenever you like (say, before something risky) | Everything |
+
+Autosave only runs while something is running, so an empty post-crash state never overwrites a good
+snapshot.
+
 ## Crashes, dead batteries, forgetting to shut down
 
-The sidebar autosaves a snapshot every 5 minutes (`autosave_minutes`), but only while something is
-running, so an empty post-crash state never overwrites a good snapshot. After an unplanned power-off,
-`the-deaner` offers to restore from the last autosave.
+After an unplanned power-off, `the-deaner` offers to restore from the last autosave, at most five
+minutes old.
 
-Timestamped snapshots are kept in `~/.local/state/the-deaner/snapshots/` (the newest 20 by default).
-Restore an older one with:
+Timestamped snapshots are kept in `~/.local/state/the-deaner/snapshots/` (the newest 20 by default,
+`snapshots_keep`), next to `latest.toml`. Restore an older one with:
 
 ```sh
 the-deaner restore --from ~/.local/state/the-deaner/snapshots/snapshot-1793000000.toml

@@ -47,6 +47,7 @@ pub fn guide_pages() -> Vec<GuidePage> {
             "docs/getting-started.md"
         ),
         page!("workflows", "Workflows", "docs/workflows.md"),
+        page!("projects", "Projects everywhere", "docs/projects.md"),
         page!("keybindings", "Keybindings", "docs/keybindings.md"),
         page!("configuration", "Configuration", "docs/configuration.md"),
         page!("agents", "Agents and hooks", "docs/agents.md"),

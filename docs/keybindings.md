@@ -43,7 +43,7 @@ These work while the sidebar has focus.
 | `a` | Open a project: browse folders, add and start it |
 | `x` | Remove a worktree or a project, stopping its tmux sessions (asks first) |
 | `z` / `P` | Sleep: save it and stop its tmux session; Enter wakes it |
-| `S` | Save a snapshot now |
+| `s` | Sync: add the projects in your projects file, cloning what's missing (shows the plan first) |
 
 ### Pins
 

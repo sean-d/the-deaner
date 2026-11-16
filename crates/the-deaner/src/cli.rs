@@ -177,6 +177,29 @@ pub enum Cmd {
     },
     /// Open the searchable shortcut cheat sheet (Alt-/ inside the-deaner)
     Cheatsheet,
+    /// Add the projects in your projects file to this sidebar, cloning what's missing. Shows the plan
+    /// and asks first; never removes anything
+    Sync {
+        /// Don't ask before doing it
+        #[arg(long, short)]
+        yes: bool,
+        /// Read this file instead of ~/.config/the-deaner/projects.toml
+        #[arg(long)]
+        file: Option<PathBuf>,
+        /// Running in the sidebar's popup (`s`): wait for Enter before closing (internal)
+        #[arg(long, hide = true)]
+        popup: bool,
+    },
+    /// Save this sidebar as your projects file (~/.config/the-deaner/projects.toml), for `the-deaner sync`
+    /// on another machine. Asks before replacing a different one
+    Export {
+        /// Only print it, to look at; nothing is saved
+        #[arg(long)]
+        show: bool,
+        /// Save it here instead
+        #[arg(long)]
+        file: Option<PathBuf>,
+    },
     /// What's new in each version (the first page of the guide)
     Changelog {
         /// Put what changed after this version first, e.g. the one you upgraded from
@@ -185,8 +208,8 @@ pub enum Cmd {
     },
     /// Read the docs here in the terminal: the guide (Tab in the cheat sheet), optionally at a page
     Guide {
-        /// A page: changelog, overview, getting-started, workflows, keybindings, configuration,
-        /// agents, cli, architecture, development (or the start of one)
+        /// A page: changelog, overview, getting-started, workflows, projects, keybindings,
+        /// configuration, agents, cli, architecture, development (or the start of one)
         page: Option<String>,
     },
     /// Make toast (`b` in the sidebar)
@@ -238,6 +261,22 @@ pub fn run(cli: Cli) -> Result<()> {
         Some(Cmd::Cheatsheet) => cheatsheet::run(&engine),
         Some(Cmd::Guide { page }) => cheatsheet::run_guide(&engine, page.as_deref()),
         Some(Cmd::Changelog { since }) => cheatsheet::run_changelog(&engine, since.as_deref()),
+        Some(Cmd::Sync { yes, file, popup }) => {
+            let result = sync(&engine, yes, file);
+            if !popup {
+                return result;
+            }
+            // In a popup the results would vanish with it: say what happened, then wait.
+            if let Err(e) = &result {
+                println!("{e:#}");
+            }
+            print!("\nPress Enter to close.");
+            std::io::stdout().flush()?;
+            let mut line = String::new();
+            let _ = std::io::stdin().lock().read_line(&mut line);
+            Ok(())
+        }
+        Some(Cmd::Export { show, file }) => export(&engine, show, file),
         Some(Cmd::Toast) => crate::toast::run(),
         Some(Cmd::Peek { addr }) => crate::peek::run(&engine, &addr),
         Some(Cmd::Browse { dir }) => browse::run(&engine, dir.as_deref()),
@@ -445,6 +484,80 @@ fn ls(engine: &Engine, json: bool) -> Result<()> {
             );
         }
     }
+    Ok(())
+}
+
+/// `the-deaner sync`: show what the projects file would add here, ask, then do it.
+fn sync(engine: &Engine, yes: bool, file: Option<PathBuf>) -> Result<()> {
+    use crate::projects::{ProjectsFile, plan, run, tilde};
+    let path = file.unwrap_or_else(|| engine.paths.projects_file());
+    let text = std::fs::read_to_string(&path).with_context(|| {
+        format!(
+            "no projects file at {} (`the-deaner export` makes one from a sidebar)",
+            tilde(&path)
+        )
+    })?;
+    let file = ProjectsFile::parse(&text)?;
+    let plan = plan(engine, &file);
+    println!("From {}:", tilde(&path));
+    for step in &plan.steps {
+        println!("{}", step.line());
+    }
+    for line in &plan.pin_lines {
+        println!("{line}");
+    }
+    if !plan.has_work() {
+        println!("Nothing to do.");
+        return Ok(());
+    }
+    if !yes {
+        print!("Do it? [y/N] ");
+        std::io::stdout().flush()?;
+        let mut answer = String::new();
+        std::io::stdin().lock().read_line(&mut answer)?;
+        if !matches!(answer.trim(), "y" | "Y" | "yes") {
+            println!("cancelled; nothing changed");
+            return Ok(());
+        }
+    }
+    let out = run(engine, &plan)?;
+    for name in &out.added {
+        println!("added {name}");
+    }
+    for (name, why) in &out.failed {
+        println!("failed {name}: {why}");
+    }
+    if plan.pins.is_some() {
+        println!("pins updated");
+    }
+    Ok(())
+}
+
+/// `the-deaner export`: save this sidebar as the projects file (`--show` only prints it).
+fn export(engine: &Engine, show: bool, file: Option<PathBuf>) -> Result<()> {
+    let text = crate::projects::export(engine).to_toml();
+    if show {
+        print!("{text}");
+        return Ok(());
+    }
+    let path = file.unwrap_or_else(|| engine.paths.projects_file());
+    let shown = crate::projects::tilde(&path);
+    if path.exists() {
+        if std::fs::read_to_string(&path).is_ok_and(|old| old == text) {
+            println!("{shown} is already up to date");
+            return Ok(());
+        }
+        print!("Replace {shown}? [y/N] ");
+        std::io::stdout().flush()?;
+        let mut answer = String::new();
+        std::io::stdin().lock().read_line(&mut answer)?;
+        if !matches!(answer.trim(), "y" | "Y" | "yes") {
+            println!("cancelled; {shown} unchanged");
+            return Ok(());
+        }
+    }
+    crate::paths::write_atomic(&path, &text).with_context(|| format!("writing {shown}"))?;
+    println!("wrote {shown}");
     Ok(())
 }
 

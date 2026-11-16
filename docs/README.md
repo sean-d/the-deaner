@@ -4,6 +4,7 @@ Start with the [main README](../README.md) for what the-deaner is and how to ins
 
 - [Getting started](getting-started.md)
 - [Workflows](workflows.md)
+- [Projects on every machine](projects.md)
 - [Keybindings](keybindings.md)
 - [Configuration](configuration.md)
 - [Agents and hooks](agents.md)

@@ -27,7 +27,7 @@ pub enum Action {
     PinDown,
     Remove,
     Park,
-    Save,
+    Sync,
     Refresh,
     Help,
     Quit,
@@ -189,10 +189,10 @@ pub const BINDINGS: &[Binding] = &[
         help: "Sleep: save it and stop its tmux session; Enter wakes it",
     },
     Binding {
-        keys: &[Char('S')],
-        action: Action::Save,
+        keys: &[Char('s')],
+        action: Action::Sync,
         section: "Workspaces",
-        help: "Save a snapshot now",
+        help: "Sync: add the projects in your projects file, cloning what's missing (shows the plan first)",
     },
     Binding {
         keys: &[Char('p')],
@@ -293,7 +293,7 @@ pub const fn search_terms(action: Action) -> &'static str {
         }
         Action::Remove => "delete remove worktree forget archive project branch",
         Action::Park => "sleep pause suspend stop park wake",
-        Action::Save => "snapshot backup",
+        Action::Sync => "sync projects file clone import machine dotfiles export",
         Action::TogglePin => "favorite top order",
         Action::PinUp | Action::PinDown => "reorder order favorite",
         Action::Help => "keys shortcuts cheat sheet",

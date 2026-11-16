@@ -92,6 +92,12 @@ impl Paths {
 
     /// Written by `the-deaner restart` just before it stops everything; holds the time
     /// (unix ms) it asked. Frame clients attached before then start the-deaner again.
+    /// The projects file `the-deaner sync` reads and `the-deaner export` writes.
+    #[must_use]
+    pub fn projects_file(&self) -> PathBuf {
+        self.config_dir.join("projects.toml")
+    }
+
     #[must_use]
     pub fn restart_marker(&self) -> PathBuf {
         self.state_dir.join("restart")

@@ -660,3 +660,104 @@ fn a_new_workspace_opens_on_the_focus_tab() {
     let session = f.engine.ensure_session(&ws).unwrap();
     assert_eq!(active(&f, &session), "shell");
 }
+
+#[test]
+fn sync_skips_adds_clones_and_warns_then_export_round_trips() {
+    use the_deaner::projects::{Project, ProjectsFile, Step, export, plan, run};
+    let f = fixture();
+    let e = &f.engine;
+    let root = f.repo.parent().unwrap().to_path_buf();
+    let s = |p: &Path| p.display().to_string();
+    // A repo with one commit, and a bare "remote" made from it.
+    let repo_with_remote = |name: &str, remote: &str| {
+        let dir = root.join(name);
+        std::fs::create_dir_all(&dir).unwrap();
+        git(&dir, &["init", "-q", "-b", "main"]);
+        std::fs::write(dir.join("f"), name).unwrap();
+        git(&dir, &["add", "."]);
+        git(&dir, &["commit", "-qm", "init"]);
+        let bare = root.join("remotes").join(format!("{remote}.git"));
+        git(&root, &["clone", "-q", "--bare", &s(&dir), &s(&bare)]);
+        git(&dir, &["remote", "add", "origin", &s(&bare)]);
+        (dir, bare)
+    };
+    let (api, api_remote) = repo_with_remote("api", "api-remote");
+    let _ = api; // the fixture's repo, now with an origin
+    let (web, web_remote) = repo_with_remote("web", "web");
+    let (fork, _) = repo_with_remote("fork", "someone-elses-fork");
+    let (docs_src, docs_remote) = repo_with_remote("docs-src", "docs");
+    std::fs::remove_dir_all(&docs_src).unwrap(); // only the remote exists now
+    let notes = root.join("notes");
+    std::fs::create_dir_all(&notes).unwrap();
+    let docs = root.join("docs");
+    let gone = root.join("gone");
+
+    e.add_repo(&s(&f.repo)).unwrap(); // api is already in the sidebar, pinned
+    e.update_state(|st| st.toggle_pin(&f.repo)).unwrap();
+
+    let project = |p: &Path, remote: Option<&Path>, pinned: bool| Project {
+        path: s(p),
+        remote: remote.map(s),
+        pinned,
+    };
+    let file = ProjectsFile {
+        projects: vec![
+            project(&docs, Some(&docs_remote), true),
+            project(&f.repo, Some(&api_remote), true),
+            project(&web, Some(&web_remote), false),
+            project(&fork, Some(&root.join("remotes/fork.git")), false),
+            project(&notes, None, false),
+            project(&gone, None, false),
+        ],
+    };
+    let p = plan(e, &file);
+    let kinds: Vec<&str> = p
+        .steps
+        .iter()
+        .map(|st| match st {
+            Step::Skip { .. } => "skip",
+            Step::Add { .. } => "add",
+            Step::Clone { .. } => "clone",
+            Step::Warn { .. } => "warn",
+            Step::Note { .. } => "note",
+        })
+        .collect();
+    assert_eq!(
+        kinds,
+        ["clone", "skip", "add", "warn", "add", "note"],
+        "{p:#?}"
+    );
+    assert!(p.has_work());
+    assert_eq!(p.pins.as_deref(), Some(&[docs.clone(), f.repo.clone()][..]));
+
+    let out = run(e, &p).unwrap();
+    assert!(out.failed.is_empty(), "{:?}", out.failed);
+    assert!(docs.join(".git").is_dir(), "cloned");
+    let repos: Vec<PathBuf> = e.state().repos.iter().map(|r| r.path.clone()).collect();
+    for want in [&f.repo, &docs, &web, &notes] {
+        assert!(
+            repos.contains(want),
+            "{} missing from {repos:?}",
+            want.display()
+        );
+    }
+    assert!(!repos.contains(&fork), "a different remote is left alone");
+    assert_eq!(
+        e.state().pins,
+        [docs.clone(), f.repo.clone()],
+        "file's order"
+    );
+
+    // Again: nothing to do (the fork still warns, gone still notes).
+    assert!(!plan(e, &file).has_work());
+
+    // Export, then sync it back on the same machine: nothing to do either.
+    let exported = export(e);
+    let back = ProjectsFile::parse(&exported.to_toml()).unwrap();
+    assert_eq!(back, exported);
+    assert!(
+        back.projects[0].pinned && back.projects[1].pinned,
+        "pins first: {back:#?}"
+    );
+    assert!(!plan(e, &back).has_work(), "{:#?}", plan(e, &back));
+}

@@ -1709,7 +1709,7 @@ dependencies = [
 
 [[package]]
 name = "the-deaner"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "anyhow",
  "clap",
@@ -1728,7 +1728,7 @@ dependencies = [
 
 [[package]]
 name = "the-deaner-core"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "insta",
  "serde",
@@ -1739,7 +1739,7 @@ dependencies = [
 
 [[package]]
 name = "the-deaner-git"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "serde_json",
  "tempfile",
@@ -1749,7 +1749,7 @@ dependencies = [
 
 [[package]]
 name = "the-deaner-tmux"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "the-deaner-core",
  "thiserror 2.0.21",
@@ -1757,7 +1757,7 @@ dependencies = [
 
 [[package]]
 name = "the-deaner-ui"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "insta",
  "mmdflux",

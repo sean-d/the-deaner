@@ -28,6 +28,7 @@ pub enum Action {
     Remove,
     Park,
     Sync,
+    Reports,
     Refresh,
     Help,
     Quit,
@@ -189,6 +190,12 @@ pub const BINDINGS: &[Binding] = &[
         help: "Sleep: save it and stop its tmux session; Enter wakes it",
     },
     Binding {
+        keys: &[Char('o')],
+        action: Action::Reports,
+        section: "Workspaces",
+        help: "Reports: every claude's latest answer in one place, kept current",
+    },
+    Binding {
         keys: &[Char('s')],
         action: Action::Sync,
         section: "Workspaces",
@@ -294,6 +301,9 @@ pub const fn search_terms(action: Action) -> &'static str {
         Action::Remove => "delete remove worktree forget archive project branch",
         Action::Park => "sleep pause suspend stop park wake",
         Action::Sync => "sync projects file clone import machine dotfiles export",
+        Action::Reports => {
+            "report reports answer summary result finished outcome what did claude say all agents"
+        }
         Action::TogglePin => "favorite top order",
         Action::PinUp | Action::PinDown => "reorder order favorite",
         Action::Help => "keys shortcuts cheat sheet",

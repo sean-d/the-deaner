@@ -101,7 +101,7 @@ impl Titles {
     }
 }
 
-fn find(projects: &Path, session: &str) -> Option<PathBuf> {
+pub(crate) fn find(projects: &Path, session: &str) -> Option<PathBuf> {
     let file = format!("{session}.jsonl");
     std::fs::read_dir(projects)
         .ok()?

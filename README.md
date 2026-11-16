@@ -26,7 +26,8 @@ going, next to a terminal that is just your own tmux. Linux first, macOS too.
 - **Know when you're needed.** An agent that's waiting on you, or finished while you were looking
   elsewhere, turns its row orange and stays orange until you go there. `n` takes you to the next
   one; press it again for the one after.
-- **Look without switching.** `v` opens a popup with an agent's latest output; `q` closes it.
+- **Look without switching.** `v` opens a popup with an agent's latest output; `q` closes it. `o`
+  opens Reports: every claude's latest answer in one place, kept current as they finish.
 - **Repo first, worktree on demand.** Every repo gets a tmux session in its normal checkout. Need a
   second branch at the same time? `w` makes a worktree with its own session, next to the repo.
 - **Any agent, any tool.** Tabs are tmux windows: claude, codex, aider, nvim, a dev server.
@@ -133,6 +134,7 @@ In the sidebar:
 | `Enter` | Open the workspace in the terminal (starts or wakes it) |
 | `n` | Go to the next agent that needs you |
 | `v` | Peek at an agent's output |
+| `o` | Reports: every claude's latest answer, live |
 | `t` | New tab: claude, nvim, a shell, anything you've configured |
 | `w` | New worktree and session for a branch |
 | `a` | Add a project: browse folders, favorites with `Ctrl-f` |

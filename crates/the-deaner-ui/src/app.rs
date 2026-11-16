@@ -55,6 +55,8 @@ pub enum Command {
     BrowseRepos,
     /// Run `the-deaner sync` in a popup.
     Sync,
+    /// Every claude's latest answer, in a popup.
+    Reports,
     Refresh,
     Quit,
     /// Detach from the frame; everything keeps running.
@@ -135,6 +137,8 @@ pub struct App {
     unseen: HashSet<PathBuf>,
     /// Workspaces whose agent started waiting on you and that you haven't been to since.
     waiting_unvisited: HashSet<PathBuf>,
+    /// The Reports read stamp each mark was set at: a newer one means its answer was read.
+    marked_at: HashMap<PathBuf, u64>,
     pub theme: Theme,
     pub icons: &'static crate::icons::Icons,
     /// How the project shown in the terminal is marked.
@@ -174,6 +178,7 @@ impl App {
             prev_agents: HashMap::new(),
             unseen: HashSet::new(),
             waiting_unvisited: HashSet::new(),
+            marked_at: HashMap::new(),
             theme: crate::theme::the_deaner(),
             icons: &crate::icons::UNICODE,
             open_style: the_deaner_core::OpenStyle::default(),
@@ -199,16 +204,25 @@ impl App {
                         (Some(p), AgentState::Awaiting) if p != AgentState::Awaiting => {
                             self.toast(Toast::warning(format!("{} needs you", w.name)));
                             self.waiting_unvisited.insert(w.path.clone());
+                            self.marked_at.insert(w.path.clone(), w.read_at);
                         }
                         (Some(AgentState::Busy), AgentState::Idle) => {
                             self.toast(Toast::success(format!("{} finished", w.name)));
                             self.unseen.insert(w.path.clone());
+                            self.marked_at.insert(w.path.clone(), w.read_at);
                         }
                         _ => {}
                     }
                 } else if w.agent == AgentState::Awaiting {
                     // Already waiting when the sidebar started.
                     self.waiting_unvisited.insert(w.path.clone());
+                    self.marked_at.insert(w.path.clone(), w.read_at);
+                }
+                // Reading its answer in Reports counts as seeing it.
+                if w.read_at > self.marked_at.get(&w.path).copied().unwrap_or(u64::MAX) {
+                    self.unseen.remove(&w.path);
+                    self.waiting_unvisited.remove(&w.path);
+                    self.marked_at.remove(&w.path);
                 }
                 // Looking at it counts as seeing it, and a stopped agent has nothing to see.
                 if w.current || w.status != WsStatus::Live {
@@ -273,6 +287,12 @@ impl App {
         if found.is_some() && found == first {
             *self.list.offset_mut() = 0;
         }
+    }
+
+    /// The sidebar's projects, as last set.
+    #[must_use]
+    pub fn groups(&self) -> &[RepoGroup] {
+        &self.groups
     }
 
     /// An agent here is waiting on the user, or finished while they were elsewhere.
@@ -642,6 +662,7 @@ impl App {
                 };
             }
             Action::Sync => return Some(Command::Sync),
+            Action::Reports => return Some(Command::Reports),
             Action::Toast => return Some(Command::Toast),
             Action::Refresh => return Some(Command::Refresh),
             // In the frame `?` opens the same popup as Alt-/; there's no popup to use otherwise.

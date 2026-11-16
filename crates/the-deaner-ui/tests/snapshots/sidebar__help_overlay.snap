@@ -1,6 +1,6 @@
 ---
 source: crates/the-deaner-ui/tests/sidebar.rs
-assertion_line: 130
+assertion_line: 131
 expression: "render(&mut app, 40, 31)"
 ---
 "╭ Keys ────────────────────────────────╮"
@@ -31,6 +31,6 @@ expression: "render(&mut app, 40, 31)"
 "│(asks first)                          │"
 "│z / P    Sleep: save it and stop its  │"
 "│tmux session; Enter wakes it          │"
-"│s        Sync: add the projects in    │"
-"│your projects file, cloning what's    │"
+"│o        Reports: every claude's      │"
+"│latest answer in one place, kept      │"
 "╰──────────────────────────────────────╯"

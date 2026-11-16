@@ -15,6 +15,7 @@ pub mod paths;
 pub mod peek;
 pub mod poller;
 pub mod projects;
+pub mod reports;
 pub mod sidebar;
 pub mod titles;
 pub mod toast;

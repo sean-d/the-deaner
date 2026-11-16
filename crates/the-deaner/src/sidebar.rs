@@ -582,6 +582,7 @@ fn lane(cmd: &Command, cfg: &Config) -> Lane {
         | Command::Cheatsheet
         | Command::BrowseRepos
         | Command::Sync
+        | Command::Reports
         | Command::Refresh
         | Command::Quit
         | Command::Detach
@@ -817,6 +818,13 @@ fn execute(engine: &Engine, switcher: &Switcher, command: Command) -> Result<Out
             }
             Outcome::Silent
         }
+        Command::Reports => match switcher {
+            Switcher::Frame(frame) => {
+                crate::frame::open_popup(frame, "reports")?;
+                Outcome::Silent
+            }
+            _ => Outcome::Info("Run `the-deaner reports` in a shell".into()),
+        },
         Command::Sync => match switcher {
             Switcher::Frame(frame) => {
                 crate::frame::open_popup(frame, "sync --popup")?;
@@ -864,6 +872,7 @@ mod tests {
             checks: the_deaner_core::Checks::None,
             tabs: vec![],
             current: false,
+            read_at: 0,
         }
     }
 

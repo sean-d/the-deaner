@@ -20,6 +20,9 @@ pub const OPT_AGENT: &str = "@the_deaner_agent";
 pub const OPT_AGENT_SESSION: &str = "@the_deaner_agent_session";
 /// Pane option: command the-deaner launched in this pane.
 pub const OPT_LAUNCH: &str = "@the_deaner_launch";
+/// Session option: when (unix ms) its agent's latest answer was last read in Reports. A
+/// "needs you" mark set before that clears.
+pub const OPT_READ: &str = "@the_deaner_read";
 
 /// Field separator in formatted output. Unit separator: never in paths or names.
 pub const SEP: char = '\u{1f}';
@@ -45,6 +48,7 @@ const FIELDS: &[&str] = &[
     "#{@the_deaner_agent}",
     "#{@the_deaner_agent_session}",
     "#{@the_deaner_launch}",
+    "#{@the_deaner_read}",
 ];
 
 /// The `-F` format for [`PaneInfo::parse_line`].
@@ -77,6 +81,8 @@ pub struct PaneInfo {
     pub agent: Option<String>,
     pub agent_session: Option<String>,
     pub launch: Option<String>,
+    /// [`OPT_READ`], 0 when never read.
+    pub read_at: u64,
 }
 
 fn opt(s: &str) -> Option<String> {
@@ -112,6 +118,7 @@ impl PaneInfo {
             agent: opt(f[17]),
             agent_session: opt(f[18]),
             launch: opt(f[19]),
+            read_at: f[20].parse().unwrap_or(0),
         })
     }
 
@@ -151,6 +158,7 @@ pub(crate) fn sample_line(session: &str, window: u32, name: &str, state: &str) -
         "claude",
         "abc-123",
         "claude",
+        "1700000000000",
     ]
     .join(&SEP.to_string())
 }
@@ -170,6 +178,7 @@ mod tests {
         assert_eq!(p.workspace_path, Some(PathBuf::from("/home/sd/dev/api")));
         assert!(!p.worktree);
         assert_eq!(p.address(), "api:claude");
+        assert_eq!(p.read_at, 1_700_000_000_000);
     }
 
     #[test]

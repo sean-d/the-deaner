@@ -55,6 +55,8 @@ pub struct WorkspaceView {
     pub tabs: Vec<TabView>,
     /// Shown in the terminal pane right now.
     pub current: bool,
+    /// When (unix ms) its agent's latest answer was last read in Reports; 0 if never.
+    pub read_at: u64,
 }
 
 /// Which part of the sidebar a repo sits in. Declared in display order.
@@ -343,6 +345,7 @@ pub(crate) fn ws(repo: &str, path: &str, branch: &str, agent: AgentState) -> Wor
         checks: Checks::None,
         tabs: Vec::new(),
         current: false,
+        read_at: 0,
     }
 }
 

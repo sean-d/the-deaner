@@ -200,6 +200,8 @@ pub enum Cmd {
         #[arg(long)]
         file: Option<PathBuf>,
     },
+    /// Every claude's latest answer in one place, kept current (`o` in the sidebar)
+    Reports,
     /// What's new in each version (the first page of the guide)
     Changelog {
         /// Put what changed after this version first, e.g. the one you upgraded from
@@ -261,6 +263,7 @@ pub fn run(cli: Cli) -> Result<()> {
         Some(Cmd::Cheatsheet) => cheatsheet::run(&engine),
         Some(Cmd::Guide { page }) => cheatsheet::run_guide(&engine, page.as_deref()),
         Some(Cmd::Changelog { since }) => cheatsheet::run_changelog(&engine, since.as_deref()),
+        Some(Cmd::Reports) => crate::reports::run(&engine),
         Some(Cmd::Sync { yes, file, popup }) => {
             let result = sync(&engine, yes, file);
             if !popup {

@@ -4,6 +4,13 @@ What changed in each version of the-deaner, newest first. The same notes are bui
 the-deaner: they open by themselves after an upgrade, they're the first page of the guide (`Alt-/`,
 then `Tab`), and `the-deaner changelog` shows them from a shell. Search them with `/`.
 
+## 0.2.1 · 2026-11-16
+
+- **Reports** (`o`, or `the-deaner reports`): every claude's latest answer in one place, newest
+  first, kept current while it's open. Pick one to read its answer (formatted like the guide), Enter
+  to go to it. Reading an answer there clears its orange "needs you" mark. A claude that's working
+  again shows its previous answer.
+
 ## 0.2.0 · 2026-11-16
 
 - **Your projects on every machine.** `the-deaner export` saves your sidebar as a projects

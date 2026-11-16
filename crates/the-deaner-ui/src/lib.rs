@@ -8,6 +8,7 @@ pub mod icons;
 pub mod keymap;
 pub mod markdown;
 pub mod render;
+pub mod reports;
 pub mod theme;
 
 pub use app::{App, Command, Mode};

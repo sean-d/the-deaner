@@ -248,6 +248,7 @@ impl Engine {
                         checks: the_deaner_core::Checks::None,
                         tabs: Vec::new(),
                         current: false,
+                        read_at: 0,
                     },
                 );
             }
@@ -270,6 +271,7 @@ impl Engine {
                     checks: the_deaner_core::Checks::None,
                     tabs: Vec::new(),
                     current: false,
+                    read_at: 0,
                 },
             );
         }
@@ -290,6 +292,7 @@ impl Engine {
                     checks: the_deaner_core::Checks::None,
                     tabs: Vec::new(),
                     current: false,
+                    read_at: 0,
                 },
             );
         }
@@ -991,6 +994,7 @@ fn fill_live(v: &mut WorkspaceView, panes: &[PaneInfo], attached: &[String]) {
     }
     v.current = attached.contains(&first.session);
     v.agent = AgentState::rollup(mine.iter().map(|p| p.state));
+    v.read_at = mine.iter().map(|p| p.read_at).max().unwrap_or(0);
     let mut tabs: Vec<TabView> = Vec::new();
     for p in &mine {
         match tabs.iter_mut().find(|t| t.index == p.window_index) {

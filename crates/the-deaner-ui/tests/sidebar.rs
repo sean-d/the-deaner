@@ -34,6 +34,7 @@ fn ws(repo: &str, path: &str, branch: &str, agent: AgentState) -> WorkspaceView 
             title: None,
         }],
         current: false,
+        read_at: 0,
     }
 }
 
@@ -1172,4 +1173,32 @@ fn s_syncs_the_projects_file() {
     let mut app = App::new();
     app.set_groups(fixture(AgentState::Idle));
     assert_eq!(app.handle_key(ch('s')), Some(Command::Sync));
+}
+
+#[test]
+fn reading_an_answer_in_reports_clears_its_mark() {
+    let mut app = App::new();
+    let at = |agent: AgentState, read_at: u64| {
+        let mut g = fixture(agent);
+        for grp in &mut g {
+            for w in &mut grp.workspaces {
+                w.read_at = read_at;
+            }
+        }
+        g
+    };
+    app.set_groups(at(AgentState::Busy, 5));
+    app.set_groups(at(AgentState::Idle, 5)); // finished while you were elsewhere
+    let marked = |app: &App| {
+        app.groups()
+            .iter()
+            .flat_map(|g| &g.workspaces)
+            .filter(|w| app.unvisited(w))
+            .count()
+    };
+    assert!(marked(&app) > 0, "finished elsewhere: marked");
+    app.set_groups(at(AgentState::Idle, 5));
+    assert!(marked(&app) > 0, "same stamp: still marked");
+    app.set_groups(at(AgentState::Idle, 9)); // read in Reports
+    assert_eq!(marked(&app), 0, "a newer read stamp clears it");
 }

@@ -165,6 +165,30 @@ the-deaner remove shop-api/deps/security-bump --delete-branch   # and deletes it
 
 `--force` removes it despite uncommitted changes.
 
+## Reports: what every claude last said
+
+With several claudes going, press `o` (or run `the-deaner reports`) to read all their latest answers
+in one place, without switching projects:
+
+```text
+ Reports                                              live
+ ! dmi:claude        2m ago │ ## Runner docs updated
+ ✻ tally:claude      9m ago │
+ ⠋ kexp-api:claude   working│ I rewrote docs/runners.md and…
+ ✻ the-deaner:claude 1h ago │ Tests pass. One question for you: …
+```
+
+- On the left, every claude, newest answer first, with the sidebar's icons: `!` waiting on you, `✻`
+  done, `⠋` working.
+- On the right, the selected claude's latest answer: the last thing it said to finish a turn, drawn
+  like the guide (headings, code, lists). One that's working again shows its previous answer, marked
+  as such.
+- It's live: while it's open, a claude that finishes moves to the top with its new answer.
+- `j`/`k` choose, `Ctrl-d`/`Ctrl-u` scroll, `Enter` goes to that claude's tab, `Esc` closes.
+- Reading an answer here counts as seeing it: its orange "needs you" mark in the sidebar clears.
+
+It only reads the transcripts Claude Code already writes; nothing is sent to the claudes.
+
 ## Agents talking to each other across repos
 
 Every tab has an address, `<session>:<tab>`:

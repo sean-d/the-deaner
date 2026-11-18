@@ -1303,9 +1303,9 @@ dependencies = [
 
 [[package]]
 name = "ratcn"
-version = "0.0.6"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0eadf9136e51f0fde70de87047b161cfb17ae2e20752bfc9163e1e9d442955c"
+checksum = "783d0998c2124353507bbc5a5b466715ed9102a501be5ce6b92b25db10998c5d"
 dependencies = [
  "ratatui",
  "ratatui-textarea",

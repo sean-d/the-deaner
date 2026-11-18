@@ -18,6 +18,9 @@ pub const OPT_STATE: &str = "@the_deaner_state";
 pub const OPT_AGENT: &str = "@the_deaner_agent";
 /// Pane option: agent conversation id, used to resume after a restore.
 pub const OPT_AGENT_SESSION: &str = "@the_deaner_agent_session";
+/// Pane option: when (unix ms) a hook last set [`OPT_STATE`]. Claude's own session file wins
+/// when it's newer (the hooks were removed, or stopped reporting).
+pub const OPT_STATE_AT: &str = "@the_deaner_state_at";
 /// Pane option: command the-deaner launched in this pane.
 pub const OPT_LAUNCH: &str = "@the_deaner_launch";
 /// Session option: when (unix ms) its agent's latest answer was last read in Reports. A
@@ -49,6 +52,7 @@ const FIELDS: &[&str] = &[
     "#{@the_deaner_agent_session}",
     "#{@the_deaner_launch}",
     "#{@the_deaner_read}",
+    "#{@the_deaner_state_at}",
 ];
 
 /// The `-F` format for [`PaneInfo::parse_line`].
@@ -83,6 +87,8 @@ pub struct PaneInfo {
     pub launch: Option<String>,
     /// [`OPT_READ`], 0 when never read.
     pub read_at: u64,
+    /// [`OPT_STATE_AT`], 0 when unknown (no hook, or one from before it was recorded).
+    pub state_at: u64,
 }
 
 fn opt(s: &str) -> Option<String> {
@@ -119,6 +125,7 @@ impl PaneInfo {
             agent_session: opt(f[18]),
             launch: opt(f[19]),
             read_at: f[20].parse().unwrap_or(0),
+            state_at: f[21].parse().unwrap_or(0),
         })
     }
 
@@ -159,6 +166,7 @@ pub(crate) fn sample_line(session: &str, window: u32, name: &str, state: &str) -
         "abc-123",
         "claude",
         "1700000000000",
+        "1700000000500",
     ]
     .join(&SEP.to_string())
 }

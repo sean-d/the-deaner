@@ -32,6 +32,7 @@ fn ws(repo: &str, path: &str, branch: &str, agent: AgentState) -> WorkspaceView 
             address: "x:claude".into(),
             session: None,
             title: None,
+            detail: None,
         }],
         current: false,
         read_at: 0,
@@ -966,6 +967,7 @@ fn v_peeks_at_the_agent_that_needs_you_first() {
         address: "shop-api:claude".into(),
         session: None,
         title: None,
+        detail: None,
     });
     main.tabs.push(TabView {
         index: 2,
@@ -975,6 +977,7 @@ fn v_peeks_at_the_agent_that_needs_you_first() {
         address: "shop-api:codex".into(),
         session: None,
         title: None,
+        detail: None,
     });
     let mut app = App::new();
     app.set_groups(groups.clone());
@@ -1201,4 +1204,115 @@ fn reading_an_answer_in_reports_clears_its_mark() {
     assert!(marked(&app) > 0, "same stamp: still marked");
     app.set_groups(at(AgentState::Idle, 9)); // read in Reports
     assert_eq!(marked(&app), 0, "a newer read stamp clears it");
+}
+
+/// Three ACTIVE projects with these agent states, none pinned; `open` is shown in the terminal.
+fn three_active(states: [AgentState; 3], open: Option<&str>, float: bool) -> Vec<RepoGroup> {
+    let names = ["alpha", "beta", "gamma"];
+    let repos: Vec<RepoEntry> = names
+        .iter()
+        .map(|n| RepoEntry {
+            path: PathBuf::from(format!("/dev/{n}")),
+            name: (*n).to_string(),
+        })
+        .collect();
+    let views = names
+        .iter()
+        .zip(states)
+        .map(|(n, s)| {
+            let path = format!("/dev/{n}");
+            let mut w = ws(&path, &path, "main", s);
+            w.current = open == Some(*n);
+            w
+        })
+        .collect();
+    build(
+        &Layout {
+            repos: &repos,
+            pins: &[],
+            collapsed: &[],
+            float_attention: float,
+        },
+        views,
+    )
+}
+
+fn order(app: &App) -> Vec<String> {
+    app.groups().iter().map(|g| g.name.clone()).collect()
+}
+
+#[test]
+fn what_needs_you_floats_to_the_top_until_you_deal_with_it() {
+    use AgentState::{Awaiting, Busy, Idle};
+    let mut app = App::new();
+    app.set_groups(three_active([Busy, Busy, Busy], None, true));
+    assert_eq!(order(&app), ["alpha", "beta", "gamma"]);
+
+    // gamma finishes while you're elsewhere: up it goes.
+    app.set_groups(three_active([Busy, Busy, Idle], None, true));
+    assert_eq!(order(&app), ["gamma", "alpha", "beta"]);
+
+    // beta asks you something: both float, A to Z among themselves.
+    app.set_groups(three_active([Busy, Awaiting, Idle], None, true));
+    assert_eq!(order(&app), ["beta", "gamma", "alpha"]);
+
+    // You look at gamma: it drops back.
+    app.set_groups(three_active([Busy, Awaiting, Idle], Some("gamma"), true));
+    assert_eq!(order(&app), ["beta", "alpha", "gamma"]);
+
+    // You answer beta (it gets back to work): everything's A to Z again.
+    app.set_groups(three_active([Busy, Busy, Idle], Some("beta"), true));
+    assert_eq!(order(&app), ["alpha", "beta", "gamma"]);
+}
+
+#[test]
+fn float_attention_off_keeps_a_to_z() {
+    use AgentState::{Awaiting, Busy, Idle};
+    let mut app = App::new();
+    app.float_attention = false;
+    app.set_groups(three_active([Busy, Busy, Busy], None, false));
+    app.set_groups(three_active([Busy, Awaiting, Idle], None, false));
+    assert_eq!(order(&app), ["alpha", "beta", "gamma"]);
+}
+
+#[test]
+fn a_second_agent_line_shows_the_last_prompt_and_the_cursor_skips_it() {
+    let mut groups = fixture(AgentState::Idle);
+    let shop = groups.iter_mut().find(|g| g.name == "shop-api").unwrap();
+    shop.workspaces[0].tabs[0].title = Some("Sleep 15 and date".into());
+    shop.workspaces[0].tabs[0].detail = Some("› ask me about lunch".into());
+    let mut app = App::new();
+    app.set_groups(groups);
+    let screen = render(&mut app, 34, 17);
+    let lines: Vec<&str> = screen.lines().collect();
+    let title = lines
+        .iter()
+        .position(|l| l.contains("Sleep 15 and date"))
+        .unwrap();
+    assert!(
+        lines[title + 1].contains("› ask me about lunch"),
+        "{screen}"
+    );
+    // Lined up under the title's text.
+    let column = |line: &str, c: char| line.chars().position(|x| x == c).unwrap();
+    assert_eq!(
+        column(lines[title], 'S'),
+        column(lines[title + 1], '›'),
+        "{screen}"
+    );
+    assert_eq!(
+        cell_at(&mut app, "ask me").fg,
+        the_deaner_ui::theme::colors::DIM
+    );
+
+    // shop-api's main, then sec-bump: neither line stops the cursor.
+    while app.selected_group().unwrap().name != "shop-api" {
+        app.handle_key(ch('j'));
+    }
+    assert_eq!(app.selected_ws().unwrap().branch.as_deref(), Some("main"));
+    app.handle_key(ch('j'));
+    assert_eq!(
+        app.selected_ws().unwrap().branch.as_deref(),
+        Some("sec-bump")
+    );
 }

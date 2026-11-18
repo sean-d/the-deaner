@@ -94,6 +94,7 @@ pub fn run(engine: Engine, standalone: bool) -> Result<()> {
     app.standalone = standalone || !in_frame();
     app.icons = the_deaner_ui::icons::for_style(engine.config.icons);
     app.open_style = engine.config.open_project;
+    app.float_attention = engine.config.float_attention;
     app.version = Some(crate::upgrade::CURRENT.to_string());
     let choices_engine = engine.clone();
     app.tab_choices = Box::new(move |repo| choices_engine.tab_choices(repo));
@@ -479,7 +480,9 @@ fn spawn_refresher(engine: Engine, tx: Sender<Msg>, kick_tx: Sender<()>, kick_rx
                     if tab.agent.as_deref() == Some("claude")
                         && let Some(id) = &tab.session
                     {
-                        tab.title = titles.get(id);
+                        let f = titles.found(id);
+                        (tab.title, tab.detail) =
+                            cfg.agent_line.pick(f.named, f.automatic, f.prompt);
                     }
                 }
 

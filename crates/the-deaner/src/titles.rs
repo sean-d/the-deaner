@@ -69,8 +69,14 @@ impl Titles {
 
     /// The conversation's name or title, if it has one yet.
     pub fn get(&mut self, session: &str) -> Option<String> {
+        let f = self.found(session);
+        f.named.or(f.automatic).or(f.prompt)
+    }
+
+    /// The conversation's `/rename` name, automatic title and last prompt, as far as known.
+    pub fn found(&mut self, session: &str) -> Found {
         if session.is_empty() || session.contains(['/', '\\']) || session.starts_with('.') {
-            return None;
+            return Found::default();
         }
         let entry = match self.known.entry(session.to_string()) {
             std::collections::hash_map::Entry::Occupied(e) => e.into_mut(),
@@ -93,11 +99,11 @@ impl Titles {
             entry.automatic = found.automatic.or(entry.automatic.take());
             entry.prompt = found.prompt.or(entry.prompt.take());
         }
-        entry
-            .named
-            .clone()
-            .or_else(|| entry.automatic.clone())
-            .or_else(|| entry.prompt.clone())
+        Found {
+            named: entry.named.clone(),
+            automatic: entry.automatic.clone(),
+            prompt: entry.prompt.clone(),
+        }
     }
 }
 

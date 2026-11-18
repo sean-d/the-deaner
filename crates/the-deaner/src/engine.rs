@@ -171,14 +171,18 @@ impl Engine {
 
     // ---- listing -------------------------------------------------------
 
-    /// Panes in the-deaner-managed sessions.
+    /// Panes in the-deaner-managed sessions. A claude the hooks haven't reported on gets
+    /// its status from Claude's own session files.
     #[must_use]
     pub fn managed_panes(&self) -> Vec<PaneInfo> {
-        self.tmux
+        let mut panes: Vec<PaneInfo> = self
+            .tmux
             .panes()
             .into_iter()
             .filter(|p| p.workspace_path.is_some())
-            .collect()
+            .collect();
+        crate::claude_status::fill(&mut panes, &self.config.shells);
+        panes
     }
 
     /// Every workspace: known repos and their worktrees, live sessions, parked ones.
@@ -591,7 +595,7 @@ impl Engine {
             .tmux
             .show_option(Scope::Server, "default-shell")
             .map(|s| the_deaner_core::config::program_name(&s).to_string());
-        Snapshot::from_panes(&self.tmux.panes(), now_unix(), shell.as_deref())
+        Snapshot::from_panes(&self.managed_panes(), now_unix(), shell.as_deref())
     }
 
     /// Write a snapshot as `latest.toml` plus a timestamped copy, pruning old copies.
@@ -1017,6 +1021,7 @@ fn fill_live(v: &mut WorkspaceView, panes: &[PaneInfo], attached: &[String]) {
                 address: p.address(),
                 session: p.agent_session.clone(),
                 title: None,
+                detail: None,
             }),
         }
     }

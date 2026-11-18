@@ -20,12 +20,23 @@ icons = "nerd"
 # name in the top border) or "block" (dark gold rows with a bar down the left edge).
 open_project = "box"
 
+# The dim line under each agent:
+#   "prompt": the last thing you asked it (`› …`), or the last message another claude sent it
+#             (`⇄ name: …`). Follows the conversation as you go.
+#   "title":  the conversation's title, the one `/resume` lists. Claude picks it from the start of
+#             the conversation and seldom changes it, so it stays put while the conversation drifts.
+#   "both":   the title, and the last prompt on a second line (two lines per agent).
+# Whichever you pick, a name you gave the conversation with `/rename` replaces the prompt or title,
+# and anything not known yet falls back to what is (a brand-new conversation has no title yet).
+agent_line = "prompt"
+
 # Snapshot everything this often while something is running. 0 turns autosave off.
 autosave_minutes = 5
 # Timestamped snapshots to keep in ~/.local/state/the-deaner/snapshots/.
 snapshots_keep = 20
 
-# Float active repos with an agent waiting on you to the top of the ACTIVE section.
+# Float active repos that need you (an agent waiting on you, or one that finished while you were
+# elsewhere) to the top of ACTIVE, until you answer it or go look.
 float_attention = true
 
 # How often to refresh git status for running workspaces (stopped ones: every 30 s).
@@ -101,7 +112,8 @@ command = "aider --no-auto-commits"
 ```
 
 It then appears in the `t` (new tab) picker. A tab whose command starts with `aider` is recognised as
-an agent and relaunched on restore. Agents without the-deaner hooks show no busy/waiting badge.
+an agent and relaunched on restore. Agents without the-deaner hooks show no busy/waiting badge (claude
+is the exception: see [Without the hooks](agents.md#without-the-hooks)).
 
 ### Different flags for claude
 

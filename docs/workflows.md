@@ -219,15 +219,18 @@ The sidebar has up to three sections. A section's heading only appears when it h
 | Section | What's in it | Order |
 |---|---|---|
 | `PINNED` | Repos you pinned, running or not | **Your** order; activity never moves them |
-| `ACTIVE` | Unpinned repos with an agent running (in the main checkout or any worktree) | By name |
+| `ACTIVE` | Unpinned repos with an agent running (in the main checkout or any worktree) | What needs you first, then by name |
 | `ASLEEP` | Repos put to sleep with `z` (saved, no tmux session) and nothing else of theirs running. Only shown when there's one | By name |
 | `INACTIVE` | Repos you've added with no agent running: ones with only an editor or shell open, and ones not started | By name |
 
 Press `p` on a repo to pin it, `K` to move it up, `J` to move it down.
 
 Starting an agent in an unpinned repo moves it from `INACTIVE` to `ACTIVE`, and the cursor stays on
-it. Quitting its last agent moves it back, even if an editor or shell is still open there. With `float_attention = true` (the default), an active
-repo with an agent waiting on you floats to the top of `ACTIVE`.
+it. Quitting its last agent moves it back, even if an editor or shell is still open there.
+
+A repo that needs you floats to the top of `ACTIVE`: an agent is waiting on you, or one finished while
+you were elsewhere (the orange ones). Once you've answered it or gone to look, it drops back into
+its place by name. `float_attention = false` in config.toml keeps `ACTIVE` purely by name.
 
 ## Forgot a key?
 
@@ -274,9 +277,11 @@ The project shown on the right sits in a thin gold box with its name in the top 
 (`open_project = "block"` gives a dark gold block with a bar down its edge instead). The cursor is a navy
 row and moves between workspaces only; a project's name row is a stop only when the project is collapsed.
 
-Under each workspace, a dim line per agent says what it's working on: the name you gave it with
-`/rename`, else Claude's own title for the conversation, else your last prompt (`› …`) or the last message
-another claude sent it (`⇄ name: …`). A project running two or more agents counts them on its name row,
+Under each workspace, a dim line per agent says what it's working on. By default that's the last
+thing you asked it (`› …`) or the last message another claude sent it (`⇄ name: …`); a name you gave
+the conversation with `/rename` takes its place. `agent_line` in config.toml can show Claude's own title
+for the conversation instead (the one `/resume` lists), or the title with your last prompt on a second
+line: see [Configuration](configuration.md). A project running two or more agents counts them on its name row,
 or in its box's top border: `!1 ⠋2 ✻1` is one waiting on you, two working, one idle.
 
 **Orange means it needs you.** When an agent starts waiting on you, or finishes while you're looking at

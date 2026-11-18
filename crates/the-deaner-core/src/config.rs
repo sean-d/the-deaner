@@ -80,6 +80,44 @@ pub enum OpenStyle {
     Block,
 }
 
+/// What the line under each agent says.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AgentLine {
+    /// The last thing you asked it (`› …`), or the last message another claude sent it.
+    #[default]
+    Prompt,
+    /// The conversation's title: the one Claude gives it, as `/resume` lists it.
+    Title,
+    /// The title, and the last prompt on a second line.
+    Both,
+}
+
+impl AgentLine {
+    /// The line (and, for [`AgentLine::Both`], the second line) for a conversation with
+    /// this `/rename` name, automatic title and last prompt. A name you gave it always
+    /// comes first; whatever's missing falls back to what's there.
+    #[must_use]
+    pub fn pick(
+        self,
+        named: Option<String>,
+        automatic: Option<String>,
+        prompt: Option<String>,
+    ) -> (Option<String>, Option<String>) {
+        match self {
+            Self::Prompt => (named.or(prompt).or(automatic), None),
+            Self::Title => (named.or(automatic).or(prompt), None),
+            Self::Both => match named.or(automatic) {
+                Some(title) => {
+                    let second = prompt.filter(|p| *p != title);
+                    (Some(title), second)
+                }
+                None => (prompt, None),
+            },
+        }
+    }
+}
+
 /// What kind of thing runs in a tab, which decides how it is restored.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -99,11 +137,14 @@ pub struct Config {
     pub icons: IconStyle,
     /// How the open project is marked.
     pub open_project: OpenStyle,
+    /// What the line under each agent says.
+    pub agent_line: AgentLine,
     /// Snapshot everything this often (minutes). 0 disables autosave.
     pub autosave_minutes: u64,
     /// How many timestamped snapshots to keep.
     pub snapshots_keep: usize,
-    /// Float active repos with an agent awaiting input to the top of the active section.
+    /// Float active repos that need you (an agent waiting on you, or one that finished while
+    /// you were elsewhere) to the top of the active section until you've dealt with them.
     pub float_attention: bool,
     pub git_poll_seconds: u64,
     /// How often to ask `gh` about pull requests and CI for running projects. Others are
@@ -142,6 +183,7 @@ impl Default for Config {
             sidebar_width: 32,
             icons: IconStyle::Nerd,
             open_project: OpenStyle::Box,
+            agent_line: AgentLine::Prompt,
             autosave_minutes: 5,
             snapshots_keep: 20,
             float_attention: true,
@@ -390,5 +432,51 @@ command = "npm run dev"
             names(cfg.new_tab_choices(None)),
             ["nvim", "claude", "shell", "codex"]
         );
+    }
+
+    #[test]
+    fn the_agent_line_follows_the_setting() {
+        let s = |x: &str| Some(x.to_string());
+        let (name, title, prompt) = (s("my name"), s("Sleep 15 and date"), s("› lunch?"));
+        let pick = |m: AgentLine, n: &Option<String>, t: &Option<String>, p: &Option<String>| {
+            m.pick(n.clone(), t.clone(), p.clone())
+        };
+        // Prompt (the default): what you last asked, unless you named it.
+        assert_eq!(AgentLine::default(), AgentLine::Prompt);
+        assert_eq!(
+            pick(AgentLine::Prompt, &None, &title, &prompt),
+            (prompt.clone(), None)
+        );
+        assert_eq!(
+            pick(AgentLine::Prompt, &name, &title, &prompt),
+            (name.clone(), None)
+        );
+        assert_eq!(
+            pick(AgentLine::Prompt, &None, &title, &None),
+            (title.clone(), None)
+        );
+        // Title: the conversation's title.
+        assert_eq!(
+            pick(AgentLine::Title, &None, &title, &prompt),
+            (title.clone(), None)
+        );
+        assert_eq!(
+            pick(AgentLine::Title, &None, &None, &prompt),
+            (prompt.clone(), None)
+        );
+        // Both: title, then the prompt.
+        assert_eq!(
+            pick(AgentLine::Both, &None, &title, &prompt),
+            (title.clone(), prompt.clone())
+        );
+        assert_eq!(
+            pick(AgentLine::Both, &name, &title, &prompt),
+            (name, prompt.clone())
+        );
+        assert_eq!(pick(AgentLine::Both, &None, &None, &prompt), (prompt, None));
+        assert_eq!(pick(AgentLine::Both, &None, &None, &None), (None, None));
+
+        let cfg: Config = toml::from_str("agent_line = \"both\"").unwrap();
+        assert_eq!(cfg.agent_line, AgentLine::Both);
     }
 }

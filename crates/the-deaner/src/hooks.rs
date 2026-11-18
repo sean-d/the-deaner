@@ -6,7 +6,7 @@ use serde_json::{Map, Value, json};
 use std::io::{IsTerminal, Read};
 use std::path::{Path, PathBuf};
 use the_deaner_core::agent::{CLAUDE_HOOKS, HookEffect, HookEvent, HookPayload, effect};
-use the_deaner_core::pane::{OPT_AGENT, OPT_AGENT_SESSION, OPT_STATE};
+use the_deaner_core::pane::{OPT_AGENT, OPT_AGENT_SESSION, OPT_STATE, OPT_STATE_AT};
 use the_deaner_tmux::{Scope, Tmux};
 
 /// Marker that identifies hook commands the-deaner owns.
@@ -27,18 +27,25 @@ pub fn handle(
     match effect(event, payload) {
         HookEffect::Set(state) => {
             let _ = tmux.set_option(scope, OPT_STATE, state.as_str());
+            let _ = tmux.set_option(scope, OPT_STATE_AT, &now_ms().to_string());
             let _ = tmux.set_option(scope, OPT_AGENT, agent);
             if let Some(id) = payload.session_id.as_deref().filter(|s| !s.is_empty()) {
                 let _ = tmux.set_option(scope, OPT_AGENT_SESSION, id);
             }
         }
         HookEffect::Clear => {
-            for key in [OPT_STATE, OPT_AGENT, OPT_AGENT_SESSION] {
+            for key in [OPT_STATE, OPT_STATE_AT, OPT_AGENT, OPT_AGENT_SESSION] {
                 let _ = tmux.unset_option(scope, key);
             }
         }
         HookEffect::Ignore => {}
     }
+}
+
+fn now_ms() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis())
 }
 
 /// Entry point for `the-deaner hook`: reads the payload from stdin (if piped) and

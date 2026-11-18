@@ -33,8 +33,10 @@ pub struct TabView {
     pub address: String,
     /// The agent's conversation id, while one is running.
     pub session: Option<String>,
-    /// What the agent says it's working on (Claude's conversation title).
+    /// What the agent is working on: its line under the workspace (`agent_line`).
     pub title: Option<String>,
+    /// A second line under it (`agent_line = "both"`: the last prompt).
+    pub detail: Option<String>,
 }
 
 /// One workspace (a checkout plus its session, if any).
@@ -134,6 +136,8 @@ pub enum Row {
         group: usize,
         ws: usize,
         tab: usize,
+        /// The tab's second line (its [`TabView::detail`]).
+        detail: bool,
     },
     /// Bottom edge of the box around the open project; can't be selected.
     BoxEnd {
@@ -315,19 +319,24 @@ fn visible_rows(groups: &[RepoGroup], filter: &str) -> Vec<Row> {
     out
 }
 
-/// A workspace row, then a line for each agent tab that has a title.
+/// A workspace row, then a line (or two) for each agent tab that has one.
 fn push_workspace(out: &mut Vec<Row>, g: &RepoGroup, gi: usize, wi: usize) {
     out.push(Row::Workspace { group: gi, ws: wi });
-    let tabs = &g.workspaces[wi].tabs;
-    out.extend(
-        (0..tabs.len())
-            .filter(|&ti| tabs[ti].title.is_some())
-            .map(|tab| Row::Agent {
-                group: gi,
-                ws: wi,
-                tab,
-            }),
-    );
+    for (tab, t) in g.workspaces[wi].tabs.iter().enumerate() {
+        if t.title.is_none() {
+            continue;
+        }
+        let row = |detail| Row::Agent {
+            group: gi,
+            ws: wi,
+            tab,
+            detail,
+        };
+        out.push(row(false));
+        if t.detail.is_some() {
+            out.push(row(true));
+        }
+    }
 }
 
 #[cfg(test)]

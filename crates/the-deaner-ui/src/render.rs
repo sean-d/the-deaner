@@ -534,7 +534,21 @@ fn row_item<'a>(app: &App, p: &Palette, row: Row, index: usize, width: u16) -> L
 /// `    ⠋ Fix the login redirect`: an agent's state and what it's working on, dim, under
 /// its workspace. Starts with two spaces of indent like a workspace row, so the box
 /// or bar can take them.
-fn agent_line<'a>(app: &App, p: &Palette, tab: &TabView, width: u16) -> Line<'a> {
+fn agent_line<'a>(app: &App, p: &Palette, tab: &TabView, detail: bool, width: u16) -> Line<'a> {
+    if detail {
+        // The second line: lined up under the first one's text, no symbol. The first two
+        // spaces are the indent the box or bar takes, as on every row.
+        let text = tab.detail.clone().unwrap_or_default();
+        return justify(
+            vec![
+                Span::raw("  "),
+                Span::raw("    "),
+                Span::styled(text, p.muted),
+            ],
+            Vec::new(),
+            width,
+        );
+    }
     let mut glyph =
         agent_glyph(app, p, tab.state, WsStatus::Live).unwrap_or_else(|| Span::raw(" "));
     if tab.state == AgentState::Awaiting {
@@ -632,9 +646,18 @@ fn row_line<'a>(app: &App, p: &Palette, row: Row, width: u16) -> Line<'a> {
             let repo = g.one_line().then_some(g.name.as_str());
             ws_line(app, p, &g.workspaces[ws], repo, width)
         }
-        Row::Agent { group, ws, tab } => {
-            agent_line(app, p, &app.groups[group].workspaces[ws].tabs[tab], width)
-        }
+        Row::Agent {
+            group,
+            ws,
+            tab,
+            detail,
+        } => agent_line(
+            app,
+            p,
+            &app.groups[group].workspaces[ws].tabs[tab],
+            detail,
+            width,
+        ),
         Row::BoxEnd { .. } => Line::raw(""),
     }
 }

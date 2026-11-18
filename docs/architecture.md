@@ -38,7 +38,8 @@ can restart at any time without losing anything:
 | `@the_deaner_repo` | session | Main repo root |
 | `@the_deaner_branch` | session | Branch it was created for |
 | `@the_deaner_worktree` | session | `1` for linked worktrees |
-| `@the_deaner_state` | pane | Agent state from hooks |
+| `@the_deaner_state` | pane | Agent state from hooks (a claude without them is read from `~/.claude/sessions/` instead, never stored) |
+| `@the_deaner_state_at` | pane | When a hook last set the state (unix ms); a newer Claude session file wins |
 | `@the_deaner_agent` | pane | Agent name |
 | `@the_deaner_agent_session` | pane | Agent conversation id (for resume) |
 | `@the_deaner_launch` | pane | Command the-deaner launched |

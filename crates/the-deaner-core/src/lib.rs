@@ -6,6 +6,7 @@
 //! almost all of it is unit-testable.
 
 pub mod agent;
+pub mod claude_session;
 pub mod config;
 pub mod git;
 pub mod names;

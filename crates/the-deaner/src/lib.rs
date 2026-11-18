@@ -6,6 +6,7 @@
 pub mod browse;
 pub mod changelog;
 pub mod cheatsheet;
+pub mod claude_status;
 pub mod cli;
 pub mod engine;
 pub mod frame;

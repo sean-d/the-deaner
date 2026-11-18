@@ -47,6 +47,21 @@ Remove them with:
 the-deaner install-hooks --uninstall
 ```
 
+## Without the hooks
+
+The sidebar still sees what each claude is doing without the hooks, from Claude Code's own session
+files: every running claude keeps one in `~/.claude/sessions/` (or `$CLAUDE_CONFIG_DIR/sessions/`)
+with its status and the tmux pane it runs in. That gives you working, waiting and idle, the "needs
+you" mark, titles, Reports, and resuming the conversation after a restore. What it doesn't give you
+is compacting, which shows as working.
+
+The hooks still come first. A file is used for a pane the hooks haven't said anything about, or
+when it changed after the hooks last reported, which is what happens when you remove the hooks while
+claude is running: its tab doesn't stay stuck on the hooks' last word. Files stay behind after a claude exits and tmux reuses pane ids, so a file only counts while its claude
+is still running on that pane's terminal. The file format isn't documented by Anthropic; if a Claude
+Code update changes it, those panes simply show no status until the-deaner catches up, and the hooks
+keep working.
+
 ## Other agents
 
 Agents without the-deaner hooks still run, show up in `the-deaner ls`, and come back on restore (started

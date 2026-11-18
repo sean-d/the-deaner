@@ -143,6 +143,8 @@ pub struct App {
     pub icons: &'static crate::icons::Icons,
     /// How the project shown in the terminal is marked.
     pub open_style: the_deaner_core::OpenStyle,
+    /// ACTIVE projects that need you go to the top of it (`float_attention`).
+    pub float_attention: bool,
     /// Running outside the frame: `q` quits.
     pub standalone: bool,
     /// Choices for "new tab", given a repo path.
@@ -182,6 +184,7 @@ impl App {
             theme: crate::theme::the_deaner(),
             icons: &crate::icons::UNICODE,
             open_style: the_deaner_core::OpenStyle::default(),
+            float_attention: true,
             standalone: false,
             tab_choices: Box::new(|_| vec![TabSpec::new("shell", None)]),
             update: None,
@@ -237,6 +240,17 @@ impl App {
         }
         self.prev_agents = agents;
         self.loaded = true;
+        let mut groups = groups;
+        if self.float_attention {
+            // An ACTIVE project that needs you goes to the top until you've dealt with it:
+            // answered its question, or looked at what it finished. A stable sort, so both
+            // halves stay A to Z. Pinned projects stay where you put them; INACTIVE stays A to Z.
+            groups.sort_by_key(|g| {
+                let needs = g.section == Section::Active
+                    && g.workspaces.iter().any(|w| self.needs_attention(w));
+                (g.section, !needs)
+            });
+        }
         self.groups = groups;
         self.rebuild_rows(key);
     }

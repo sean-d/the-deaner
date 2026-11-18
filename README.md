@@ -21,8 +21,8 @@ going, next to a terminal that is just your own tmux. Linux first, macOS too.
 ## What it does
 
 - **See every agent at once.** Each project lists its branches and worktrees, and under them every
-  claude with what it's working on: its title from `/rename`, Claude's own title for the
-  conversation, or your last prompt. Projects with several agents count them: `!1 ⠋2 ✻1`.
+  claude with what you last asked it (or its name from `/rename`; `agent_line` switches to Claude's
+  title for the conversation, or both). Projects with several agents count them: `!1 ⠋2 ✻1`.
 - **Know when you're needed.** An agent that's waiting on you, or finished while you were looking
   elsewhere, turns its row orange and stays orange until you go there. `n` takes you to the next
   one; press it again for the one after.
@@ -197,8 +197,9 @@ flowchart LR
 
 Two tmux servers. The *frame* holds the sidebar and a terminal pane; the *workspaces* server holds one
 session per workspace, with your own tmux config, and the terminal pane is a client attached to
-whichever one you've opened. Claude Code hooks tag each agent's pane with its status, and the sidebar
-reads that along with git, `gh` and Claude's transcripts. More in [architecture](docs/architecture.md).
+whichever one you've opened. Claude Code hooks tag each agent's pane with its status (without them,
+the sidebar reads Claude's own session files instead), and the sidebar reads that along with git,
+`gh` and Claude's transcripts. More in [architecture](docs/architecture.md).
 
 ## Documentation
 

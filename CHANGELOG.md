@@ -4,6 +4,21 @@ What changed in each version of the-deaner, newest first. The same notes are bui
 the-deaner: they open by themselves after an upgrade, they're the first page of the guide (`Alt-/`,
 then `Tab`), and `the-deaner changelog` shows them from a shell. Search them with `/`.
 
+## 0.2.2 · 2026-11-17
+
+- **Status without hooks.** The sidebar now sees what each claude is doing even where the-deaner's
+  hooks aren't installed, from the files Claude Code keeps for every running claude: working,
+  waiting, idle, the orange "needs you" mark, Reports, and resuming after a restore. The hooks still
+  come first. Removing them while claudes run no longer leaves a tab stuck on "working". The Agents
+  page explains it.
+- **What needs you floats to the top of ACTIVE**: a claude waiting on you, and now also one that
+  finished while you were elsewhere. Once you've answered it or gone to look, it drops back into
+  its place by name.
+- **The line under each agent shows the last thing you asked it** instead of the conversation's
+  title, which Claude seldom changes once the conversation drifts. `agent_line = "title"` in
+  config.toml brings the title back, and `"both"` shows the title with your last prompt under it.
+  A name you gave it with `/rename` still wins.
+
 ## 0.2.1 · 2026-11-16
 
 - **Reports** (`o`, or `the-deaner reports`): every claude's latest answer in one place, newest

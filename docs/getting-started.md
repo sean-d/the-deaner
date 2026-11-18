@@ -61,7 +61,7 @@ Close the terminal window whenever you like. Everything keeps running. Run `the-
 
 ## Alt keys (macOS and Linux)
 
-the-deaner's frame keys use Alt (`Alt-s`, `Alt-e`, `Alt-/`), and so do many tmux configs.
+the-deaner's frame keys use Alt (`Alt-s`, `Alt-e`, `Alt-n`, `Alt-/`), and so do many tmux configs.
 
 **macOS:** your terminal must send Option as Alt. Otherwise Option types special characters
 (`Option-s` gives `ß`).

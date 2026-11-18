@@ -1,6 +1,5 @@
 ---
 source: crates/the-deaner-ui/tests/cheatsheet.rs
-assertion_line: 112
 expression: "render(&mut s, 24)"
 ---
 " How do I…  hide the sidebar, new tab, split…                         "
@@ -12,6 +11,7 @@ expression: "render(&mut s, 24)"
 "   Alt-/                      Open this searchable shortcut cheat shee"
 "   Alt-s                      Move focus between the sidebar and the t"
 "   Alt-e                      Hide / show the sidebar                 "
+"   Alt-n                      New tab in the project on screen (nvim, "
 "                                                                      "
 " Sidebar                                                              "
 "   j / ↓                      Move down                               "
@@ -25,5 +25,4 @@ expression: "render(&mut s, 24)"
 "   v                          Peek at an agent's output               "
 "   Space                      Collapse / expand repo                  "
 "   /                          Filter by repo or branch (Esc clears)   "
-"   w                          New worktree + session for a branch     "
 " type to search · ↑↓ scroll · Tab guide · Esc closes                  "

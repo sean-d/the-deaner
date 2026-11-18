@@ -80,6 +80,7 @@ editors = ["nvim", "vim", "hx", "helix", "emacs"]
 focus = "M-s"           # move focus between the sidebar and the terminal
 toggle_sidebar = "M-e"  # hide / show the sidebar (think "explorer")
 cheatsheet = "M-/"      # open the searchable shortcut cheat sheet
+new_tab = "M-n"         # new tab in the project on screen (not M-t: Claude Code toggles thinking with it)
 
 # Tabs a new workspace starts with, in order (a repo's .the-deaner.toml overrides these).
 [[tabs]]
@@ -93,15 +94,11 @@ command = "claude"
 [[tabs]]
 name = "shell"          # no command: a plain shell
 
-# Agents. These are merged over the built-in claude and codex definitions.
+# Agents. These are merged over the built-in claude definition.
 # `resume` is how a restored tab gets its conversation back; {session_id} comes from the agent's hooks.
 [agents.claude]
 command = "claude"
 resume = "claude --resume {session_id}"
-
-[agents.codex]
-command = "codex"
-resume = "codex resume {session_id}"
 ```
 
 ### Adding an agent
@@ -111,7 +108,15 @@ resume = "codex resume {session_id}"
 command = "aider --no-auto-commits"
 ```
 
-It then appears in the `t` (new tab) picker. A tab whose command starts with `aider` is recognised as
+Only claude is built in. Codex, say, is two lines:
+
+```toml
+[agents.codex]
+command = "codex"
+resume = "codex resume {session_id}"
+```
+
+Either then appears in the `t` (new tab) picker. A tab whose command starts with `aider` is recognised as
 an agent and relaunched on restore. Agents without the-deaner hooks show no busy/waiting badge (claude
 is the exception: see [Without the hooks](agents.md#without-the-hooks)).
 

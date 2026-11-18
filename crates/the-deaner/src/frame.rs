@@ -82,6 +82,7 @@ set -g detach-on-destroy on
 bind -n {focus} select-pane -t :.+
 bind -n {toggle} select-pane -t :.1 \; resize-pane -Z -t :.1
 bind -n {cheatsheet} display-popup -E -w {POPUP_WIDTH} -h {POPUP_HEIGHT} "{exe} cheatsheet"
+bind -n {new_tab} run-shell -b "{exe} tab --popup"
 
 # Pass the mouse through to the panes. Letting go after a drag is DragEnd, not Up:
 # without it the workspace tmux never finishes a selection, so nothing gets copied.
@@ -102,6 +103,7 @@ bind -n MouseDragEnd3Pane send-keys -M
         focus = keys.focus,
         toggle = keys.toggle_sidebar,
         cheatsheet = keys.cheatsheet,
+        new_tab = keys.new_tab,
     )
 }
 
@@ -115,6 +117,14 @@ fn shell_quote(s: &str) -> String {
 /// # Errors
 /// When the-deaner's own path can't be found or tmux can't start.
 pub fn open_popup(frame: &Tmux, subcommand: &str) -> Result<()> {
+    open_popup_sized(frame, subcommand, POPUP_WIDTH, POPUP_HEIGHT)
+}
+
+/// [`open_popup`] at a given size (tmux sizes: `44`, `80%`).
+///
+/// # Errors
+/// When tmux refuses.
+pub fn open_popup_sized(frame: &Tmux, subcommand: &str, width: &str, height: &str) -> Result<()> {
     let exe = exe_path()?;
     let command = format!(
         "env {FRAME_ENV}=1 {} {subcommand}",
@@ -122,7 +132,7 @@ pub fn open_popup(frame: &Tmux, subcommand: &str) -> Result<()> {
     );
     // On the window you're using, when more than one is attached (desk and SSH).
     let client = frame.latest_client();
-    let mut args = vec!["display-popup", "-E", "-w", POPUP_WIDTH, "-h", POPUP_HEIGHT];
+    let mut args = vec!["display-popup", "-E", "-w", width, "-h", height];
     if let Some(tty) = &client {
         args.extend(["-c", tty]);
     }
@@ -488,6 +498,7 @@ mod tests {
                 focus: "C-Space".into(),
                 toggle_sidebar: "M-b".into(),
                 cheatsheet: "F1".into(),
+                new_tab: "M-t".into(),
             },
             "/bin/the-deaner",
         );
@@ -497,6 +508,7 @@ mod tests {
             )
         );
         assert!(conf.contains("bind -n C-Space select-pane -t :.+"));
+        assert!(conf.contains(r#"bind -n M-t run-shell -b "/bin/the-deaner tab --popup""#));
         assert!(conf.contains("bind -n M-b select-pane -t :.1"));
         assert!(conf.contains("set -g prefix None"));
     }

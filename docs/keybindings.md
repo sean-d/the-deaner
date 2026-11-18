@@ -11,6 +11,7 @@ These work from anywhere in the the-deaner window (sidebar or terminal). They ar
 | `Alt-/` | Open this searchable shortcut cheat sheet |
 | `Alt-s` | Move focus between the sidebar and the terminal |
 | `Alt-e` | Hide / show the sidebar |
+| `Alt-n` | New tab in the project on screen (nvim, claude, shell, …) |
 
 You can also click a sidebar row to open it, scroll the list with the wheel, and drag the border between the sidebar and the terminal to resize. The width is remembered.
 

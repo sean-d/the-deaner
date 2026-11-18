@@ -341,6 +341,11 @@ pub fn frame_bindings(keys: &FrameKeys) -> Vec<FrameBinding> {
             help: "Hide / show the sidebar",
             terms: "panel left side projects list explorer collapse fullscreen",
         },
+        FrameBinding {
+            key: tmux_key_label(&keys.new_tab),
+            help: "New tab in the project on screen (nvim, claude, shell, …)",
+            terms: "tab window open add another shell terminal agent claude",
+        },
     ]
 }
 

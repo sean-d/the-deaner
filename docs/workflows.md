@@ -244,7 +244,7 @@ is read from your tmux config, so it shows your real keys, including anything yo
 | Move between the sidebar and the terminal | `Alt-s` |
 | Go to the next agent that needs you | `n` in the sidebar |
 | Leave, with everything still running | `q` in the sidebar |
-| New tab in this project | `t` in the sidebar, or `prefix c` in the terminal |
+| New tab in this project | `Alt-n` anywhere, `t` in the sidebar, or `prefix c` in the terminal |
 | Next / previous tab | `prefix n` / `prefix p` |
 | Go to a tab by number | `prefix 1`-`9` |
 
@@ -303,8 +303,11 @@ Press `Alt-/` and scroll down, or search for "icons", for the same legend. Icons
 ## Choosing which tabs open
 
 A new workspace starts the tabs in `[[tabs]]`, in order: by default `nvim`, `claude` and a `shell`, in
-the project root (or the worktree root for a worktree). You land on the first one. When you want more,
-press `t` in the sidebar and pick one: another claude, a shell. It opens in the same directory.
+the project root (or the worktree root for a worktree). You land on the claude tab (`focus_tab` in
+config.toml picks another). When you want more, press `Alt-n` (anywhere, even with the sidebar hidden)
+or `t` in the sidebar, and pick one: another claude, a shell. It opens in the same directory, named
+`shell-2` and so on when the name's taken. From a shell, `the-deaner tab` does the same, or
+`the-deaner tab <workspace> <tab>` without the list.
 
 To start with something else, set your own list. This one starts lighter:
 

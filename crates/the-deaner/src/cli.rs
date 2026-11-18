@@ -54,9 +54,17 @@ pub enum Cmd {
     /// Start (or unpark) a workspace and switch to it. A folder that isn't added yet is added first
     Open { target: String },
     /// Add a tab to a workspace, e.g. `the-deaner tab api claude` or `the-deaner tab api logs -- tail -f app.log`
+    ///
+    /// Without a tab name, pick one from a list (`Alt-n` anywhere in the-deaner opens that
+    /// list for the project on screen). Without a workspace, the one you're in.
     Tab {
-        target: String,
-        name: String,
+        /// The workspace (`the-deaner ls`); the one you're in when left out.
+        target: Option<String>,
+        /// The tab: an agent, `nvim`, `shell`, or a new name for the command after `--`.
+        name: Option<String>,
+        /// Open the picker in a popup over the frame (what `Alt-n` runs)
+        #[arg(long, hide = true)]
+        popup: bool,
         /// Command to run in the tab (defaults to the agent of the same name, or a shell)
         #[arg(last = true)]
         command: Vec<String>,
@@ -316,21 +324,40 @@ pub fn run(cli: Cli) -> Result<()> {
         Some(Cmd::Tab {
             target,
             name,
+            popup,
             command,
         }) => {
+            if popup {
+                tab_popup(&engine);
+                return Ok(());
+            }
+            let target = match target {
+                Some(t) => t,
+                None => current_session(&engine).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "which workspace? `the-deaner tab <workspace>` (see `the-deaner ls`)"
+                    )
+                })?,
+            };
             let ws = engine.find(&target)?;
             let session = engine.ensure_session(&ws)?;
-            let spec = if command.is_empty() {
-                engine
+            let picked = name.is_none();
+            let spec = match name {
+                None => match crate::tabpicker::run(&ws.name, engine.tab_choices(&ws.repo))? {
+                    Some(spec) => spec,
+                    None => return Ok(()),
+                },
+                Some(name) if command.is_empty() => engine
                     .tab_choices(&ws.repo)
                     .into_iter()
                     .find(|t| t.name == name)
-                    .unwrap_or_else(|| TabSpec::new(&name, None))
-            } else {
-                TabSpec::new(&name, Some(&shell_words::join(&command)))
+                    .unwrap_or_else(|| TabSpec::new(&name, None)),
+                Some(name) => TabSpec::new(&name, Some(&shell_words::join(&command))),
             };
             engine.new_tab(&session, &ws.path, &spec)?;
-            println!("added tab {name} to {session}");
+            if !picked {
+                println!("added tab {} to {session}", spec.name);
+            }
             Ok(())
         }
         Some(Cmd::Remove {
@@ -669,6 +696,61 @@ pub(crate) fn shutdown(engine: &Engine, force: bool, restart: bool) -> Result<()
         return frame::relaunch(engine);
     }
     Ok(())
+}
+
+/// The workspace you're in: the one this shell runs in, or (from the frame: a popup, the
+/// sidebar) the one in the frame's terminal pane.
+fn current_session(engine: &Engine) -> Option<String> {
+    // First: workspace panes inherit the frame's environment too.
+    if crate::frame::inside_workspaces(engine) {
+        let pane = std::env::var("TMUX_PANE").ok()?;
+        return engine.tmux.display(Some(&pane), "#{session_name}");
+    }
+    if !crate::frame::in_frame() {
+        return None;
+    }
+    let frame = crate::frame::frame_tmux(engine);
+    let tty = frame.display(Some(crate::frame::TERM_PANE), "#{pane_tty}")?;
+    engine
+        .tmux
+        .clients()
+        .into_iter()
+        .find(|(t, _)| *t == tty)
+        .map(|(_, s)| s)
+}
+
+/// `Alt-n`: the new-tab picker for the project on screen, in a popup sized to fit. Runs
+/// from tmux's `run-shell`, which shows anything printed, so problems go to the status
+/// line instead.
+fn tab_popup(engine: &Engine) {
+    let frame = crate::frame::frame_tmux(engine);
+    let say = |msg: &str| {
+        let _ = frame.display_message(msg);
+    };
+    let Some(session) = current_session(engine) else {
+        say("the-deaner: open a project first (no workspace on screen)");
+        return;
+    };
+    let Ok(ws) = engine.find(&session) else {
+        say(&format!("the-deaner: {session} isn't a workspace"));
+        return;
+    };
+    let picker = the_deaner_ui::tabpicker::TabPicker::new(&ws.name, engine.tab_choices(&ws.repo));
+    let width = picker
+        .choices()
+        .iter()
+        .map(|c| 14 + c.command.as_deref().unwrap_or("shell").len())
+        .chain([ws.name.len() + 14, 30])
+        .max()
+        .unwrap_or(30)
+        .min(70);
+    let height = picker.height() + 2;
+    let sub = format!("tab {}", shell_words::quote(&session));
+    if let Err(e) =
+        crate::frame::open_popup_sized(&frame, &sub, &width.to_string(), &height.to_string())
+    {
+        say(&format!("the-deaner: {e}"));
+    }
 }
 
 fn print_keys(markdown: bool) {

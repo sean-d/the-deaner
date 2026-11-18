@@ -144,8 +144,8 @@ In the sidebar:
 | `q` | Detach. Everything keeps running |
 | `?` | Every key, searchable, plus what the icons mean |
 
-Anywhere: `Alt-s` sidebar ↔ terminal, `Alt-e` hide or show the sidebar, `Alt-/` the searchable
-cheat sheet. These are tmux key names in `~/.config/the-deaner/config.toml`, so you can change them.
+Anywhere: `Alt-s` sidebar ↔ terminal, `Alt-e` hide or show the sidebar, `Alt-n` a new tab in the
+project on screen (nvim, claude, shell), `Alt-/` the searchable cheat sheet. These are tmux key names in `~/.config/the-deaner/config.toml`, so you can change them.
 
 ## What the icons mean
 

@@ -285,6 +285,14 @@ impl Tmux {
         (!v.is_empty()).then(|| v.to_string())
     }
 
+    /// Show `message` in the status line of the most recently used client.
+    ///
+    /// # Errors
+    /// When tmux refuses (no server, no client).
+    pub fn display_message(&self, message: &str) -> Result<()> {
+        self.run(&["display-message", message]).map(drop)
+    }
+
     /// Evaluate a format in the context of `target` (`display-message -p`).
     #[must_use]
     pub fn display(&self, target: Option<&str>, format: &str) -> Option<String> {

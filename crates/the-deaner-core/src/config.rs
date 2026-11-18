@@ -46,6 +46,8 @@ pub struct FrameKeys {
     pub toggle_sidebar: String,
     /// Open the searchable shortcut cheat sheet.
     pub cheatsheet: String,
+    /// Open a new tab in the project on screen (a picker in a popup).
+    pub new_tab: String,
 }
 
 impl Default for FrameKeys {
@@ -54,6 +56,8 @@ impl Default for FrameKeys {
             focus: "M-s".into(),
             toggle_sidebar: "M-e".into(),
             cheatsheet: "M-/".into(),
+            // Not M-t: Claude Code toggles thinking with it.
+            new_tab: "M-n".into(),
         }
     }
 }
@@ -173,7 +177,7 @@ pub struct Config {
     /// The tab a new workspace opens on, by name; the first tab when there's none by that
     /// name. Woken and restored workspaces come back on the tab they were saved on.
     pub focus_tab: String,
-    /// Known agents, merged over the built-in `claude` and `codex` definitions.
+    /// Known agents, merged over the built-in `claude` definition.
     pub agents: BTreeMap<String, AgentDef>,
 }
 
@@ -213,22 +217,13 @@ impl Default for Config {
 }
 
 fn builtin_agents() -> BTreeMap<String, AgentDef> {
-    BTreeMap::from([
-        (
-            "claude".to_string(),
-            AgentDef {
-                command: "claude".into(),
-                resume: Some("claude --resume {session_id}".into()),
-            },
-        ),
-        (
-            "codex".to_string(),
-            AgentDef {
-                command: "codex".into(),
-                resume: Some("codex resume {session_id}".into()),
-            },
-        ),
-    ])
+    BTreeMap::from([(
+        "claude".to_string(),
+        AgentDef {
+            command: "claude".into(),
+            resume: Some("claude --resume {session_id}".into()),
+        },
+    )])
 }
 
 /// The first word of a command line, without any directory part.
@@ -366,9 +361,9 @@ resume = "claude --model opus --resume {session_id}"
         )
         .unwrap();
         assert_eq!(cfg.sidebar_width, 40);
-        assert_eq!(cfg.agents.len(), 3);
+        assert_eq!(cfg.agents.len(), 2);
         assert_eq!(cfg.agents["claude"].command, "claude --model opus");
-        assert!(cfg.agents.contains_key("codex"));
+        assert!(cfg.agents.contains_key("aider"));
     }
 
     #[test]
@@ -423,14 +418,14 @@ command = "npm run dev"
             .into_iter()
             .map(|t| t.name)
             .collect();
-        assert_eq!(choices, ["claude", "dev", "codex", "nvim", "shell"]);
+        assert_eq!(choices, ["claude", "dev", "nvim", "shell"]);
 
         // The default tabs, in order, then anything else that can be opened.
         let names = |tabs: Vec<TabSpec>| tabs.into_iter().map(|t| t.name).collect::<Vec<_>>();
         assert_eq!(names(cfg.tabs_for(None)), ["nvim", "claude", "shell"]);
         assert_eq!(
             names(cfg.new_tab_choices(None)),
-            ["nvim", "claude", "shell", "codex"]
+            ["nvim", "claude", "shell"]
         );
     }
 

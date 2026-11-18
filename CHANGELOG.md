@@ -4,6 +4,15 @@ What changed in each version of the-deaner, newest first. The same notes are bui
 the-deaner: they open by themselves after an upgrade, they're the first page of the guide (`Alt-/`,
 then `Tab`), and `the-deaner changelog` shows them from a shell. Search them with `/`.
 
+## 0.2.3 · 2026-11-18
+
+- **`Alt-n` opens a new tab from anywhere**, even with the sidebar hidden: the same list as `t`
+  (nvim, claude, shell, …) pops up for the project on screen, and the tab opens right there. Not
+  `Alt-t`, which Claude Code uses to toggle thinking. `new_tab` under `[keys]` in config.toml
+  changes it. From a shell, `the-deaner tab` shows the same list for the workspace you're in.
+- codex is no longer a built-in agent, so the new-tab list is nvim, claude and shell. Two lines in
+  config.toml add it back (see Configuration, "Adding an agent").
+
 ## 0.2.2 · 2026-11-17
 
 - **Status without hooks.** The sidebar now sees what each claude is doing even where the-deaner's

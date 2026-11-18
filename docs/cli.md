@@ -121,21 +121,23 @@ Options:
 ```text
 Add a tab to a workspace, e.g. `the-deaner tab api claude` or `the-deaner tab api logs -- tail -f app.log`
 
-Usage: the-deaner tab <TARGET> <NAME> [-- <COMMAND>...]
+Without a tab name, pick one from a list (`Alt-n` anywhere in the-deaner opens that list for the project on screen). Without a workspace, the one you're in.
+
+Usage: the-deaner tab [TARGET] [NAME] [-- <COMMAND>...]
 
 Arguments:
-  <TARGET>
-          
+  [TARGET]
+          The workspace (`the-deaner ls`); the one you're in when left out
 
-  <NAME>
-          
+  [NAME]
+          The tab: an agent, `nvim`, `shell`, or a new name for the command after `--`
 
   [COMMAND]...
           Command to run in the tab (defaults to the agent of the same name, or a shell)
 
 Options:
   -h, --help
-          Print help
+          Print help (see a summary with '-h')
 ```
 
 ## the-deaner remove
